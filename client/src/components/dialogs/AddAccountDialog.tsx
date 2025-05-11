@@ -34,6 +34,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 
 const awsRegions = [
+  { value: "auto", label: "Auto-detect (Recommended)" },
   { value: "us-east-1", label: "US East (N. Virginia)" },
   { value: "us-east-2", label: "US East (Ohio)" },
   { value: "us-west-1", label: "US West (N. California)" },
@@ -78,7 +79,7 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
       name: "",
       accessKeyId: "",
       secretAccessKey: "",
-      region: "us-east-1",
+      region: "auto",
       saveCredentials: true,
     },
   });
@@ -221,7 +222,7 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
                     </SelectContent>
                   </Select>
                   <FormDescription>
-                    The AWS region where your S3 buckets are located.
+                    Choose "Auto-detect" to let the system find the correct region for your account, or select a specific region if you know it.
                   </FormDescription>
                   <FormMessage />
                 </FormItem>

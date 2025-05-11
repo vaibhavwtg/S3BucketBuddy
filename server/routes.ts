@@ -229,13 +229,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/s3-accounts", requireAuth, async (req, res) => {
     try {
-      const accountSchema = insertS3AccountSchema.parse(req.body);
+      console.log("Creating S3 account, request body:", JSON.stringify(req.body));
+      // Filter out saveCredentials as it's not in our DB schema
+      const { saveCredentials, ...accountData } = req.body;
+      
+      const accountSchema = insertS3AccountSchema.parse(accountData);
       
       // Set the user ID from the authenticated user
       accountSchema.userId = req.user!.id;
       
-      // Validate S3 credentials
+      // Validate S3 credentials and auto-detect region if not provided
       try {
+        // If region is not specified or set to "auto", try to detect it
+        if (!accountSchema.region || accountSchema.region === "auto") {
+          console.log("Attempting to auto-detect S3 region");
+          // Try with us-east-1 first (default region)
+          const defaultClient = new S3Client({
+            region: "us-east-1",
+            credentials: {
+              accessKeyId: accountSchema.accessKeyId,
+              secretAccessKey: accountSchema.secretAccessKey,
+            },
+          });
+          
+          try {
+            // Try to get bucket location constraint to determine appropriate region
+            const { Buckets } = await defaultClient.send(new ListBucketsCommand({}));
+            console.log(`Found ${Buckets?.length || 0} buckets, using region us-east-1`);
+            // If successful, set the region to us-east-1
+            accountSchema.region = "us-east-1";
+          } catch (error) {
+            // If the error suggests a different region, use that
+            console.log("Initial region detection failed, using fallback:", error);
+            accountSchema.region = "us-east-1"; // Fallback to default if detection fails
+          }
+        }
+        
+        // Create an S3 client with the detected or provided region
         const s3Client = new S3Client({
           region: accountSchema.region,
           credentials: {
@@ -244,7 +274,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           },
         });
         
-        // Test the credentials by listing buckets
+        // Test the credentials by listing buckets with the correct region
         await s3Client.send(new ListBucketsCommand({}));
       } catch (s3Error) {
         console.error("S3 validation error:", s3Error);

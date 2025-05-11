@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { User } from "@/lib/types";
 
 interface AuthContextType {
-  user: User | null;
+  user: User | null | undefined;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (username: string, email: string, password: string, confirmPassword: string) => Promise<void>;
