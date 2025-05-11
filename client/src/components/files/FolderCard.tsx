@@ -2,6 +2,7 @@ import { S3CommonPrefix } from "@/lib/types";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useLocation } from "wouter";
+import { getFileIcon, getFileColor } from "@/lib/utils";
 
 interface FolderCardProps {
   folder: S3CommonPrefix;
@@ -25,7 +26,7 @@ export function FolderCard({ folder, accountId, bucket, prefix }: FolderCardProp
     <Card className="bg-card hover:shadow-md transition duration-200 cursor-pointer" onClick={handleClick}>
       <CardContent className="p-4">
         <div className="flex items-center">
-          <i className="ri-folder-3-fill text-4xl text-amber-400 mr-3"></i>
+          <i className={`ri-${getFileIcon(undefined, true)} text-4xl ${getFileColor(undefined, true)} mr-3`}></i>
           <div className="flex-1 min-w-0">
             <h3 className="text-card-foreground font-medium truncate">{folderName}</h3>
             <p className="text-sm text-muted-foreground">Folder</p>

@@ -101,7 +101,7 @@ export function FileCard({ file, bucket, accountId, prefix }: FileCardProps) {
   
   const fileIcon = getFileIcon(contentType, false, filename);
   const fileColor = getFileColor(contentType, false, filename);
-  const fileType = getFileTypeLabel(contentType);
+  const fileType = getFileTypeLabel(contentType, filename);
 
   return (
     <Card className="bg-card overflow-hidden group hover:shadow-md transition duration-200">

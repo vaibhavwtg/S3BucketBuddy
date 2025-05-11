@@ -131,19 +131,51 @@ export function getFileColor(contentType: string | undefined, isFolder: boolean 
   return "text-slate-400";
 }
 
-export function getFileTypeLabel(contentType: string | undefined) {
-  if (!contentType) return "File";
+export function getFileTypeLabel(contentType: string | undefined, filename: string = "") {
+  if (!contentType) {
+    // Try to determine from filename extension if contentType is not available
+    if (filename) {
+      const extension = filename.split('.').pop()?.toLowerCase();
+      
+      // Images
+      if (['jpg', 'jpeg', 'png', 'gif', 'svg', 'webp'].includes(extension || '')) return "Image";
+      
+      // Documents
+      if (extension === 'pdf') return "PDF";
+      if (['doc', 'docx'].includes(extension || '')) return "Document";
+      if (['xls', 'xlsx', 'csv'].includes(extension || '')) return "Spreadsheet";
+      if (['ppt', 'pptx'].includes(extension || '')) return "Presentation";
+      if (['txt', 'rtf', 'md'].includes(extension || '')) return "Text";
+      
+      // Code files
+      if (['js', 'ts', 'jsx', 'tsx', 'py', 'java', 'c', 'cpp', 'cs', 'php', 'rb', 'go', 'swift'].includes(extension || '')) 
+        return "Code";
+      
+      // Archives
+      if (['zip', 'rar', 'tar', 'gz', '7z'].includes(extension || '')) return "Archive";
+      
+      // Media
+      if (['mp3', 'wav', 'ogg', 'flac'].includes(extension || '')) return "Audio";
+      if (['mp4', 'avi', 'mov', 'wmv', 'mkv', 'webm'].includes(extension || '')) return "Video";
+    }
+    
+    return "File";
+  }
   
+  // Determine file type from content type
   if (contentType.startsWith("image/")) return "Image";
   if (contentType.startsWith("video/")) return "Video";
   if (contentType.startsWith("audio/")) return "Audio";
+  if (contentType.startsWith("text/")) return "Text";
   
   if (contentType === "application/pdf") return "PDF";
-  if (contentType.includes("spreadsheet") || contentType.includes("excel")) return "Spreadsheet";
+  if (contentType.includes("spreadsheet") || contentType.includes("excel") || contentType === "application/vnd.ms-excel") return "Spreadsheet";
   if (contentType.includes("presentation") || contentType.includes("powerpoint")) return "Presentation";
-  if (contentType.includes("document") || contentType.includes("word")) return "Document";
+  if (contentType.includes("document") || contentType.includes("word") || contentType === "application/msword") return "Document";
+  if (contentType.includes("code") || contentType.includes("javascript") || contentType.includes("json")) return "Code";
   
-  if (contentType.includes("zip") || contentType.includes("compressed") || contentType.includes("archive")) {
+  if (contentType.includes("zip") || contentType.includes("compressed") || contentType.includes("archive") || 
+      contentType === "application/x-rar-compressed" || contentType === "application/x-7z-compressed") {
     return "Archive";
   }
   

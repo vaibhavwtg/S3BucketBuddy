@@ -23,6 +23,11 @@ declare global {
       email: string;
       avatarUrl?: string;
     }
+    
+    // Add multer file to Request type
+    interface Request {
+      file?: Express.Multer.File;
+    }
   }
 }
 
