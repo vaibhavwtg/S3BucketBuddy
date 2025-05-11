@@ -14,6 +14,11 @@ import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import multer from "multer";
 import { Readable } from "stream";
 
+// Helper function to convert null to undefined
+function nullToUndefined<T>(value: T | null): T | undefined {
+  return value === null ? undefined : value;
+}
+
 // Define types for authenticated requests
 declare global {
   namespace Express {
@@ -80,7 +85,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             id: user.id,
             username: user.username,
             email: user.email,
-            avatarUrl: user.avatarUrl,
+            avatarUrl: user.avatarUrl || undefined,
           });
         } catch (error) {
           return done(error);
@@ -104,7 +109,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         id: user.id,
         username: user.username,
         email: user.email,
-        avatarUrl: user.avatarUrl,
+        avatarUrl: user.avatarUrl || undefined,
       });
     } catch (error) {
       done(error);
@@ -180,7 +185,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           id: user.id,
           username: user.username,
           email: user.email,
-          avatarUrl: user.avatarUrl,
+          avatarUrl: user.avatarUrl || undefined,
         },
         (err) => {
           if (err) {
