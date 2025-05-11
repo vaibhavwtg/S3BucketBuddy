@@ -1,0 +1,790 @@
+import type { Express, Request, Response } from "express";
+import { createServer, type Server } from "http";
+import { storage } from "./storage";
+import { z } from "zod";
+import { insertUserSchema, insertS3AccountSchema, insertSharedFileSchema } from "@shared/schema";
+import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import session from "express-session";
+import MemoryStore from "memorystore";
+import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import multer from "multer";
+import { Readable } from "stream";
+
+// Define types for authenticated requests
+declare global {
+  namespace Express {
+    interface User {
+      id: number;
+      username: string;
+      email: string;
+      avatarUrl?: string;
+    }
+  }
+}
+
+export async function registerRoutes(app: Express): Promise<Server> {
+  const httpServer = createServer(app);
+  const MemoryStoreSession = MemoryStore(session);
+  
+  // Configure session middleware
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "super-secret-key",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      },
+      store: new MemoryStoreSession({
+        checkPeriod: 86400000, // prune expired entries every 24h
+      }),
+    })
+  );
+  
+  // Initialize Passport
+  app.use(passport.initialize());
+  app.use(passport.session());
+  
+  // Configure Local Strategy for authentication
+  passport.use(
+    new LocalStrategy(
+      {
+        usernameField: "email",
+        passwordField: "password",
+      },
+      async (email, password, done) => {
+        try {
+          const user = await storage.getUserByEmail(email);
+          
+          if (!user || !user.password) {
+            return done(null, false, { message: "Incorrect email or password" });
+          }
+          
+          const isValid = await bcrypt.compare(password, user.password);
+          
+          if (!isValid) {
+            return done(null, false, { message: "Incorrect email or password" });
+          }
+          
+          return done(null, {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl,
+          });
+        } catch (error) {
+          return done(error);
+        }
+      }
+    )
+  );
+  
+  // Serialize and Deserialize User
+  passport.serializeUser((user, done) => {
+    done(null, user.id);
+  });
+  
+  passport.deserializeUser(async (id: number, done) => {
+    try {
+      const user = await storage.getUser(id);
+      if (!user) {
+        return done(new Error("User not found"));
+      }
+      done(null, {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatarUrl: user.avatarUrl,
+      });
+    } catch (error) {
+      done(error);
+    }
+  });
+  
+  // Authentication middleware
+  const requireAuth = (req: Request, res: Response, next: any) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
+    next();
+  };
+  
+  // Configure multer for file uploads
+  const upload = multer({ storage: multer.memoryStorage() });
+  
+  // Authentication Routes
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const userSchema = insertUserSchema.extend({
+        confirmPassword: z.string(),
+      });
+      
+      const validatedData = userSchema.parse(req.body);
+      
+      // Check if passwords match
+      if (validatedData.password !== validatedData.confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+      }
+      
+      // Check if email is already taken
+      const existingEmail = await storage.getUserByEmail(validatedData.email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+      
+      // Check if username is already taken
+      const existingUsername = await storage.getUserByUsername(validatedData.username);
+      if (existingUsername) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(validatedData.password, 10);
+      
+      // Create user
+      const user = await storage.createUser({
+        ...validatedData,
+        password: hashedPassword,
+        authProvider: "email",
+      });
+      
+      // Create default user settings
+      await storage.createOrUpdateUserSettings({
+        userId: user.id,
+        theme: "light",
+        notifications: true,
+      });
+      
+      // Authenticate the user
+      req.login(
+        {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          avatarUrl: user.avatarUrl,
+        },
+        (err) => {
+          if (err) {
+            return res.status(500).json({ message: "Authentication failed" });
+          }
+          return res.status(201).json({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl,
+          });
+        }
+      );
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Registration error:", error);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
+  
+  app.post("/api/auth/login", passport.authenticate("local"), (req, res) => {
+    res.json(req.user);
+  });
+  
+  app.post("/api/auth/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logged out successfully" });
+    });
+  });
+  
+  app.get("/api/auth/me", (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    res.json(req.user);
+  });
+  
+  // S3 Account Routes
+  app.get("/api/s3-accounts", requireAuth, async (req, res) => {
+    try {
+      const accounts = await storage.getS3Accounts(req.user!.id);
+      
+      // Don't send back the secret access key
+      const sanitizedAccounts = accounts.map((account) => ({
+        ...account,
+        secretAccessKey: "••••••••••••••••",
+      }));
+      
+      res.json(sanitizedAccounts);
+    } catch (error) {
+      console.error("Error fetching S3 accounts:", error);
+      res.status(500).json({ message: "Failed to retrieve S3 accounts" });
+    }
+  });
+  
+  app.post("/api/s3-accounts", requireAuth, async (req, res) => {
+    try {
+      const accountSchema = insertS3AccountSchema.parse(req.body);
+      
+      // Set the user ID from the authenticated user
+      accountSchema.userId = req.user!.id;
+      
+      // Validate S3 credentials
+      try {
+        const s3Client = new S3Client({
+          region: accountSchema.region,
+          credentials: {
+            accessKeyId: accountSchema.accessKeyId,
+            secretAccessKey: accountSchema.secretAccessKey,
+          },
+        });
+        
+        // Test the credentials by listing buckets
+        await s3Client.send(new ListBucketsCommand({}));
+      } catch (s3Error) {
+        console.error("S3 validation error:", s3Error);
+        return res.status(400).json({ message: "Invalid S3 credentials" });
+      }
+      
+      const account = await storage.createS3Account(accountSchema);
+      
+      // Optionally set as default account if it's the first one
+      const accounts = await storage.getS3Accounts(req.user!.id);
+      if (accounts.length === 1) {
+        const settings = await storage.getUserSettings(req.user!.id);
+        if (settings) {
+          await storage.createOrUpdateUserSettings({
+            ...settings,
+            defaultAccountId: account.id,
+          });
+        } else {
+          await storage.createOrUpdateUserSettings({
+            userId: req.user!.id,
+            defaultAccountId: account.id,
+          });
+        }
+      }
+      
+      // Don't send back the secret access key
+      res.status(201).json({
+        ...account,
+        secretAccessKey: "••••••••••••••••",
+      });
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Error creating S3 account:", error);
+      res.status(500).json({ message: "Failed to create S3 account" });
+    }
+  });
+  
+  app.put("/api/s3-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.id);
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      const updates = req.body;
+      
+      // If updating credentials, validate them
+      if (updates.accessKeyId && updates.secretAccessKey && updates.region) {
+        try {
+          const s3Client = new S3Client({
+            region: updates.region,
+            credentials: {
+              accessKeyId: updates.accessKeyId,
+              secretAccessKey: updates.secretAccessKey,
+            },
+          });
+          
+          // Test the credentials by listing buckets
+          await s3Client.send(new ListBucketsCommand({}));
+        } catch (s3Error) {
+          console.error("S3 validation error:", s3Error);
+          return res.status(400).json({ message: "Invalid S3 credentials" });
+        }
+      }
+      
+      const updatedAccount = await storage.updateS3Account(accountId, updates);
+      
+      // Don't send back the secret access key
+      res.json({
+        ...updatedAccount,
+        secretAccessKey: "••••••••••••••••",
+      });
+    } catch (error) {
+      console.error("Error updating S3 account:", error);
+      res.status(500).json({ message: "Failed to update S3 account" });
+    }
+  });
+  
+  app.delete("/api/s3-accounts/:id", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.id);
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Delete the account
+      await storage.deleteS3Account(accountId);
+      
+      // Update user settings if this was the default account
+      const settings = await storage.getUserSettings(req.user!.id);
+      if (settings && settings.defaultAccountId === accountId) {
+        // Find another account to set as default, or set to null
+        const accounts = await storage.getS3Accounts(req.user!.id);
+        const defaultAccountId = accounts.length > 0 ? accounts[0].id : null;
+        
+        await storage.createOrUpdateUserSettings({
+          ...settings,
+          defaultAccountId: defaultAccountId,
+        });
+      }
+      
+      res.json({ message: "Account deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting S3 account:", error);
+      res.status(500).json({ message: "Failed to delete S3 account" });
+    }
+  });
+  
+  // S3 Operations Routes
+  app.get("/api/s3/:accountId/buckets", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // List buckets
+      const { Buckets } = await s3Client.send(new ListBucketsCommand({}));
+      
+      res.json(Buckets || []);
+    } catch (error) {
+      console.error("Error listing buckets:", error);
+      res.status(500).json({ message: "Failed to list buckets" });
+    }
+  });
+  
+  app.get("/api/s3/:accountId/objects", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const { bucket, prefix = "", delimiter = "/" } = req.query;
+      
+      if (!bucket) {
+        return res.status(400).json({ message: "Bucket name is required" });
+      }
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // List objects
+      const command = new ListObjectsV2Command({
+        Bucket: bucket as string,
+        Prefix: prefix as string,
+        Delimiter: delimiter as string,
+      });
+      
+      const result = await s3Client.send(command);
+      
+      // Save path to recently accessed
+      const path = `${bucket}/${prefix}`;
+      await storage.updateLastAccessed(req.user!.id, path);
+      
+      res.json({
+        objects: result.Contents || [],
+        folders: result.CommonPrefixes || [],
+        prefix: result.Prefix || "",
+        delimiter: result.Delimiter || "/",
+      });
+    } catch (error) {
+      console.error("Error listing objects:", error);
+      res.status(500).json({ message: "Failed to list objects" });
+    }
+  });
+  
+  app.get("/api/s3/:accountId/download", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const { bucket, key } = req.query;
+      
+      if (!bucket || !key) {
+        return res.status(400).json({ message: "Bucket and key are required" });
+      }
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // Create a signed URL for downloading
+      const command = new GetObjectCommand({
+        Bucket: bucket as string,
+        Key: key as string,
+      });
+      
+      const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+      
+      res.json({ signedUrl });
+    } catch (error) {
+      console.error("Error generating download link:", error);
+      res.status(500).json({ message: "Failed to generate download link" });
+    }
+  });
+  
+  app.post("/api/s3/:accountId/upload", requireAuth, upload.single("file"), async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const { bucket, prefix = "" } = req.body;
+      
+      if (!bucket || !req.file) {
+        return res.status(400).json({ message: "Bucket and file are required" });
+      }
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // Prepare the file
+      const key = prefix ? `${prefix}${req.file.originalname}` : req.file.originalname;
+      
+      // Upload to S3
+      const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        Body: req.file.buffer,
+        ContentType: req.file.mimetype,
+      });
+      
+      await s3Client.send(command);
+      
+      res.status(201).json({
+        bucket,
+        key,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+      });
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      res.status(500).json({ message: "Failed to upload file" });
+    }
+  });
+  
+  app.delete("/api/s3/:accountId/objects", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const { bucket, key } = req.query;
+      
+      if (!bucket || !key) {
+        return res.status(400).json({ message: "Bucket and key are required" });
+      }
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // Delete object
+      const command = new DeleteObjectCommand({
+        Bucket: bucket as string,
+        Key: key as string,
+      });
+      
+      await s3Client.send(command);
+      
+      res.json({ message: "Object deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting object:", error);
+      res.status(500).json({ message: "Failed to delete object" });
+    }
+  });
+  
+  // Shared Files Routes
+  app.post("/api/shared-files", requireAuth, async (req, res) => {
+    try {
+      const { accountId, bucket, path, filename, expiresAt, allowDownload, password } = req.body;
+      
+      if (!accountId || !bucket || !path || !filename) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(parseInt(accountId));
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Get file size and content type
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // Check if file exists and get metadata
+      const headCommand = new HeadObjectCommand({
+        Bucket: bucket,
+        Key: path,
+      });
+      
+      const headResponse = await s3Client.send(headCommand);
+      
+      // Generate share token
+      const shareToken = randomBytes(16).toString("hex");
+      
+      // Hash password if provided
+      let hashedPassword = null;
+      if (password) {
+        hashedPassword = await bcrypt.hash(password, 10);
+      }
+      
+      // Create shared file record
+      const sharedFile = await storage.createSharedFile({
+        userId: req.user!.id,
+        accountId: parseInt(accountId),
+        bucket,
+        path,
+        filename,
+        filesize: headResponse.ContentLength || 0,
+        contentType: headResponse.ContentType,
+        shareToken,
+        expiresAt: expiresAt ? new Date(expiresAt) : null,
+        allowDownload: allowDownload !== false,
+        password: hashedPassword,
+      });
+      
+      res.status(201).json({
+        ...sharedFile,
+        shareUrl: `${req.protocol}://${req.get("host")}/shared/${shareToken}`,
+      });
+    } catch (error) {
+      console.error("Error creating shared file:", error);
+      res.status(500).json({ message: "Failed to create shared file" });
+    }
+  });
+  
+  app.get("/api/shared-files", requireAuth, async (req, res) => {
+    try {
+      const sharedFiles = await storage.getSharedFiles(req.user!.id);
+      
+      // Add share URLs
+      const filesWithUrls = sharedFiles.map((file) => ({
+        ...file,
+        shareUrl: `${req.protocol}://${req.get("host")}/shared/${file.shareToken}`,
+      }));
+      
+      res.json(filesWithUrls);
+    } catch (error) {
+      console.error("Error fetching shared files:", error);
+      res.status(500).json({ message: "Failed to fetch shared files" });
+    }
+  });
+  
+  app.delete("/api/shared-files/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check if file belongs to user
+      const sharedFile = await storage.getSharedFile(id);
+      if (!sharedFile || sharedFile.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Shared file not found" });
+      }
+      
+      // Delete the shared file
+      await storage.deleteSharedFile(id);
+      
+      res.json({ message: "Shared file deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting shared file:", error);
+      res.status(500).json({ message: "Failed to delete shared file" });
+    }
+  });
+  
+  // Public shared file access route
+  app.get("/api/shared/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const { password } = req.query;
+      
+      // Get shared file
+      const sharedFile = await storage.getSharedFileByToken(token);
+      
+      if (!sharedFile) {
+        return res.status(404).json({ message: "Shared file not found or expired" });
+      }
+      
+      // Check password if required
+      if (sharedFile.password) {
+        if (!password) {
+          return res.status(401).json({ passwordRequired: true, message: "Password required" });
+        }
+        
+        const passwordValid = await bcrypt.compare(password as string, sharedFile.password);
+        if (!passwordValid) {
+          return res.status(401).json({ message: "Invalid password" });
+        }
+      }
+      
+      // Get S3 account
+      const account = await storage.getS3Account(sharedFile.accountId);
+      if (!account) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // Generate signed URL for download or view
+      const command = new GetObjectCommand({
+        Bucket: sharedFile.bucket,
+        Key: sharedFile.path,
+      });
+      
+      const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+      
+      res.json({
+        filename: sharedFile.filename,
+        contentType: sharedFile.contentType,
+        filesize: sharedFile.filesize,
+        signedUrl,
+        allowDownload: sharedFile.allowDownload,
+        expiresAt: sharedFile.expiresAt,
+      });
+    } catch (error) {
+      console.error("Error accessing shared file:", error);
+      res.status(500).json({ message: "Failed to access shared file" });
+    }
+  });
+  
+  // User Settings Routes
+  app.get("/api/user-settings", requireAuth, async (req, res) => {
+    try {
+      const settings = await storage.getUserSettings(req.user!.id);
+      
+      if (!settings) {
+        // Create default settings if none exist
+        const newSettings = await storage.createOrUpdateUserSettings({
+          userId: req.user!.id,
+          theme: "light",
+          notifications: true,
+        });
+        
+        return res.json(newSettings);
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching user settings:", error);
+      res.status(500).json({ message: "Failed to fetch user settings" });
+    }
+  });
+  
+  app.put("/api/user-settings", requireAuth, async (req, res) => {
+    try {
+      const { theme, defaultAccountId, notifications } = req.body;
+      
+      // If defaultAccountId is provided, check if it belongs to user
+      if (defaultAccountId) {
+        const account = await storage.getS3Account(defaultAccountId);
+        if (!account || account.userId !== req.user!.id) {
+          return res.status(400).json({ message: "Invalid account ID" });
+        }
+      }
+      
+      // Get current settings
+      const currentSettings = await storage.getUserSettings(req.user!.id);
+      
+      // Update settings
+      const settings = await storage.createOrUpdateUserSettings({
+        userId: req.user!.id,
+        theme: theme || currentSettings?.theme || "light",
+        defaultAccountId: defaultAccountId !== undefined ? defaultAccountId : currentSettings?.defaultAccountId,
+        notifications: notifications !== undefined ? notifications : currentSettings?.notifications || true,
+        lastAccessed: currentSettings?.lastAccessed || [],
+      });
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error updating user settings:", error);
+      res.status(500).json({ message: "Failed to update user settings" });
+    }
+  });
+
+  return httpServer;
+}
