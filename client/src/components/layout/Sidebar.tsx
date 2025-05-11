@@ -125,6 +125,18 @@ export function Sidebar() {
               <i className="ri-add-line mr-3 text-lg"></i>
               <span>Add Account</span>
             </Button>
+            
+            <Link href="/manage-accounts">
+              <a className={cn(
+                "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
+                isActive("/manage-accounts") ? 
+                  "bg-muted text-foreground" : 
+                  "text-foreground hover:bg-muted"
+              )}>
+                <i className="ri-settings-line mr-3 text-lg"></i>
+                <span>Manage Accounts</span>
+              </a>
+            </Link>
           </div>
         </div>
       </nav>

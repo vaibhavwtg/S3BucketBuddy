@@ -10,6 +10,7 @@ import Dashboard from "@/pages/dashboard";
 import Browser from "@/pages/browser";
 import SharedFiles from "@/pages/shared-files";
 import AccountSettings from "@/pages/account-settings";
+import AccountManager from "@/pages/account-manager";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import PublicSharedFile from "@/pages/public-shared-file";
@@ -24,6 +25,7 @@ function Router() {
       <Route path="/browser/:accountId" component={Browser} />
       <Route path="/shared" component={SharedFiles} />
       <Route path="/settings" component={AccountSettings} />
+      <Route path="/manage-accounts" component={AccountManager} />
       <Route path="/shared/:token" component={PublicSharedFile} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />
