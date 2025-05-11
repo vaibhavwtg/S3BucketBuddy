@@ -42,6 +42,7 @@ export interface S3Account {
   accessKeyId: string;
   secretAccessKey: string;
   region: string;
+  defaultBucket?: string;
   isActive: boolean;
   createdAt: string;
 }

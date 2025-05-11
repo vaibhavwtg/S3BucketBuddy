@@ -61,7 +61,7 @@ const addAccountSchema = z.object({
   secretAccessKey: z.string().min(1, "Secret Access Key is required"),
   region: z.string().min(1, "Region is required"),
   saveCredentials: z.boolean().default(true).optional(),
-  selectedBucket: z.string().optional(),
+  selectedBucket: z.string().min(1, "Bucket selection is required"),
 });
 
 type AddAccountFormValues = z.infer<typeof addAccountSchema>;
@@ -69,9 +69,10 @@ type AddAccountFormValues = z.infer<typeof addAccountSchema>;
 interface AddAccountDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  requireBucketSelection?: boolean;
 }
 
-export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) {
+export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = false }: AddAccountDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showPassword, setShowPassword] = useState(false);
@@ -193,22 +194,34 @@ export function AddAccountDialog({ open, onOpenChange }: AddAccountDialogProps) 
   }
 
   function onSubmit(values: AddAccountFormValues) {
-    // If credentials are validated and a bucket is selected, submit the form
-    if (credentialsValidated && values.selectedBucket) {
-      addAccountMutation.mutate(values);
-    } else if (!credentialsValidated) {
+    // Always require credentials to be validated
+    if (!credentialsValidated) {
       toast({
         title: "Validation Required",
         description: "Please validate your credentials first",
         variant: "destructive",
       });
-    } else {
+      return;
+    }
+    
+    // If bucket selection is required, ensure a bucket is selected
+    if (requireBucketSelection && !values.selectedBucket) {
       toast({
         title: "Bucket Required",
         description: "Please select a bucket to use",
         variant: "destructive",
       });
+      return;
     }
+    
+    // Set the defaultBucket value to the selectedBucket for storage
+    const formData = {
+      ...values,
+      defaultBucket: values.selectedBucket
+    };
+    
+    // Submit the form
+    addAccountMutation.mutate(formData);
   }
 
   return (

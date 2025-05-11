@@ -25,7 +25,7 @@ export default function AccountManager() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: accounts = [], isLoading } = useQuery({
+  const { data: accounts = [], isLoading } = useQuery<S3Account[]>({
     queryKey: ['/api/s3-accounts'],
     queryFn: getQueryFn({ on401: "throw" }),
   });
