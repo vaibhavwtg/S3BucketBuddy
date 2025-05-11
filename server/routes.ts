@@ -137,10 +137,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Email already in use" });
       }
       
-      // Check if username is already taken
-      const existingUsername = await storage.getUserByUsername(validatedData.username);
-      if (existingUsername) {
-        return res.status(400).json({ message: "Username already taken" });
+      // If username is not provided, use email as username
+      if (!validatedData.username) {
+        validatedData.username = validatedData.email.split('@')[0];
+      }
+      
+      // Ensure username is unique by adding a suffix if needed
+      let finalUsername = validatedData.username;
+      let counter = 1;
+      
+      while (await storage.getUserByUsername(finalUsername)) {
+        finalUsername = `${validatedData.username}${counter}`;
+        counter++;
       }
       
       // Hash password
@@ -149,6 +157,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create user
       const user = await storage.createUser({
         ...validatedData,
+        username: finalUsername,
         password: hashedPassword,
         authProvider: "email",
       });
@@ -230,25 +239,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/s3-accounts", requireAuth, async (req, res) => {
     try {
       console.log("Creating S3 account, request body:", JSON.stringify(req.body));
+      
       // Filter out saveCredentials as it's not in our DB schema
       const { saveCredentials, ...accountData } = req.body;
       
-      const accountSchema = insertS3AccountSchema.parse(accountData);
+      // Prepare account data with user ID
+      const accountInput = {
+        ...accountData,
+        userId: req.user!.id
+      };
       
-      // Set the user ID from the authenticated user
-      accountSchema.userId = req.user!.id;
+      // Validate the account data
+      try {
+        console.log("Validating S3 account data:", JSON.stringify(accountInput));
+        insertS3AccountSchema.parse(accountInput);
+      } catch (validationError) {
+        console.error("Validation error details:", validationError);
+        return res.status(400).json({ message: "Invalid account data", details: validationError instanceof z.ZodError ? validationError.errors : "Unknown validation error" });
+      }
       
       // Validate S3 credentials and auto-detect region if not provided
       try {
         // If region is not specified or set to "auto", try to detect it
-        if (!accountSchema.region || accountSchema.region === "auto") {
+        if (!accountInput.region || accountInput.region === "auto") {
           console.log("Attempting to auto-detect S3 region");
           // Try with us-east-1 first (default region)
           const defaultClient = new S3Client({
             region: "us-east-1",
             credentials: {
-              accessKeyId: accountSchema.accessKeyId,
-              secretAccessKey: accountSchema.secretAccessKey,
+              accessKeyId: accountInput.accessKeyId,
+              secretAccessKey: accountInput.secretAccessKey,
             },
           });
           
@@ -257,20 +277,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
             const { Buckets } = await defaultClient.send(new ListBucketsCommand({}));
             console.log(`Found ${Buckets?.length || 0} buckets, using region us-east-1`);
             // If successful, set the region to us-east-1
-            accountSchema.region = "us-east-1";
+            accountInput.region = "us-east-1";
           } catch (error) {
             // If the error suggests a different region, use that
             console.log("Initial region detection failed, using fallback:", error);
-            accountSchema.region = "us-east-1"; // Fallback to default if detection fails
+            accountInput.region = "us-east-1"; // Fallback to default if detection fails
           }
         }
         
         // Create an S3 client with the detected or provided region
         const s3Client = new S3Client({
-          region: accountSchema.region,
+          region: accountInput.region,
           credentials: {
-            accessKeyId: accountSchema.accessKeyId,
-            secretAccessKey: accountSchema.secretAccessKey,
+            accessKeyId: accountInput.accessKeyId,
+            secretAccessKey: accountInput.secretAccessKey,
           },
         });
         
@@ -281,7 +301,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid S3 credentials" });
       }
       
-      const account = await storage.createS3Account(accountSchema);
+      // Create the account in the database
+      const account = await storage.createS3Account(accountInput);
       
       // Optionally set as default account if it's the first one
       const accounts = await storage.getS3Accounts(req.user!.id);

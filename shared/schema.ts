@@ -55,9 +55,14 @@ export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
 });
 
-export const insertS3AccountSchema = createInsertSchema(s3Accounts).omit({
+// Create a custom S3 account schema that includes an optional "auto" region
+const baseS3AccountSchema = createInsertSchema(s3Accounts).omit({
   id: true,
   createdAt: true,
+});
+
+export const insertS3AccountSchema = baseS3AccountSchema.extend({
+  region: z.string().min(1, "Region is required"),
 });
 
 export const insertSharedFileSchema = createInsertSchema(sharedFiles).omit({
