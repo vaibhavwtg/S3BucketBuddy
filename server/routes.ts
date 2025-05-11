@@ -250,13 +250,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log("Creating S3 account, request body:", JSON.stringify(req.body));
       
-      // Filter out saveCredentials as it's not in our DB schema
-      const { saveCredentials, ...accountData } = req.body;
+      // Filter out fields that are not in our DB schema
+      const { saveCredentials, selectedBucket, ...accountData } = req.body;
       
-      // Prepare account data with user ID
+      // Prepare account data with user ID and defaultBucket if provided
       const accountInput = {
         ...accountData,
-        userId: req.user!.id
+        userId: req.user!.id,
+        defaultBucket: selectedBucket || null
       };
       
       // Validate the account data

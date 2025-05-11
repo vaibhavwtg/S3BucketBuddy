@@ -20,6 +20,7 @@ export const s3Accounts = pgTable("s3_accounts", {
   accessKeyId: text("access_key_id").notNull(),
   secretAccessKey: text("secret_access_key").notNull(),
   region: text("region").notNull(),
+  defaultBucket: text("default_bucket"),
   isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -63,6 +64,7 @@ const baseS3AccountSchema = createInsertSchema(s3Accounts).omit({
 
 export const insertS3AccountSchema = baseS3AccountSchema.extend({
   region: z.string().min(1, "Region is required"),
+  selectedBucket: z.string().optional(),
 });
 
 export const insertSharedFileSchema = createInsertSchema(sharedFiles).omit({
