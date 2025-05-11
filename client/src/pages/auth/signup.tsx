@@ -17,7 +17,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { useAuth } from "@/hooks/use-auth";
 
 const signUpSchema = z.object({
-  username: z.string().min(3, "Username must be at least 3 characters"),
+  username: z.string().min(3, "Username must be at least 3 characters").optional(),
   email: z.string().email("Please enter a valid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
   confirmPassword: z.string(),
@@ -44,7 +44,7 @@ export default function SignUp() {
 
   const onSubmit = async (values: SignUpFormValues) => {
     await register(
-      values.username,
+      values.username || "", // Provide empty string if username is undefined
       values.email,
       values.password,
       values.confirmPassword
@@ -73,11 +73,14 @@ export default function SignUp() {
                 name="username"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Username</FormLabel>
+                    <FormLabel>Username (Optional)</FormLabel>
                     <FormControl>
                       <Input placeholder="johndoe" {...field} />
                     </FormControl>
                     <FormMessage />
+                    <p className="text-xs text-muted-foreground">
+                      If left blank, your email will be used to create a username
+                    </p>
                   </FormItem>
                 )}
               />
