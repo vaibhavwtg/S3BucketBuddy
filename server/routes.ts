@@ -400,20 +400,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Account not found" });
       }
       
-      // Delete the account
-      await storage.deleteS3Account(accountId);
-      
-      // Update user settings if this was the default account
+      // First, update user settings if this was the default account
+      // This must be done BEFORE deleting to avoid constraint violations
       const settings = await storage.getUserSettings(req.user!.id);
       if (settings && settings.defaultAccountId === accountId) {
         // Find another account to set as default, or set to null
         const accounts = await storage.getS3Accounts(req.user!.id);
-        const defaultAccountId = accounts.length > 0 ? accounts[0].id : null;
+        const otherAccounts = accounts.filter(a => a.id !== accountId);
+        const defaultAccountId = otherAccounts.length > 0 ? otherAccounts[0].id : null;
+        
+        console.log(`Updating default account from ${accountId} to ${defaultAccountId}`);
         
         await storage.createOrUpdateUserSettings({
           ...settings,
           defaultAccountId: defaultAccountId,
         });
+      }
+      
+      // Now safe to delete the account
+      const deleted = await storage.deleteS3Account(accountId);
+      
+      if (!deleted) {
+        return res.status(500).json({ message: "Failed to delete S3 account" });
       }
       
       res.json({ message: "Account deleted successfully" });
