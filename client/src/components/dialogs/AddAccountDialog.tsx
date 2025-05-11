@@ -57,7 +57,7 @@ const addAccountSchema = z.object({
   accessKeyId: z.string().min(1, "Access Key ID is required"),
   secretAccessKey: z.string().min(1, "Secret Access Key is required"),
   region: z.string().min(1, "Region is required"),
-  saveCredentials: z.boolean().default(true),
+  saveCredentials: z.boolean().default(true).optional(),
 });
 
 type AddAccountFormValues = z.infer<typeof addAccountSchema>;
