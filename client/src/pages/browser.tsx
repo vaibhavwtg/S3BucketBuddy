@@ -9,7 +9,7 @@ import { FolderCard } from "@/components/files/FolderCard";
 import { StorageStats } from "@/components/files/StorageStats";
 import { Button } from "@/components/ui/button";
 import { useS3Buckets, useS3Objects } from "@/hooks/use-s3";
-import { S3Bucket, S3Object, S3CommonPrefix } from "@/lib/types";
+import { S3Bucket, S3Object, S3CommonPrefix, S3Account } from "@/lib/types";
 
 export default function Browser() {
   const { accountId, bucket, prefix = "" } = useParams();
@@ -22,6 +22,25 @@ export default function Browser() {
 
   // Parse accountId to number
   const parsedAccountId = accountId ? parseInt(accountId) : undefined;
+
+  // Fetch account information to get the default bucket
+  const { 
+    data: accounts = [],
+    isLoading: isLoadingAccounts
+  } = useQuery<S3Account[]>({
+    queryKey: ['/api/s3-accounts'],
+    enabled: parsedAccountId !== undefined && !bucket
+  });
+
+  // Find the current account
+  const currentAccount = accounts.find(acc => acc.id === parsedAccountId);
+
+  // Redirect to default bucket if we have an account with a default bucket but no bucket selected
+  useEffect(() => {
+    if (parsedAccountId && currentAccount && currentAccount.defaultBucket && !bucket) {
+      navigate(`/browser/${parsedAccountId}/${currentAccount.defaultBucket}`);
+    }
+  }, [currentAccount, parsedAccountId, bucket, navigate]);
 
   // Fetch buckets for the account
   const { 
@@ -111,7 +130,7 @@ export default function Browser() {
   };
 
   // Return loading state
-  if (isLoadingBuckets) {
+  if (isLoadingBuckets || isLoadingAccounts) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-[70vh]">

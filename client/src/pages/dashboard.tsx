@@ -86,7 +86,7 @@ export default function Dashboard() {
               <CardFooter className="bg-muted/50 p-6 flex justify-between">
                 <Button 
                   variant="outline"
-                  onClick={() => navigate(`/settings`)}
+                  onClick={() => navigate(`/manage-accounts`)}
                 >
                   Manage
                 </Button>
