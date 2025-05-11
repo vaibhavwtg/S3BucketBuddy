@@ -99,8 +99,8 @@ export function FileCard({ file, bucket, accountId, prefix }: FileCardProps) {
     `application/${filename.split('.').pop()}` : 
     "application/octet-stream";
   
-  const fileIcon = getFileIcon(contentType);
-  const fileColor = getFileColor(contentType);
+  const fileIcon = getFileIcon(contentType, false, filename);
+  const fileColor = getFileColor(contentType, false, filename);
   const fileType = getFileTypeLabel(contentType);
 
   return (
