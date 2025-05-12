@@ -86,7 +86,7 @@ export function useS3FileOperations(accountId: number | undefined) {
         toast({
           title: "Partial batch delete",
           description: `Deleted ${deleted.length} file(s), but ${errors.length} file(s) failed`,
-          variant: "warning",
+          variant: "destructive",
         });
       } else {
         toast({
@@ -160,7 +160,7 @@ export function useS3FileOperations(accountId: number | undefined) {
       toast({
         title: "No files selected",
         description: "Please select at least one file to download",
-        variant: "warning",
+        variant: "destructive",
       });
       return;
     }

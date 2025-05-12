@@ -574,8 +574,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
       });
       
+      // Define types for our URL results
+      type UrlResult = { key: string; url: string } | { key: string; error: string };
+
       // Generate signed URLs for each key
-      const urlPromises = keys.map(async (key) => {
+      const urlPromises = keys.map(async (key): Promise<UrlResult> => {
         const command = new GetObjectCommand({
           Bucket: bucket,
           Key: key,
@@ -596,7 +599,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const urlMap: Record<string, string> = {};
       
       results.forEach(result => {
-        if ('url' in result) {
+        if ('url' in result && result.key && result.url) {
           urlMap[result.key] = result.url;
         }
       });
@@ -732,12 +735,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const result = await s3Client.send(command);
       
-      // Process results
-      const deleted = result.Deleted?.map(item => item.Key || '') || [];
-      const errors = result.Errors?.map(error => ({
+      // Define the expected response types from DeleteObjectsCommand
+      interface DeletedObject {
+        Key?: string;
+        VersionId?: string;
+        DeleteMarker?: boolean;
+        DeleteMarkerVersionId?: string;
+      }
+      
+      interface DeleteError {
+        Key?: string;
+        VersionId?: string;
+        Code?: string;
+        Message?: string;
+      }
+      
+      // Process results 
+      const deletedObjects = (result.Deleted || []) as DeletedObject[];
+      const errorObjects = (result.Errors || []) as DeleteError[];
+      
+      const deleted = deletedObjects.map(item => item.Key || '');
+      const errors = errorObjects.map(error => ({
         key: error.Key || '',
         message: error.Message || 'Unknown error',
-      })) || [];
+      }));
       
       res.json({ deleted, errors });
     } catch (error) {
