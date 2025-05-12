@@ -8,8 +8,9 @@ import { FileCard } from "@/components/files/FileCard";
 import { FolderCard } from "@/components/files/FolderCard";
 import { StorageStats } from "@/components/files/StorageStats";
 import { Button } from "@/components/ui/button";
-import { useS3Buckets, useS3Objects } from "@/hooks/use-s3";
+import { useS3Buckets, useS3Objects, useS3FileOperations } from "@/hooks/use-s3";
 import { S3Bucket, S3Object, S3CommonPrefix, S3Account } from "@/lib/types";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Browser() {
   const { accountId, bucket, prefix = "" } = useParams();
@@ -19,9 +20,19 @@ export default function Browser() {
   const [filteredFiles, setFilteredFiles] = useState<S3Object[]>([]);
   const [filteredFolders, setFilteredFolders] = useState<S3CommonPrefix[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, S3Object>>({});
+  const { toast } = useToast();
 
   // Parse accountId to number
   const parsedAccountId = accountId ? parseInt(accountId) : undefined;
+
+  // Initialize S3 file operations
+  const { 
+    batchDeleteFiles, 
+    downloadFiles, 
+    isBatchDeleting
+  } = useS3FileOperations(parsedAccountId);
 
   // Fetch account information to get the default bucket
   const { 
@@ -31,6 +42,70 @@ export default function Browser() {
     queryKey: ['/api/s3-accounts'],
     enabled: parsedAccountId !== undefined && !bucket
   });
+  
+  // Handle toggling selection mode
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    if (selectionMode) {
+      // Clear all selections when exiting selection mode
+      setSelectedFiles({});
+    }
+  };
+  
+  // Handle selecting/deselecting a file
+  const handleFileSelection = (file: S3Object, selected: boolean) => {
+    if (!file.Key) return;
+    
+    setSelectedFiles(prev => {
+      const newSelection = { ...prev };
+      if (selected) {
+        newSelection[file.Key!] = file;
+      } else {
+        delete newSelection[file.Key!];
+      }
+      return newSelection;
+    });
+  };
+  
+  // Handle selecting all files
+  const selectAllFiles = () => {
+    const allFiles = filteredFiles.reduce((acc, file) => {
+      if (file.Key) {
+        acc[file.Key] = file;
+      }
+      return acc;
+    }, {} as Record<string, S3Object>);
+    
+    setSelectedFiles(allFiles);
+  };
+  
+  // Handle clearing selection
+  const clearSelection = () => {
+    setSelectedFiles({});
+  };
+  
+  // Handle batch download
+  const handleBatchDownload = () => {
+    const selectedKeys = Object.keys(selectedFiles);
+    if (selectedKeys.length === 0 || !bucket) return;
+    
+    downloadFiles(bucket, selectedKeys);
+  };
+  
+  // Handle batch delete
+  const handleBatchDelete = () => {
+    const selectedKeys = Object.keys(selectedFiles);
+    if (selectedKeys.length === 0 || !bucket) return;
+    
+    const confirmMessage = selectedKeys.length === 1 
+      ? "Are you sure you want to delete this file?" 
+      : `Are you sure you want to delete these ${selectedKeys.length} files?`;
+    
+    if (confirm(confirmMessage)) {
+      batchDeleteFiles(bucket, selectedKeys);
+      setSelectedFiles({});
+    }
+  };
 
   // Find the current account
   const currentAccount = accounts.find(acc => acc.id === parsedAccountId);
@@ -232,6 +307,13 @@ export default function Browser() {
         onViewModeChange={setViewMode}
         sortBy={sortBy}
         onSortChange={setSortBy}
+        selectionMode={selectionMode}
+        selectedCount={Object.keys(selectedFiles).length}
+        onToggleSelectionMode={toggleSelectionMode}
+        onBatchDownload={handleBatchDownload}
+        onBatchDelete={handleBatchDelete}
+        onSelectAll={selectAllFiles}
+        onClearSelection={clearSelection}
       />
 
       {/* Loading state */}
@@ -309,6 +391,9 @@ export default function Browser() {
                 bucket={bucket}
                 accountId={parsedAccountId || 0}
                 prefix={cleanPrefix}
+                selectable={selectionMode}
+                selected={Boolean(file.Key && selectedFiles[file.Key])}
+                onSelect={handleFileSelection}
               />
             ))}
           </div>

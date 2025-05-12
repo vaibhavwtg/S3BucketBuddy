@@ -20,6 +20,7 @@ import {
 import { getDownloadUrl, deleteObject } from "@/lib/s3";
 import { useToast } from "@/hooks/use-toast";
 import { ShareDialog } from "@/components/dialogs/ShareDialog";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface FileCardProps {
   file: S3Object;
@@ -114,10 +115,26 @@ export function FileCard({
   const fileColor = getFileColor(contentType, false, filename);
   const fileType = getFileTypeLabel(contentType, filename);
 
+  const handleSelectionChange = (checked: boolean) => {
+    if (onSelect && file.Key) {
+      onSelect(file, checked);
+    }
+  };
+
   return (
-    <Card className="bg-card overflow-hidden group hover:shadow-md transition duration-200">
+    <Card className={`bg-card overflow-hidden group hover:shadow-md transition duration-200 ${selected ? 'ring-2 ring-primary' : ''}`}>
       <div className="aspect-video bg-muted relative overflow-hidden flex items-center justify-center">
         <i className={`ri-${fileIcon} text-6xl ${fileColor}`}></i>
+        
+        {selectable && (
+          <div className="absolute top-2 left-2 z-10">
+            <Checkbox 
+              checked={selected} 
+              onCheckedChange={handleSelectionChange}
+              className="h-5 w-5 border-2 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
+            />
+          </div>
+        )}
         
         <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
           <div className="flex space-x-2">
