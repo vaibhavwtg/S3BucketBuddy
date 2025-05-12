@@ -26,9 +26,20 @@ interface FileCardProps {
   bucket: string;
   accountId: number;
   prefix: string;
+  selectable?: boolean;
+  selected?: boolean;
+  onSelect?: (file: S3Object, selected: boolean) => void;
 }
 
-export function FileCard({ file, bucket, accountId, prefix }: FileCardProps) {
+export function FileCard({ 
+  file, 
+  bucket, 
+  accountId, 
+  prefix,
+  selectable = false,
+  selected = false,
+  onSelect
+}: FileCardProps) {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();

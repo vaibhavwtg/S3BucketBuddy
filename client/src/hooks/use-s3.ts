@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listBuckets, listObjects, deleteObject, getDownloadUrl, uploadFile } from "@/lib/s3";
+import { listBuckets, listObjects, deleteObject, deleteObjects, getDownloadUrl, getDownloadUrlsForBatch, uploadFile } from "@/lib/s3";
 import { useToast } from "@/hooks/use-toast";
 import { S3Bucket, S3Object, S3CommonPrefix, S3ListObjectsResult, FileUploadProgress } from "@/lib/types";
 
@@ -42,6 +42,7 @@ export function useS3FileOperations(accountId: number | undefined) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Single file deletion
   const deleteFileMutation = useMutation({
     mutationFn: async ({ bucket, key }: { bucket: string; key: string }) => {
       if (!accountId) throw new Error("Account ID is required");
@@ -66,7 +67,50 @@ export function useS3FileOperations(accountId: number | undefined) {
       });
     },
   });
+  
+  // Batch file deletion
+  const batchDeleteMutation = useMutation({
+    mutationFn: async ({ bucket, keys }: { bucket: string; keys: string[] }) => {
+      if (!accountId) throw new Error("Account ID is required");
+      return deleteObjects(accountId, bucket, keys);
+    },
+    onSuccess: (result, variables) => {
+      const { deleted, errors } = result;
+      
+      if (errors.length === 0) {
+        toast({
+          title: "Batch delete successful",
+          description: `Successfully deleted ${deleted.length} file(s)`,
+        });
+      } else if (deleted.length > 0) {
+        toast({
+          title: "Partial batch delete",
+          description: `Deleted ${deleted.length} file(s), but ${errors.length} file(s) failed`,
+          variant: "warning",
+        });
+      } else {
+        toast({
+          title: "Batch delete failed",
+          description: "Failed to delete any files",
+          variant: "destructive",
+        });
+      }
+      
+      // Invalidate the objects query to refresh the list
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/s3/${accountId}/objects`, variables.bucket] 
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Batch delete failed",
+        description: error instanceof Error ? error.message : "Failed to delete files",
+        variant: "destructive",
+      });
+    },
+  });
 
+  // Single file download  
   const downloadFile = async (bucket: string, key: string) => {
     if (!accountId) {
       toast({
@@ -101,10 +145,71 @@ export function useS3FileOperations(accountId: number | undefined) {
     }
   };
 
+  // Batch file download
+  const downloadFiles = async (bucket: string, keys: string[]) => {
+    if (!accountId) {
+      toast({
+        title: "Download failed",
+        description: "Account ID is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    if (keys.length === 0) {
+      toast({
+        title: "No files selected",
+        description: "Please select at least one file to download",
+        variant: "warning",
+      });
+      return;
+    }
+    
+    toast({
+      title: "Preparing files",
+      description: `Generating download links for ${keys.length} file(s)...`,
+    });
+    
+    try {
+      const urlMap = await getDownloadUrlsForBatch(accountId, bucket, keys);
+      
+      // Create download links sequentially to avoid browser blocking multiple downloads
+      let delay = 0;
+      const delayIncrement = 250; // milliseconds between downloads
+      
+      Object.entries(urlMap).forEach(([key, url], index) => {
+        setTimeout(() => {
+          const link = document.createElement("a");
+          link.href = url;
+          link.setAttribute("download", key.split("/").pop() || `file-${index}`);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }, delay);
+        
+        delay += delayIncrement;
+      });
+      
+      toast({
+        title: "Downloads started",
+        description: `${Object.keys(urlMap).length} file(s) will download shortly`,
+      });
+    } catch (error) {
+      toast({
+        title: "Batch download failed",
+        description: error instanceof Error ? error.message : "Failed to generate download links",
+        variant: "destructive",
+      });
+    }
+  };
+
   return {
     deleteFile: (bucket: string, key: string) => deleteFileMutation.mutate({ bucket, key }),
     downloadFile,
+    batchDeleteFiles: (bucket: string, keys: string[]) => batchDeleteMutation.mutate({ bucket, keys }),
+    downloadFiles,
     isDeleting: deleteFileMutation.isPending,
+    isBatchDeleting: batchDeleteMutation.isPending,
   };
 }
 
