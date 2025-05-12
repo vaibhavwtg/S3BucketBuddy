@@ -50,6 +50,32 @@ export async function deleteObject(
   await apiRequest("DELETE", `/api/s3/${accountId}/objects?${params.toString()}`);
 }
 
+export async function deleteObjects(
+  accountId: number,
+  bucket: string,
+  keys: string[]
+): Promise<{ deleted: string[]; errors: { key: string; message: string }[] }> {
+  const response = await apiRequest("POST", `/api/s3/${accountId}/batch-delete`, {
+    bucket,
+    keys,
+  });
+  
+  return await response.json();
+}
+
+export async function getDownloadUrlsForBatch(
+  accountId: number,
+  bucket: string,
+  keys: string[]
+): Promise<{ [key: string]: string }> {
+  const response = await apiRequest("POST", `/api/s3/${accountId}/batch-download`, {
+    bucket,
+    keys,
+  });
+  
+  return await response.json();
+}
+
 export async function uploadFile(
   accountId: number,
   bucket: string,

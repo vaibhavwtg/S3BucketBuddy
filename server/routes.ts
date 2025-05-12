@@ -9,7 +9,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import MemoryStore from "memorystore";
-import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import multer from "multer";
 import { Readable } from "stream";
@@ -549,6 +549,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Batch download objects (generate signed URLs for multiple files)
+  app.post("/api/s3/:accountId/batch-download", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const { bucket, keys } = req.body;
+      
+      if (!bucket || !Array.isArray(keys) || keys.length === 0) {
+        return res.status(400).json({ message: "Bucket and keys array are required" });
+      }
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // Generate signed URLs for each key
+      const urlPromises = keys.map(async (key) => {
+        const command = new GetObjectCommand({
+          Bucket: bucket,
+          Key: key,
+        });
+        
+        try {
+          const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+          return { key, url: signedUrl };
+        } catch (error) {
+          console.error(`Error generating URL for key ${key}:`, error);
+          return { key, error: "Failed to generate download URL" };
+        }
+      });
+      
+      const results = await Promise.all(urlPromises);
+      
+      // Format the response as a key-value object
+      const urlMap: Record<string, string> = {};
+      
+      results.forEach(result => {
+        if ('url' in result) {
+          urlMap[result.key] = result.url;
+        }
+      });
+      
+      res.json(urlMap);
+    } catch (error) {
+      console.error("Error generating batch download URLs:", error);
+      res.status(500).json({ message: "Failed to generate batch download URLs" });
+    }
+  });
+  
   app.post("/api/s3/:accountId/upload", requireAuth, upload.single("file"), async (req, res) => {
     try {
       const accountId = parseInt(req.params.accountId);
@@ -634,6 +693,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error deleting object:", error);
       res.status(500).json({ message: "Failed to delete object" });
+    }
+  });
+  
+  // Batch delete objects
+  app.post("/api/s3/:accountId/batch-delete", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const { bucket, keys } = req.body;
+      
+      if (!bucket || !Array.isArray(keys) || keys.length === 0) {
+        return res.status(400).json({ message: "Bucket and keys array are required" });
+      }
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // Use DeleteObjects for batch deletion
+      const command = new DeleteObjectsCommand({
+        Bucket: bucket,
+        Delete: {
+          Objects: keys.map(key => ({ Key: key })),
+          Quiet: false,
+        },
+      });
+      
+      const result = await s3Client.send(command);
+      
+      // Process results
+      const deleted = result.Deleted?.map(item => item.Key || '') || [];
+      const errors = result.Errors?.map(error => ({
+        key: error.Key || '',
+        message: error.Message || 'Unknown error',
+      })) || [];
+      
+      res.json({ deleted, errors });
+    } catch (error) {
+      console.error("Error deleting objects in batch:", error);
+      res.status(500).json({ message: "Failed to delete objects in batch" });
     }
   });
   
