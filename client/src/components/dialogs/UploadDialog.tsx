@@ -18,7 +18,6 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { uploadFile } from "@/lib/s3";
 import { useQueryClient } from "@tanstack/react-query";
-import { useParams } from "wouter";
 import { FileUploadProgress } from "@/lib/types";
 import { Progress } from "@/components/ui/progress";
 import { formatBytes } from "@/lib/utils";
@@ -28,16 +27,16 @@ interface UploadDialogProps {
   onOpenChange: (open: boolean) => void;
   bucket: string;
   prefix?: string;
+  accountId: number;
 }
 
-export function UploadDialog({ open, onOpenChange, bucket, prefix = "" }: UploadDialogProps) {
+export function UploadDialog({ open, onOpenChange, bucket, prefix = "", accountId }: UploadDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<FileUploadProgress[]>([]);
   const [isUploading, setIsUploading] = useState(false);
-  const { accountId } = useParams();
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -112,7 +111,7 @@ export function UploadDialog({ open, onOpenChange, bucket, prefix = "" }: Upload
           
           // Upload the file
           await uploadFile(
-            parseInt(accountId || "0"), 
+            accountId, 
             bucket, 
             file, 
             prefix,
@@ -148,7 +147,7 @@ export function UploadDialog({ open, onOpenChange, bucket, prefix = "" }: Upload
       
       // Invalidate the objects query to refresh the list
       queryClient.invalidateQueries({ 
-        queryKey: [`/api/s3/${accountId}/objects`] 
+        queryKey: [`/api/s3/${accountId}/objects`, bucket, prefix] 
       });
       
       toast({

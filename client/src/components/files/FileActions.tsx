@@ -227,6 +227,7 @@ export function FileActions({
         onOpenChange={setIsUploadOpen} 
         bucket={bucket}
         prefix={prefix}
+        accountId={accountId}
       />
     </div>
   );
