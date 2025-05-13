@@ -46,8 +46,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "Welcome back!",
       });
       
+      console.log("Login successful:", data);
+      
+      // Invalidate all queries to refresh data with the new authentication
+      queryClient.clear();
       queryClient.setQueryData(['/api/auth/me'], data);
-      navigate("/");
+      
+      // Force refresh the page to make sure session cookie is properly set
+      if (window.location.pathname === "/login") {
+        navigate("/");
+      } else {
+        window.location.reload();
+      }
     },
     onError: (error) => {
       toast({

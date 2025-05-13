@@ -321,6 +321,25 @@ export default function Browser() {
   const folderName = cleanPrefix 
     ? cleanPrefix.split('/').filter(Boolean).pop() || bucket 
     : bucket;
+    
+  // Show loading state if auth is still loading
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-[80vh]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading...</p>
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  // If not authenticated, don't render anything (will redirect)
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <Layout

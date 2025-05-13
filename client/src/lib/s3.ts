@@ -83,6 +83,7 @@ export async function uploadFile(
   prefix: string = "",
   onProgress?: (progress: FileUploadProgress) => void
 ): Promise<{bucket: string, key: string, size: number, mimetype: string}> {
+  console.log("Starting upload for accountId:", accountId, "to bucket:", bucket, "with file:", file.name);
   const formData = new FormData();
   formData.append("file", file);
   formData.append("bucket", bucket);
