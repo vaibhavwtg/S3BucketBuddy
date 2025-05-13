@@ -412,11 +412,11 @@ export default function Browser() {
 
       {/* Folders Section */}
       {!isLoadingObjects && filteredFolders.length > 0 && (
-        <div className="mb-8">
+        <div className="mb-6">
           <h2 className="text-lg font-medium mb-4">Folders</h2>
           <div className={`grid ${viewMode === 'grid' 
-            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-            : 'grid-cols-1'} gap-4`}
+            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8' 
+            : 'grid-cols-1'} ${viewMode === 'grid' ? 'gap-3' : 'gap-2'}`}
           >
             {filteredFolders.map((folder, index) => (
               <FolderCard
@@ -436,8 +436,8 @@ export default function Browser() {
         <div>
           <h2 className="text-lg font-medium mb-4">Files</h2>
           <div className={`grid ${viewMode === 'grid' 
-            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' 
-            : 'grid-cols-1'} gap-4`}
+            ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8' 
+            : 'grid-cols-1'} ${viewMode === 'grid' ? 'gap-3' : 'gap-2'}`}
           >
             {filteredFiles.map((file, index) => (
               <FileCard
@@ -449,6 +449,7 @@ export default function Browser() {
                 selectable={selectionMode}
                 selected={Boolean(file.Key && selectedFiles[file.Key])}
                 onSelect={handleFileSelection}
+                viewMode={viewMode}
               />
             ))}
           </div>
