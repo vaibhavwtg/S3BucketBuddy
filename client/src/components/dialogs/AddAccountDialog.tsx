@@ -42,7 +42,6 @@ interface Bucket {
 }
 
 const awsRegions = [
-  { value: "auto", label: "Auto-detect (Recommended)" },
   { value: "us-east-1", label: "US East (N. Virginia)" },
   { value: "us-east-2", label: "US East (Ohio)" },
   { value: "us-west-1", label: "US West (N. California)" },
@@ -93,7 +92,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
       name: "",
       accessKeyId: "",
       secretAccessKey: "",
-      region: "auto",
+      region: "us-east-1", // Default to US East 1 (most common default region)
       saveCredentials: true,
       selectedBucket: undefined,
     },

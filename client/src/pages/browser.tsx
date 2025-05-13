@@ -259,14 +259,14 @@ export default function Browser() {
   }
 
   // Return error state
-  if (error) {
+  if (hasError) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center h-[70vh]">
           <i className="ri-error-warning-line text-5xl text-destructive mb-4"></i>
           <h2 className="text-xl font-bold mb-2">Error loading bucket contents</h2>
           <p className="text-muted-foreground mb-6">
-            {error instanceof Error ? error.message : "Something went wrong"}
+            {objectsError instanceof Error ? objectsError.message : "Something went wrong"}
           </p>
           <Button onClick={() => navigate(`/browser/${accountId}`)}>
             Back to Buckets
