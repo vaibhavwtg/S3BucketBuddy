@@ -17,6 +17,7 @@ import { UploadDialog } from "@/components/dialogs/UploadDialog";
 export default function Browser() {
   const [location, navigate] = useLocation();
   const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  const { toast: notify } = useToast();
   
   // Check if user is authenticated and redirect if not
   useEffect(() => {
@@ -24,14 +25,15 @@ export default function Browser() {
     
     if (!authLoading && !isAuthenticated) {
       console.log("User not authenticated, redirecting to login");
-      toast({
+      // Use toast from component scope
+      notify({
         title: "Authentication Required",
         description: "Please log in to access your S3 buckets",
         variant: "destructive",
       });
       navigate('/login');
     }
-  }, [authLoading, isAuthenticated, navigate, toast, user]);
+  }, [authLoading, isAuthenticated, navigate, user, notify]);
   
   // Get parameters from URL query string
   const searchParams = new URLSearchParams(window.location.search);
@@ -49,7 +51,6 @@ export default function Browser() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, S3Object>>({});
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const { toast } = useToast();
 
   // Parse accountId to number
   const parsedAccountId = accountId ? parseInt(accountId) : undefined;
