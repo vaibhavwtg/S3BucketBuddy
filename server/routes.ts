@@ -431,6 +431,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Validate S3 credentials
+  app.post("/api/validate-s3-credentials", requireAuth, async (req, res) => {
+    try {
+      const { accessKeyId, secretAccessKey, region } = req.body;
+      
+      if (!accessKeyId || !secretAccessKey) {
+        return res.status(400).json({ 
+          valid: false,
+          error: "Access key ID and secret access key are required" 
+        });
+      }
+      
+      // Create S3 client
+      const client = new S3Client({
+        region: region === "auto" ? "us-east-1" : region,
+        credentials: {
+          accessKeyId,
+          secretAccessKey,
+        },
+      });
+      
+      // List buckets to validate credentials
+      try {
+        const { Buckets } = await client.send(new ListBucketsCommand({}));
+        
+        if (Buckets && Buckets.length > 0) {
+          return res.json({ 
+            valid: true, 
+            buckets: Buckets 
+          });
+        } else {
+          return res.json({ 
+            valid: false, 
+            error: "No buckets found in this account" 
+          });
+        }
+      } catch (error: any) {
+        console.error("Error validating S3 credentials:", error);
+        
+        let errorMessage = "Failed to validate credentials";
+        
+        if (error.name) {
+          switch(error.name) {
+            case 'InvalidAccessKeyId':
+              errorMessage = "The Access Key ID you provided does not exist in AWS records";
+              break;
+            case 'SignatureDoesNotMatch':
+              errorMessage = "The Secret Access Key is incorrect";
+              break;
+            case 'AccessDenied':
+              errorMessage = "Access denied. Your IAM user doesn't have permission to list buckets";
+              break;
+            case 'ExpiredToken':
+              errorMessage = "Your AWS token has expired";
+              break;
+            default:
+              errorMessage = `AWS error: ${error.name}. ${error.message || ''}`;
+          }
+        }
+        
+        return res.status(400).json({ 
+          valid: false, 
+          error: errorMessage 
+        });
+      }
+    } catch (error) {
+      console.error("Server error validating S3 credentials:", error);
+      res.status(500).json({ 
+        valid: false,
+        error: "Server error when validating credentials" 
+      });
+    }
+  });
+  
   // S3 Operations Routes
   app.get("/api/s3/:accountId/buckets", requireAuth, async (req, res) => {
     try {

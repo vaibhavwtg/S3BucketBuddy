@@ -152,112 +152,50 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
         throw new Error("Secret Access Key appears to be too short. AWS Secret Access Keys are typically at least 40 characters long.");
       }
       
-      // Create a temporary S3 client to validate credentials
-      const client = new S3Client({
-        region: region === "auto" ? "us-east-1" : region, // Default to us-east-1 for Auto-detect
-        credentials: {
+      // Use the server-side validation endpoint instead of direct AWS connection
+      const response = await fetch('/api/validate-s3-credentials', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
           accessKeyId,
           secretAccessKey,
-        }
+          region,
+        }),
       });
       
-      // Try to list buckets to validate credentials
-      const command = new ListBucketsCommand({});
+      const data = await response.json();
       
-      try {
-        const response = await client.send(command);
+      if (!response.ok) {
+        // Handle HTTP errors
+        throw new Error(data.error || 'Failed to validate credentials');
+      }
+      
+      if (data.valid && data.buckets && data.buckets.length > 0) {
+        // Store the buckets and mark credentials as validated
+        setBuckets(data.buckets);
+        setCredentialsValidated(true);
         
-        if (response.Buckets && response.Buckets.length > 0) {
-          setBuckets(response.Buckets);
-          setCredentialsValidated(true);
-          
-          // Set the first bucket as default selected bucket
-          if (response.Buckets[0].Name) {
-            form.setValue("selectedBucket", response.Buckets[0].Name);
-          }
-          
-          toast({
-            title: "Credentials Validated",
-            description: `Found ${response.Buckets.length} buckets in your S3 account.`,
-          });
-        } else {
-          setBuckets([]);
-          setValidationError("No buckets found in this account. Make sure you have at least one bucket created.");
-        }
-      } catch (clientError: any) {
-        console.log("S3 Client Error:", clientError);
-        
-        // Print more detailed information about the error
-        if (clientError.$metadata) {
-          console.log("Error metadata:", clientError.$metadata);
+        // Set the first bucket as default selected bucket
+        if (data.buckets[0].Name) {
+          form.setValue("selectedBucket", data.buckets[0].Name);
         }
         
-        // Handle common AWS S3 error codes
-        if (clientError.name) {
-          switch(clientError.name) {
-            case 'InvalidAccessKeyId':
-              throw new Error("The Access Key ID you entered doesn't exist in AWS records. Please check for typos.");
-              
-            case 'SignatureDoesNotMatch':
-              throw new Error("The Secret Access Key is incorrect. Please verify your credentials.");
-              
-            case 'ExpiredToken':
-              throw new Error("Your AWS token has expired. Please refresh your credentials.");
-              
-            case 'AccessDenied':
-              throw new Error("Access denied. Your IAM user doesn't have permission to list buckets.");
-              
-            case 'NetworkError':
-            case 'NetworkingError':
-              throw new Error("Network connection issue. Please check your internet connection.");
-              
-            default:
-              // If it's another named error, include the name
-              throw new Error(`AWS error: ${clientError.name}. ${clientError.message || ''}`);
-          }
-        } 
-        else if (clientError.code === 'ECONNRESET' || clientError.code === 'ETIMEDOUT') {
-          throw new Error("Connection timed out. Please check your network and try again.");
-        }
-        else if (clientError.$metadata && clientError.$metadata.attempts > 1) {
-          throw new Error("Request failed after multiple attempts. This may be due to incorrect credentials or network issues.");
-        } 
-        else {
-          // Pass through any other errors
-          throw new Error(clientError.message || "Unknown error when connecting to AWS");
-        }
+        toast({
+          title: "Credentials Validated",
+          description: `Found ${data.buckets.length} buckets in your S3 account.`,
+        });
+      } else {
+        // Handle case where validation succeeded but no buckets were found
+        setBuckets([]);
+        setValidationError(data.error || "No buckets found in this account. Make sure you have at least one bucket created.");
       }
     } catch (error: any) {
       console.error("Error validating S3 credentials:", error);
-      let errorMessage = "Failed to validate credentials";
       
-      // Check for common validation errors
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      } 
-      // AWS SDK v3 specific errors
-      else if (error.$metadata) {
-        console.log("AWS SDK Error details:", JSON.stringify(error));
-        
-        if (error.name === "InvalidAccessKeyId") {
-          errorMessage = "The Access Key ID you provided does not exist in AWS records.";
-        } 
-        else if (error.name === "SignatureDoesNotMatch") {
-          errorMessage = "The Secret Access Key you provided is incorrect.";
-        }
-        else if (error.name === "AccessDenied" || error.Code === "AccessDenied") {
-          errorMessage = "Access denied. Your IAM user or role doesn't have permission to list S3 buckets.";
-        }
-        else if (error.name === "ExpiredToken" || error.Code === "ExpiredToken") {
-          errorMessage = "The security token included in the request has expired.";
-        }
-        else if (error.name) {
-          errorMessage = `AWS Error: ${error.name} - ${error.message || "Unknown error"}`;
-        } 
-        else if (error.$metadata && error.$metadata.attempts > 1) {
-          errorMessage = "Connection timed out after multiple attempts. Check your network and credentials.";
-        }
-      }
+      // Set user-friendly error message
+      const errorMessage = error.message || "Failed to validate AWS credentials";
       
       setValidationError(errorMessage);
       
