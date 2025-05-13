@@ -20,10 +20,18 @@ export default function Browser() {
   
   // Check if user is authenticated and redirect if not
   useEffect(() => {
+    console.log("Authentication state in browser:", { isAuthenticated, user, authLoading });
+    
     if (!authLoading && !isAuthenticated) {
+      console.log("User not authenticated, redirecting to login");
+      toast({
+        title: "Authentication Required",
+        description: "Please log in to access your S3 buckets",
+        variant: "destructive",
+      });
       navigate('/login');
     }
-  }, [authLoading, isAuthenticated, navigate]);
+  }, [authLoading, isAuthenticated, navigate, toast, user]);
   
   // Get parameters from URL query string
   const searchParams = new URLSearchParams(window.location.search);

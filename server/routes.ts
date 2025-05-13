@@ -224,8 +224,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  app.post("/api/auth/login", passport.authenticate("local"), (req, res) => {
-    res.json(req.user);
+  app.post("/api/auth/login", (req, res, next) => {
+    console.log("Login attempt:", req.body.email);
+    
+    passport.authenticate("local", (err: any, user: any, info: { message?: string }) => {
+      if (err) {
+        console.error("Login error:", err);
+        return res.status(500).json({ message: "Login failed", error: err.message });
+      }
+      
+      if (!user) {
+        console.log("Login failed:", info?.message || "Invalid credentials");
+        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+      }
+      
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Session creation error:", loginErr);
+          return res.status(500).json({ message: "Failed to create session" });
+        }
+        
+        console.log("Login successful for user:", user.username, `(${user.id})`);
+        console.log("Session established:", req.session.id);
+        
+        // Set a response header for debugging
+        res.setHeader('X-Session-ID', req.session.id);
+        
+        return res.json(user);
+      });
+    })(req, res, next);
   });
   
   app.post("/api/auth/logout", (req, res) => {
