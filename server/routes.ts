@@ -859,7 +859,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Prepare the file
-      const key = prefix ? `${prefix}${req.file.originalname}` : req.file.originalname;
+      // Make sure prefix ends with a slash if it doesn't already
+      let formattedPrefix = prefix;
+      if (formattedPrefix && !formattedPrefix.endsWith('/')) {
+        formattedPrefix += '/';
+      }
+      
+      const key = formattedPrefix ? `${formattedPrefix}${req.file.originalname}` : req.file.originalname;
       
       // Upload to S3
       const command = new PutObjectCommand({

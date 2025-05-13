@@ -37,6 +37,7 @@ export function UploadDialog({ open, onOpenChange, bucket, prefix = "", accountI
   const [files, setFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState<FileUploadProgress[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -54,14 +55,28 @@ export function UploadDialog({ open, onOpenChange, bucket, prefix = "", accountI
     }
   };
 
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragging(true);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragging(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       const fileList = Array.from(e.dataTransfer.files);
@@ -185,27 +200,49 @@ export function UploadDialog({ open, onOpenChange, bucket, prefix = "", accountI
         
         <div className="mt-6">
           <div 
-            className="border-2 border-dashed border-border rounded-lg p-6 text-center"
+            className={`border-2 border-dashed ${isDragging ? 'border-primary bg-primary/5' : 'border-border'} rounded-lg p-6 text-center transition-colors duration-200 ease-in-out`}
             onDragOver={handleDragOver}
+            onDragEnter={handleDragEnter}
+            onDragLeave={handleDragLeave}
             onDrop={handleDrop}
           >
-            <i className="ri-upload-cloud-2-line text-4xl text-muted-foreground mb-2"></i>
-            <p className="text-muted-foreground mb-2">Drag and drop files here, or click to browse</p>
-            <p className="text-xs text-muted-foreground">Maximum file size: 100MB</p>
-            <input 
-              type="file" 
-              className="hidden" 
-              multiple 
-              ref={fileInputRef}
-              onChange={handleFileChange}
-            />
-            <Button
-              className="mt-4"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              Browse Files
-            </Button>
+            <div className="flex flex-col items-center justify-center">
+              {isDragging ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary mb-3">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                  <p className="font-semibold text-primary mb-1">Drop files to upload</p>
+                </>
+              ) : (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-muted-foreground mb-3">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                  <p className="text-muted-foreground mb-1">Drag and drop files here, or click to browse</p>
+                </>
+              )}
+              <p className="text-xs text-muted-foreground mb-3">Maximum file size: 100MB</p>
+              <input 
+                type="file" 
+                className="hidden" 
+                multiple 
+                ref={fileInputRef}
+                onChange={handleFileChange}
+              />
+              <Button
+                className="mt-2"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                variant={isDragging ? "secondary" : "default"}
+              >
+                Browse Files
+              </Button>
+            </div>
           </div>
           
           {/* Selected files */}
