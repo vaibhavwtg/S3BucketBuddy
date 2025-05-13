@@ -840,6 +840,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.post("/api/s3/:accountId/upload", requireAuth, upload.single("file"), async (req, res) => {
+    // Check authentication first
+    console.log("Upload request authenticated user:", req.user ? { id: req.user.id, username: req.user.username } : 'No user');
+    
+    if (!req.user) {
+      console.error("Upload attempted without authentication");
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
     try {
       console.log("Upload request received:", {
         params: req.params,
@@ -848,7 +856,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
           filename: req.file.originalname,
           mimetype: req.file.mimetype,
           size: req.file.size
-        } : null
+        } : null,
+        cookies: req.headers.cookie ? "Present" : "Missing",
+        headers: {
+          contentType: req.headers['content-type']
+        }
       });
       
       const accountId = parseInt(req.params.accountId);

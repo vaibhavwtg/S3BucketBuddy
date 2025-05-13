@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -38,6 +38,29 @@ export function UploadDialog({ open, onOpenChange, bucket, prefix = "", accountI
   const [uploadProgress, setUploadProgress] = useState<FileUploadProgress[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  
+  // Check authentication status before allowing upload
+  useEffect(() => {
+    if (open) {
+      fetch('/api/auth/me', { credentials: 'include' })
+        .then(res => {
+          if (!res.ok) {
+            console.error('User not authenticated, upload will fail:', res.status);
+            toast({
+              title: "Authentication Error",
+              description: "You must be logged in to upload files. Please log in and try again.",
+              variant: "destructive",
+            });
+            onOpenChange(false);
+          } else {
+            console.log('User authenticated, ready to upload');
+          }
+        })
+        .catch(err => {
+          console.error('Error checking authentication:', err);
+        });
+    }
+  }, [open, toast, onOpenChange]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {

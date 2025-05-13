@@ -98,9 +98,23 @@ export async function uploadFile(
       const xhr = new XMLHttpRequest();
       
       console.log("Creating XMLHttpRequest for upload to account:", accountId);
-      xhr.open("POST", `/api/s3/${accountId.toString()}/upload`);
-      xhr.withCredentials = true;
+      const uploadUrl = `/api/s3/${accountId.toString()}/upload`;
+      console.log("Upload URL:", uploadUrl);
+      
+      xhr.open("POST", uploadUrl);
+      xhr.withCredentials = true; // Important: Include credentials for session cookies
+      
       // Don't set Content-Type header, browser will set it with proper boundary for FormData
+      
+      // Add event listener for cookies and authentication check
+      xhr.onreadystatechange = function() {
+        if (xhr.readyState === 1) { // OPENED
+          console.log("XHR connection opened", {
+            withCredentials: xhr.withCredentials,
+            url: uploadUrl
+          });
+        }
+      };
       
       xhr.upload.addEventListener("progress", (event) => {
         if (event.lengthComputable) {
@@ -173,17 +187,30 @@ export async function uploadFile(
     });
   } else {
     // No progress callback, use fetch instead
-    const res = await fetch(`/api/s3/${accountId.toString()}/upload`, {
-      method: "POST",
-      body: formData,
-      credentials: "include",
-    });
+    const uploadUrl = `/api/s3/${accountId.toString()}/upload`;
+    console.log("Uploading with fetch to:", uploadUrl);
     
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`Upload failed: ${res.status} ${text}`);
+    try {
+      const res = await fetch(uploadUrl, {
+        method: "POST",
+        body: formData,
+        credentials: "include", // Important: Include credentials for session cookies
+      });
+      
+      console.log("Upload response status:", res.status);
+      
+      if (!res.ok) {
+        const text = await res.text();
+        console.error("Upload failed:", res.status, text);
+        throw new Error(`Upload failed: ${res.status} ${text}`);
+      }
+      
+      const responseData = await res.json();
+      console.log("Upload successful, response:", responseData);
+      return responseData;
+    } catch (error) {
+      console.error("Error during fetch upload:", error);
+      throw error;
     }
-    
-    return await res.json();
   }
 }

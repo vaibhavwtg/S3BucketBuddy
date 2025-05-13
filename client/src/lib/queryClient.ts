@@ -12,13 +12,25 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
-  const res = await fetch(url, {
+  console.log(`Making ${method} request to ${url}`);
+  
+  const headers: Record<string, string> = {};
+  if (data && !(data instanceof FormData)) {
+    headers["Content-Type"] = "application/json";
+  }
+  
+  const options: RequestInit = {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
-    body: data ? JSON.stringify(data) : undefined,
-    credentials: "include",
-  });
-
+    headers,
+    credentials: "include", // Always include credentials for session cookies
+    body: data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined),
+  };
+  
+  console.log("Request options:", { method, url, withCredentials: true });
+  
+  const res = await fetch(url, options);
+  console.log(`Response from ${url}:`, { status: res.status, statusText: res.statusText });
+  
   await throwIfResNotOk(res);
   return res;
 }
@@ -29,16 +41,27 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
+    console.log(`Making query request to ${queryKey[0]}`);
+    
     const res = await fetch(queryKey[0] as string, {
       credentials: "include",
     });
+    
+    console.log(`Response from ${queryKey[0]}:`, { status: res.status, statusText: res.statusText });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
+      console.log("Unauthorized request, returning null as configured");
       return null;
     }
 
-    await throwIfResNotOk(res);
-    return await res.json();
+    try {
+      await throwIfResNotOk(res);
+      const data = await res.json();
+      return data;
+    } catch (error) {
+      console.error(`Error in query to ${queryKey[0]}:`, error);
+      throw error;
+    }
   };
 
 export const queryClient = new QueryClient({
