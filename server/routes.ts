@@ -45,10 +45,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     session({
       secret: process.env.SESSION_SECRET || "super-secret-key",
       resave: false,
-      saveUninitialized: false,
+      saveUninitialized: true, // Changed to true to ensure session is always created
       cookie: {
         secure: process.env.NODE_ENV === "production",
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        httpOnly: true,
+        sameSite: 'lax', // Helps with CSRF protection while allowing redirects
+        path: '/', // Ensure cookie is available throughout the application
       },
       store: new MemoryStoreSession({
         checkPeriod: 86400000, // prune expired entries every 24h
@@ -101,17 +104,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   passport.deserializeUser(async (id: number, done) => {
     try {
+      console.log(`Deserializing user with ID: ${id}`);
       const user = await storage.getUser(id);
+      
       if (!user) {
+        console.error(`User with ID ${id} not found during deserialization`);
         return done(new Error("User not found"));
       }
-      done(null, {
+      
+      const userData = {
         id: user.id,
         username: user.username,
         email: user.email,
         avatarUrl: user.avatarUrl || undefined,
-      });
+      };
+      
+      console.log(`Successfully deserialized user: ${user.username} (${user.id})`);
+      done(null, userData);
     } catch (error) {
+      console.error("Error during user deserialization:", error);
       done(error);
     }
   });
