@@ -618,6 +618,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const accountId = parseInt(req.params.accountId);
       const { bucket, prefix = "", delimiter = "/" } = req.query;
       
+      console.log(`Listing objects for bucket: ${bucket}, prefix: ${prefix}, delimiter: ${delimiter}`);
+      
       if (!bucket) {
         return res.status(400).json({ message: "Bucket name is required" });
       }
@@ -628,6 +630,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Account not found" });
       }
       
+      console.log(`Using account: ${account.name}, region: ${account.region}`);
+      
       // Prepare the command outside of try blocks so it's available in all scopes
       const listObjectsCommand = new ListObjectsV2Command({
         Bucket: bucket as string,
@@ -635,10 +639,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         Delimiter: delimiter as string,
       });
       
+      console.log(`S3 Command prepared: ListObjectsV2Command for ${bucket as string}`);
+      
       let s3Data;
       
       try {
         // Use the explicitly selected region from the account
+        console.log(`Creating S3 client with region: ${account.region}`);
         const s3Client = new S3Client({
           region: account.region,
           credentials: {
@@ -649,9 +656,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           forcePathStyle: true,
         });
         
+        console.log(`Sending S3 command to list objects in bucket: ${bucket}`);
         s3Data = await s3Client.send(listObjectsCommand);
+        console.log(`S3 response received successfully`);
       } catch (error: any) {
         console.error("Error listing objects:", error);
+        console.error("Error details:", JSON.stringify(error, null, 2));
         
         // Check if it's a permanent redirect error indicating wrong region
         if (error.Code === 'PermanentRedirect' && error.Endpoint) {
@@ -688,6 +698,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // If we got this far, we have data
       if (s3Data) {
+        console.log(`Processing S3 response data`);
         // Save path to recently accessed
         const path = `${bucket}/${prefix}`;
         await storage.updateLastAccessed(req.user!.id, path);
@@ -698,13 +709,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           CommonPrefixes?: any[];
         };
         
-        return res.json({
+        console.log(`S3 response contains ${typedData.Contents?.length || 0} objects and ${typedData.CommonPrefixes?.length || 0} folders`);
+        
+        const response = {
           objects: typedData.Contents || [],
           folders: typedData.CommonPrefixes || [],
           prefix: prefix as string,
           delimiter: delimiter as string,
-        });
+        };
+        
+        console.log(`Sending response to client with ${response.objects.length} objects and ${response.folders.length} folders`);
+        return res.json(response);
       } else {
+        console.log(`No data returned from S3`);
         return res.status(500).json({ message: "No data returned from S3" });
       }
     } catch (error: any) {
