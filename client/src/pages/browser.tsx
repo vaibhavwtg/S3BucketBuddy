@@ -135,7 +135,8 @@ export default function Browser() {
   const { 
     data: objectsData, 
     isLoading: isLoadingObjects,
-    error
+    isError: hasError,
+    error: objectsError
   } = useS3Objects(
     parsedAccountId,
     bucket,
@@ -324,6 +325,29 @@ export default function Browser() {
               <i className="ri-loader-4-line text-4xl"></i>
             </div>
             <p>Loading files...</p>
+          </div>
+        </div>
+      )}
+      
+      {/* Error state */}
+      {hasError && (
+        <div className="flex items-center justify-center py-12">
+          <div className="bg-destructive/10 text-destructive rounded-lg p-6 max-w-lg w-full text-center">
+            <div className="mb-4">
+              <i className="ri-error-warning-line text-4xl"></i>
+            </div>
+            <h3 className="text-lg font-semibold mb-2">Error Loading Files</h3>
+            <p className="mb-4">
+              There was a problem loading your files. The bucket might be in a different region than configured.
+            </p>
+            <div className="flex justify-center space-x-4">
+              <Button onClick={() => navigate(`/browser/${parsedAccountId}`)}>
+                Select Another Bucket
+              </Button>
+              <Button variant="outline" onClick={() => navigate("/manage-accounts")}>
+                Manage Accounts
+              </Button>
+            </div>
           </div>
         </div>
       )}
