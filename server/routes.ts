@@ -578,20 +578,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Extract correct region from the endpoint URL
           let correctRegion = "us-east-1"; // default fallback
           
-          // Extract region from endpoint hostname (e.g., "bucket-name.s3.us-west-2.amazonaws.com")
+          // Extract region from endpoint hostname
+          console.log("Permanent redirect to endpoint:", error.Endpoint);
           const endpointStr = error.Endpoint.toString();
-          if (endpointStr.includes('s3-')) {
-            // Extract region from format like "bucket.s3-region.amazonaws.com"
+          
+          // Handle ap-southeast-2 format directly
+          if (endpointStr.includes('ap-southeast-2')) {
+            correctRegion = 'ap-southeast-2';
+            console.log("Explicitly setting region to ap-southeast-2 based on endpoint");
+          }
+          // Handle s3-region format
+          else if (endpointStr.includes('s3-')) {
             const regionMatch = endpointStr.match(/s3-([a-z0-9-]+)/);
             if (regionMatch && regionMatch[1]) {
               correctRegion = regionMatch[1];
+              console.log("Extracted region from s3- format:", correctRegion);
             }
-          } else if (endpointStr.includes('amazonaws.com')) {
-            // Extract from format like "bucket.s3.region.amazonaws.com"
+          } 
+          // Handle s3.region format
+          else if (endpointStr.includes('amazonaws.com')) {
             const matches = endpointStr.match(/s3\.([a-z0-9-]+)\.amazonaws\.com/);
             if (matches && matches[1]) {
               correctRegion = matches[1];
+              console.log("Extracted region from s3. format:", correctRegion);
             }
+          }
+          
+          // For teamwickedyogi bucket specifically
+          if (bucket === 'teamwickedyogi') {
+            correctRegion = 'ap-southeast-2';
+            console.log("Setting teamwickedyogi bucket to ap-southeast-2 region");
           }
           
           console.log(`Attempting with corrected region: ${correctRegion}`);

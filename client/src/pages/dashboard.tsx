@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Layout } from "@/components/layout/Layout";
@@ -37,6 +37,13 @@ export default function Dashboard() {
   const defaultAccount = settings?.defaultAccountId
     ? accounts.find(account => account.id === settings.defaultAccountId)
     : accounts[0];
+
+  // Auto-navigate to the browser if accounts are available
+  useEffect(() => {
+    if (accounts.length > 0 && defaultAccount) {
+      navigate(`/browser/${defaultAccount.id}`);
+    }
+  }, [accounts, defaultAccount, navigate]);
 
   const handleExploreAccount = (accountId: number) => {
     navigate(`/browser/${accountId}`);
