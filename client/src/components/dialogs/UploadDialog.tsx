@@ -42,8 +42,21 @@ export function UploadDialog({ open, onOpenChange, bucket, prefix = "", accountI
   // Check authentication status before allowing upload
   useEffect(() => {
     if (open) {
-      fetch('/api/auth/me', { credentials: 'include' })
+      console.log("UploadDialog opened, checking authentication. Current cookies:", document.cookie);
+      
+      fetch('/api/auth/me', { 
+        credentials: 'include',
+        headers: { 'Cache-Control': 'no-cache' }
+      })
         .then(res => {
+          console.log('Authentication check response:', { 
+            status: res.status, 
+            statusText: res.statusText,
+            headers: {
+              'content-type': res.headers.get('content-type')
+            }
+          });
+          
           if (!res.ok) {
             console.error('User not authenticated, upload will fail:', res.status);
             toast({
@@ -52,12 +65,25 @@ export function UploadDialog({ open, onOpenChange, bucket, prefix = "", accountI
               variant: "destructive",
             });
             onOpenChange(false);
+            return null;
           } else {
             console.log('User authenticated, ready to upload');
+            return res.json();
+          }
+        })
+        .then(user => {
+          if (user) {
+            console.log('Authenticated user for upload:', user);
           }
         })
         .catch(err => {
           console.error('Error checking authentication:', err);
+          toast({
+            title: "Authentication Error",
+            description: "There was a problem verifying your authentication. Please try again.",
+            variant: "destructive",
+          });
+          onOpenChange(false);
         });
     }
   }, [open, toast, onOpenChange]);

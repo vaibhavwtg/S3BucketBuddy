@@ -29,24 +29,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refetch
   } = useQuery<User>({
     queryKey: ['/api/auth/me'],
-    retry: false,
-    refetchOnWindowFocus: false,
+    retry: 1,
+    refetchOnWindowFocus: true,
+    refetchOnMount: true,
+    refetchInterval: 60000 // Refresh auth status every minute
   });
 
   const isAuthenticated = !!user;
 
+  // Debug authentication status changes
+  useEffect(() => {
+    console.log("Authentication status changed:", { 
+      isAuthenticated, 
+      user,
+      cookies: document.cookie,
+    });
+    
+    // If authenticated, check for what cookies we have
+    if (isAuthenticated) {
+      console.log("User is authenticated with cookies:", document.cookie);
+    }
+  }, [isAuthenticated, user]);
+
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      const res = await apiRequest('POST', '/api/auth/login', credentials);
-      return res.json();
+      console.log("Attempting login with credentials:", { email: credentials.email });
+      
+      try {
+        // Make the login request with credentials included
+        const res = await apiRequest('POST', '/api/auth/login', credentials);
+        
+        console.log("Login response status:", res.status);
+        console.log("Login response headers:", {
+          'set-cookie': res.headers.get('set-cookie'),
+          'x-session-id': res.headers.get('x-session-id')
+        });
+        
+        // Verify we have a session cookie after login
+        const cookies = document.cookie;
+        console.log("Cookies after login:", cookies);
+        
+        // Return the parsed response
+        return await res.json();
+      } catch (error) {
+        console.error("Error during login:", error);
+        throw error;
+      }
     },
     onSuccess: (data) => {
+      console.log("Login successful:", data);
+      
       toast({
         title: "Login successful",
         description: "Welcome back!",
       });
       
-      console.log("Login successful:", data);
+      // Immediately verify we have an authenticated session
+      fetch('/api/auth/me', { 
+        credentials: 'include',
+        headers: { 'Cache-Control': 'no-cache' }
+      })
+        .then(res => {
+          console.log("Auth verification after login:", { 
+            status: res.status,
+            statusText: res.statusText
+          });
+          if (res.ok) return res.json();
+          throw new Error("Failed to verify authentication");
+        })
+        .then(userData => {
+          console.log("Auth verification successful:", userData);
+        })
+        .catch(err => {
+          console.error("Auth verification failed:", err);
+        });
       
       // Invalidate all queries to refresh data with the new authentication
       queryClient.clear();
