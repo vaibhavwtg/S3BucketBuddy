@@ -9,9 +9,10 @@ interface FolderCardProps {
   accountId: number;
   bucket: string;
   prefix: string;
+  viewMode?: 'grid' | 'list';
 }
 
-export function FolderCard({ folder, accountId, bucket, prefix }: FolderCardProps) {
+export function FolderCard({ folder, accountId, bucket, prefix, viewMode = 'grid' }: FolderCardProps) {
   const [_, navigate] = useLocation();
 
   // Extract folder name from the prefix
@@ -29,20 +30,58 @@ export function FolderCard({ folder, accountId, bucket, prefix }: FolderCardProp
   };
 
   return (
-    <Card className="bg-card hover:shadow-md transition duration-200 cursor-pointer" onClick={handleClick}>
-      <CardContent className="p-4">
-        <div className="flex items-center">
-          <i className={`ri-${getFileIcon(undefined, true)} text-4xl ${getFileColor(undefined, true)} mr-3`}></i>
-          <div className="flex-1 min-w-0">
-            <h3 className="text-card-foreground font-medium truncate">{folderName}</h3>
-            <p className="text-sm text-muted-foreground">Folder</p>
+    <Card className="group hover:shadow-md transition-all duration-200 h-full overflow-hidden cursor-pointer" onClick={handleClick}>
+      {viewMode === 'grid' ? (
+        <>
+          {/* Grid View */}
+          <div className="aspect-square bg-muted relative overflow-hidden flex items-center justify-center">
+            <i className={`ri-${getFileIcon(undefined, true)} text-5xl ${getFileColor(undefined, true)}`}></i>
+            
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="bg-white/20 text-white hover:bg-white/30 rounded-full h-8 w-8"
+              >
+                <i className="ri-folder-open-line"></i>
+                <span className="sr-only">Open</span>
+              </Button>
+            </div>
           </div>
-          <Button size="icon" variant="ghost" className="text-muted-foreground">
-            <i className="ri-more-2-fill"></i>
-            <span className="sr-only">Options</span>
+          
+          <CardContent className="p-3">
+            <div>
+              <h3 className="font-medium text-card-foreground truncate text-sm" title={folderName}>
+                {folderName}
+              </h3>
+              <p className="text-xs text-muted-foreground">
+                Folder
+              </p>
+            </div>
+          </CardContent>
+        </>
+      ) : (
+        // List View
+        <div className="p-2 flex items-center gap-3">
+          <div className="flex items-center justify-center h-10 w-10 bg-muted rounded">
+            <i className={`ri-${getFileIcon(undefined, true)} text-xl ${getFileColor(undefined, true)}`}></i>
+          </div>
+          
+          <div className="flex-1 min-w-0">
+            <h3 className="font-medium text-card-foreground truncate text-sm" title={folderName}>
+              {folderName}
+            </h3>
+            <p className="text-xs text-muted-foreground">
+              Folder
+            </p>
+          </div>
+          
+          <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground">
+            <i className="ri-folder-open-line"></i>
+            <span className="sr-only">Open</span>
           </Button>
         </div>
-      </CardContent>
+      )}
     </Card>
   );
 }

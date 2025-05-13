@@ -199,24 +199,24 @@ export function FileActions({
             </SelectContent>
           </Select>
 
-          <div className="flex border border-border rounded-lg overflow-hidden">
+          <div className="flex border border-border rounded-md overflow-hidden shadow-sm">
             <Button
               variant="ghost"
-              size="icon"
-              className={`p-2 ${viewMode === 'list' ? 'bg-primary text-primary-foreground' : 'bg-card'}`}
+              size="sm"
+              className={`px-3 h-9 rounded-none ${viewMode === 'list' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-card hover:bg-muted'}`}
               onClick={() => onViewModeChange('list')}
             >
-              <i className="ri-list-check-2"></i>
-              <span className="sr-only">List view</span>
+              <i className="ri-list-check-2 mr-1.5"></i>
+              <span>List</span>
             </Button>
             <Button
               variant="ghost"
-              size="icon"
-              className={`p-2 ${viewMode === 'grid' ? 'bg-primary text-primary-foreground' : 'bg-card'}`}
+              size="sm"
+              className={`px-3 h-9 rounded-none ${viewMode === 'grid' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-card hover:bg-muted'}`}
               onClick={() => onViewModeChange('grid')}
             >
-              <i className="ri-grid-line"></i>
-              <span className="sr-only">Grid view</span>
+              <i className="ri-grid-line mr-1.5"></i>
+              <span>Grid</span>
             </Button>
           </div>
         </div>

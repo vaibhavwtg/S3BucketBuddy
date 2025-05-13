@@ -387,24 +387,40 @@ export default function Browser() {
       {!isLoadingObjects && 
        filteredFiles.length === 0 && 
        filteredFolders.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 border rounded-lg border-dashed">
-          <i className="ri-folder-2-line text-5xl text-muted-foreground mb-4"></i>
+        <div className="flex flex-col items-center justify-center py-10 bg-muted/30 rounded-lg mt-2">
           {searchQuery ? (
             <>
-              <h3 className="text-lg font-medium mb-2">No matching files</h3>
-              <p className="text-center text-muted-foreground">
+              <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+                <i className="ri-search-line text-2xl text-muted-foreground"></i>
+              </div>
+              <h3 className="text-lg font-medium mb-1">No matching files</h3>
+              <p className="text-center text-muted-foreground mb-3 max-w-md">
                 No files or folders match your search query: "{searchQuery}"
               </p>
-              <Button variant="outline" className="mt-4" onClick={() => setSearchQuery("")}>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setSearchQuery("")}
+              >
                 Clear Search
               </Button>
             </>
           ) : (
             <>
-              <h3 className="text-lg font-medium mb-2">This folder is empty</h3>
-              <p className="text-center text-muted-foreground mb-4">
+              <div className="w-14 h-14 rounded-full bg-muted flex items-center justify-center mb-3">
+                <i className="ri-folder-open-line text-2xl text-muted-foreground"></i>
+              </div>
+              <h3 className="text-lg font-medium mb-1">This folder is empty</h3>
+              <p className="text-center text-muted-foreground mb-3 max-w-md">
                 Upload files or create a new folder to get started
               </p>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => setIsUploadOpen(true)}
+              >
+                Upload Files
+              </Button>
             </>
           )}
         </div>
@@ -425,6 +441,7 @@ export default function Browser() {
                 accountId={parsedAccountId || 0}
                 bucket={bucket}
                 prefix={cleanPrefix}
+                viewMode={viewMode}
               />
             ))}
           </div>
