@@ -11,10 +11,20 @@ import { Button } from "@/components/ui/button";
 import { useS3Buckets, useS3Objects, useS3FileOperations } from "@/hooks/use-s3";
 import { S3Bucket, S3Object, S3CommonPrefix, S3Account } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 import { UploadDialog } from "@/components/dialogs/UploadDialog";
 
 export default function Browser() {
   const [location, navigate] = useLocation();
+  const { user, isLoading: authLoading, isAuthenticated } = useAuth();
+  
+  // Check if user is authenticated and redirect if not
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate('/login');
+    }
+  }, [authLoading, isAuthenticated, navigate]);
+  
   // Get parameters from URL query string
   const searchParams = new URLSearchParams(window.location.search);
   const accountId = searchParams.get('account');

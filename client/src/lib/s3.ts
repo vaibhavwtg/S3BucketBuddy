@@ -96,8 +96,10 @@ export async function uploadFile(
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       
+      console.log("Creating XMLHttpRequest for upload to account:", accountId);
       xhr.open("POST", `/api/s3/${accountId.toString()}/upload`);
       xhr.withCredentials = true;
+      // Don't set Content-Type header, browser will set it with proper boundary for FormData
       
       xhr.upload.addEventListener("progress", (event) => {
         if (event.lengthComputable) {
@@ -111,14 +113,21 @@ export async function uploadFile(
       });
       
       xhr.addEventListener("load", () => {
+        console.log("Upload response received, status:", xhr.status);
+        
         if (xhr.status >= 200 && xhr.status < 300) {
           try {
             const response = JSON.parse(xhr.responseText);
+            console.log("Upload successful response:", response);
             resolve(response);
           } catch (error) {
+            console.error("Invalid response format:", xhr.responseText);
             reject(new Error("Invalid response format"));
           }
         } else {
+          console.error("Upload failed with status:", xhr.status, xhr.statusText);
+          console.error("Error response:", xhr.responseText);
+          
           onProgress({
             filename: file.name,
             progress: 0,
@@ -129,7 +138,10 @@ export async function uploadFile(
         }
       });
       
-      xhr.addEventListener("error", () => {
+      xhr.addEventListener("error", (event) => {
+        console.error("Upload XHR error:", event);
+        console.error("Upload URL:", `/api/s3/${accountId.toString()}/upload`);
+        
         onProgress({
           filename: file.name,
           progress: 0,
@@ -149,6 +161,13 @@ export async function uploadFile(
         reject(new Error("Upload aborted"));
       });
       
+      console.log("Sending upload request with formData:", {
+        file: file.name,
+        size: file.size,
+        type: file.type,
+        bucket,
+        prefix
+      });
       xhr.send(formData);
     });
   } else {
