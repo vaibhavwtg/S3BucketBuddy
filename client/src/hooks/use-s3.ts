@@ -27,11 +27,23 @@ export function useS3Objects(
   enabled = true
 ) {
   const isEnabled = enabled && typeof accountId === 'number' && typeof bucket === 'string';
+  const { toast } = useToast();
   
   return useQuery<S3ListObjectsResult>({
     queryKey: [`/api/s3/${accountId}/objects`, bucket, prefix],
     queryFn: () => listObjects(accountId as number, bucket as string, prefix),
     enabled: isEnabled,
+    retry: 1, // Only retry once for S3 failures
+    onError: (error) => {
+      console.error("Error fetching objects:", error);
+      toast({
+        title: "Failed to load files",
+        description: error instanceof Error 
+          ? `Error: ${error.message}` 
+          : "There was a problem loading files. The bucket might be in a different region.",
+        variant: "destructive",
+      });
+    }
   });
 }
 

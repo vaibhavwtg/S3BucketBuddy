@@ -567,6 +567,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
             accessKeyId: account.accessKeyId,
             secretAccessKey: account.secretAccessKey,
           },
+          // Always use forcePathStyle to better handle various bucket names
+          forcePathStyle: true,
         });
         
         s3Data = await s3Client.send(listObjectsCommand);
@@ -620,6 +622,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
                 accessKeyId: account.accessKeyId,
                 secretAccessKey: account.secretAccessKey,
               },
+              // Always use forcePathStyle for better bucket name handling
+              forcePathStyle: true,
             });
             
             s3Data = await correctedS3Client.send(listObjectsCommand);
