@@ -21,8 +21,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={SignUp} />
-      <Route path="/browser/:accountId/:bucket/:prefix*" component={Browser} />
-      <Route path="/browser/:accountId" component={Browser} />
+      <Route path="/browser" component={Browser} />
       <Route path="/shared" component={SharedFiles} />
       <Route path="/settings" component={AccountSettings} />
       <Route path="/manage-accounts" component={AccountManager} />

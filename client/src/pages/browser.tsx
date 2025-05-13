@@ -13,8 +13,15 @@ import { S3Bucket, S3Object, S3CommonPrefix, S3Account } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Browser() {
-  const { accountId, bucket, prefix = "" } = useParams();
-  const [_, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+  // Get parameters from URL query string
+  const searchParams = new URLSearchParams(window.location.search);
+  const accountId = searchParams.get('account');
+  const bucketParam = searchParams.get('bucket');
+  const prefix = searchParams.get('prefix') || "";
+  
+  // Convert null to undefined for bucket parameter
+  const bucket: string | undefined = bucketParam ?? undefined;
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<string>("name");
   const [filteredFiles, setFilteredFiles] = useState<S3Object[]>([]);
@@ -26,6 +33,15 @@ export default function Browser() {
 
   // Parse accountId to number
   const parsedAccountId = accountId ? parseInt(accountId) : undefined;
+  
+  // Helper function to navigate with query params
+  const navigateTo = (params: { account?: string | number, bucket?: string, prefix?: string }) => {
+    const queryParams = new URLSearchParams();
+    if (params.account) queryParams.set('account', params.account.toString());
+    if (params.bucket) queryParams.set('bucket', params.bucket);
+    if (params.prefix) queryParams.set('prefix', params.prefix);
+    navigate(`/browser?${queryParams.toString()}`);
+  };
 
   // Initialize S3 file operations
   const { 
@@ -113,9 +129,12 @@ export default function Browser() {
   // Redirect to default bucket if we have an account with a default bucket but no bucket selected
   useEffect(() => {
     if (parsedAccountId && currentAccount && currentAccount.defaultBucket && !bucket) {
-      navigate(`/browser/${parsedAccountId}/${currentAccount.defaultBucket}`);
+      navigateTo({
+        account: parsedAccountId,
+        bucket: currentAccount.defaultBucket
+      });
     }
-  }, [currentAccount, parsedAccountId, bucket, navigate]);
+  }, [currentAccount, parsedAccountId, bucket]);
 
   // Fetch buckets for the account
   const { 
@@ -139,9 +158,9 @@ export default function Browser() {
     error: objectsError
   } = useS3Objects(
     parsedAccountId,
-    bucket,
+    bucket || undefined, // Convert null to undefined
     cleanPrefix,
-    !isBucketSelection
+    !isBucketSelection && !!bucket // Enable only when we have a bucket
   ) as { 
     data: any; 
     isLoading: boolean; 
