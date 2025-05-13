@@ -535,7 +535,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
-  // Handler to get bucket region based on bucket name
+  // Handler to validate bucket accessibility with the configured region
   app.get("/api/s3/:accountId/bucket-region", requireAuth, async (req, res) => {
     try {
       const accountId = parseInt(req.params.accountId);
@@ -551,9 +551,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Account not found" });
       }
       
-      // Create a basic S3 client to make a HEAD request to the bucket
+      // Create an S3 client with the region configured in the account
       const s3Client = new S3Client({
-        region: 'us-east-1', // Default starting point
+        region: account.region,
         credentials: {
           accessKeyId: account.accessKeyId,
           secretAccessKey: account.secretAccessKey,
@@ -568,16 +568,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         await s3Client.send(command);
         
-        // If successful, return the current region
+        // If successful, return success message
         return res.json({ 
           region: account.region,
-          message: "Bucket accessible with current region" 
+          message: "Bucket is accessible with the configured region" 
         });
       } catch (error: any) {
-        // Check if it's a permanent redirect
+        // Check if it's a permanent redirect indicating wrong region
         if (error.$metadata?.httpStatusCode === 301 && error.Endpoint) {
-          // Extract region from endpoint
-          let detectedRegion = account.region;
+          // Extract region from endpoint for error message
+          let detectedRegion = "unknown";
           const endpointStr = error.Endpoint.toString();
           
           // Try to detect the region from the endpoint
@@ -593,22 +593,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          return res.json({ 
-            region: detectedRegion,
-            message: "Detected region for bucket",
-            detected: true
+          // Return error with helpful message about region mismatch
+          return res.status(400).json({ 
+            message: "Region mismatch error",
+            error: `This bucket appears to be in ${detectedRegion} region, but your account is configured to use ${account.region}. Please update your account settings to use the correct region.`,
+            detectedRegion
           });
         }
         
-        // If it's another error, just return generic error
+        // If it's another error, return with helpful message
         return res.status(500).json({ 
-          message: "Failed to determine bucket region",
+          message: "Failed to access bucket",
           error: error.message
         });
       }
     } catch (error: any) {
       console.error("Error in bucket-region:", error);
-      res.status(500).json({ message: "Failed to determine bucket region" });
+      res.status(500).json({ message: "Failed to validate bucket accessibility" });
     }
   });
 
@@ -637,7 +638,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let s3Data;
       
       try {
-        // First attempt with the account's stored region
+        // Use the explicitly selected region from the account
         const s3Client = new S3Client({
           region: account.region,
           credentials: {
@@ -654,56 +655,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
         
         // Check if it's a permanent redirect error indicating wrong region
         if (error.Code === 'PermanentRedirect' && error.Endpoint) {
-          // Extract correct region from the endpoint URL
-          let correctRegion = "us-east-1"; // default fallback
+          // Extract region information for better error message
+          const endpointStr = error.Endpoint ? error.Endpoint.toString() : "";
+          let detectedRegion = "unknown";
           
-          // Extract region from endpoint hostname
-          console.log("Permanent redirect to endpoint:", error.Endpoint);
-          const endpointStr = error.Endpoint.toString();
-          
-          // Handle s3-region format (e.g., bucket.s3-ap-southeast-2.amazonaws.com)
+          // Try to extract region from endpoint hostname for error message
           if (endpointStr.includes('s3-')) {
             const regionMatch = endpointStr.match(/s3-([a-z0-9-]+)/);
             if (regionMatch && regionMatch[1]) {
-              correctRegion = regionMatch[1];
-              console.log("Extracted region from s3- format:", correctRegion);
+              detectedRegion = regionMatch[1];
             }
-          } 
-          // Handle s3.region format (e.g., bucket.s3.ap-southeast-2.amazonaws.com)
-          else if (endpointStr.includes('amazonaws.com')) {
+          } else if (endpointStr.includes('amazonaws.com')) {
             const matches = endpointStr.match(/s3\.([a-z0-9-]+)\.amazonaws\.com/);
             if (matches && matches[1]) {
-              correctRegion = matches[1];
-              console.log("Extracted region from s3. format:", correctRegion);
+              detectedRegion = matches[1];
             }
           }
           
-          console.log(`Attempting with corrected region: ${correctRegion}`);
-          
-          try {
-            // Try again with the corrected region
-            const correctedS3Client = new S3Client({
-              region: correctRegion,
-              credentials: {
-                accessKeyId: account.accessKeyId,
-                secretAccessKey: account.secretAccessKey,
-              },
-              // Always use forcePathStyle for better bucket name handling
-              forcePathStyle: true,
-            });
-            
-            s3Data = await correctedS3Client.send(listObjectsCommand);
-            
-            // Update the account with the correct region for future requests
-            await storage.updateS3Account(accountId, { region: correctRegion });
-            console.log(`Updated account region from ${account.region} to ${correctRegion}`);
-          } catch (secondError: any) {
-            console.error("Error with corrected region:", secondError);
-            return res.status(500).json({ 
-              message: "Failed to list objects after region correction",
-              error: secondError.message
-            });
-          }
+          // Return clear error message about region mismatch
+          return res.status(400).json({ 
+            message: "Region mismatch error", 
+            error: `This bucket appears to be in ${detectedRegion} region, but your account is configured to use ${account.region}. Edit your S3 account settings and update the region to match.`
+          });
         } else {
           // If it's not a region issue, return the original error
           return res.status(500).json({ 
