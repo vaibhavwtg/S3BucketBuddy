@@ -295,7 +295,7 @@ export default function Browser() {
       />
 
       {/* Storage Statistics */}
-      <StorageStats />
+      <StorageStats account={currentAccount} />
 
       {/* File actions */}
       <FileActions

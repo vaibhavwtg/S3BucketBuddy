@@ -59,18 +59,60 @@ export function StorageStats({ account }: StorageStatsProps) {
     queryFn: () => listBuckets(account.id),
   });
 
-  // For demonstration purposes, we'll assume a 100GB limit
-  // In a real application, you would get this from the AWS API
-  const totalStorageLimit = 100 * 1024 * 1024 * 1024; // 100 GB in bytes
-  const usedStorage = 78.4 * 1024 * 1024 * 1024; // 78.4 GB in bytes (placeholder)
-  const percentUsed = (usedStorage / totalStorageLimit) * 100;
-
-  // Placeholder file type distribution
+  // Note: This is demo/placeholder data as S3 doesn't provide storage quotas through API
+  // In a production app, you would track this information separately or use CloudWatch metrics
+  const totalStorageLimit = 5 * 1024 * 1024 * 1024; // 5 GB (free tier limit)
+  
+  // If we have a default bucket, get the objects to calculate actual size
+  const { data: bucketObjects = { objects: [], folders: [], prefix: '', delimiter: '/' } } = useQuery({
+    queryKey: [`/api/s3/${account.id}/objects`, account.defaultBucket],
+    queryFn: async () => {
+      if (account.defaultBucket) {
+        try {
+          return await listObjects(account.id, account.defaultBucket, '');
+        } catch (error) {
+          console.error('Error fetching objects for storage stats:', error);
+          return { objects: [], folders: [], prefix: '', delimiter: '/' };
+        }
+      }
+      return { objects: [], folders: [], prefix: '', delimiter: '/' };
+    },
+    enabled: !!account.defaultBucket,
+  });
+  
+  // Calculate actual storage used based on object sizes
+  const objectSizes = bucketObjects.objects.map(obj => obj.Size || 0);
+  const usedStorage = objectSizes.length > 0 
+    ? objectSizes.reduce((total, size) => total + size, 0) 
+    : 0;
+    
+  const percentUsed = Math.min((usedStorage / totalStorageLimit) * 100, 100);
+  
+  // Calculate file type distribution
+  const docTypes = ['.pdf', '.doc', '.docx', '.txt', '.xls', '.xlsx', '.ppt', '.pptx'];
+  const imageTypes = ['.jpg', '.jpeg', '.png', '.gif', '.svg', '.webp', '.bmp', '.tiff'];
+  const videoTypes = ['.mp4', '.mov', '.avi', '.wmv', '.flv', '.mkv', '.webm'];
+  
+  // Group files by type
+  const docsSize = bucketObjects.objects
+    .filter(obj => docTypes.some(ext => obj.Key?.toLowerCase().endsWith(ext)))
+    .reduce((total, obj) => total + (obj.Size || 0), 0);
+    
+  const imagesSize = bucketObjects.objects
+    .filter(obj => imageTypes.some(ext => obj.Key?.toLowerCase().endsWith(ext)))
+    .reduce((total, obj) => total + (obj.Size || 0), 0);
+    
+  const videosSize = bucketObjects.objects
+    .filter(obj => videoTypes.some(ext => obj.Key?.toLowerCase().endsWith(ext)))
+    .reduce((total, obj) => total + (obj.Size || 0), 0);
+    
+  const otherSize = usedStorage - docsSize - imagesSize - videosSize;
+  
   const fileTypes = [
-    { type: "Documents", size: 32.7 * 1024 * 1024 * 1024, color: "bg-primary" },
-    { type: "Images", size: 15.2 * 1024 * 1024 * 1024, color: "bg-[hsl(var(--chart-2))]" },
-    { type: "Videos", size: 25.8 * 1024 * 1024 * 1024, color: "bg-[hsl(var(--chart-3))]" },
-    { type: "Other", size: 4.7 * 1024 * 1024 * 1024, color: "bg-[hsl(var(--chart-4))]" },
+    { type: "Documents", size: docsSize, color: "bg-primary" },
+    { type: "Images", size: imagesSize, color: "bg-[hsl(var(--chart-2))]" },
+    { type: "Videos", size: videosSize, color: "bg-[hsl(var(--chart-3))]" },
+    { type: "Other", size: otherSize, color: "bg-[hsl(var(--chart-4))]" },
   ];
 
   return (
@@ -86,6 +128,12 @@ export function StorageStats({ account }: StorageStatsProps) {
         </div>
         
         <Progress value={percentUsed} className="h-4" />
+        
+        <p className="text-xs text-muted-foreground mt-2">
+          {account.defaultBucket ? 
+            `Showing storage usage for "${account.defaultBucket}" bucket. S3 doesn't have storage limits by default, 5GB is a typical free tier limit.` : 
+            "Select a default bucket in account settings to see actual storage metrics."}
+        </p>
         
         <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
           {fileTypes.map((fileType, index) => (
