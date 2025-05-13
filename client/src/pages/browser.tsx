@@ -226,7 +226,10 @@ export default function Browser() {
   // Handle bucket selection
   const handleSelectBucket = (bucket: S3Bucket) => {
     if (!bucket.Name) return;
-    navigate(`/browser/${accountId}/${bucket.Name}`);
+    navigateTo({
+      account: parsedAccountId,
+      bucket: bucket.Name
+    });
   };
 
   // Return loading state
@@ -294,7 +297,7 @@ export default function Browser() {
               ? (objectsError as Error).message 
               : "Something went wrong"}
           </p>
-          <Button onClick={() => navigate(`/browser/${accountId}`)}>
+          <Button onClick={() => navigateTo({ account: parsedAccountId })}>
             Back to Buckets
           </Button>
         </div>

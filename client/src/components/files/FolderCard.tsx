@@ -19,7 +19,13 @@ export function FolderCard({ folder, accountId, bucket, prefix }: FolderCardProp
   const folderName = folderKey.split("/").filter(Boolean).pop() || "Unknown folder";
 
   const handleClick = () => {
-    navigate(`/browser/${accountId}/${bucket}/${folderKey}`);
+    // Create query parameters for navigation
+    const params = new URLSearchParams();
+    params.set('account', accountId.toString());
+    params.set('bucket', bucket);
+    params.set('prefix', folderKey);
+    
+    navigate(`/browser?${params.toString()}`);
   };
 
   return (
