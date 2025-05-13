@@ -249,7 +249,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+        <DialogHeader className="pb-2">
           <DialogTitle>Add Amazon S3 Account</DialogTitle>
           <DialogDescription>
             Connect to your S3 storage by entering your AWS credentials.
@@ -257,7 +257,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
             <FormField
               control={form.control}
               name="name"
@@ -365,7 +365,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
             />
             
             {/* Validate Credentials Button */}
-            <div className="flex justify-end mt-4">
+            <div className="flex justify-end mt-2">
               <Button
                 type="button"
                 onClick={validateCredentials}
@@ -405,7 +405,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
                 control={form.control}
                 name="selectedBucket"
                 render={({ field }) => (
-                  <FormItem className="mt-4">
+                  <FormItem className="mt-2">
                     <FormLabel>Select Bucket</FormLabel>
                     <Select 
                       onValueChange={field.onChange} 
