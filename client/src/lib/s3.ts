@@ -96,7 +96,7 @@ export async function uploadFile(
     return new Promise((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       
-      xhr.open("POST", `/api/s3/${accountId}/upload`);
+      xhr.open("POST", `/api/s3/${accountId.toString()}/upload`);
       xhr.withCredentials = true;
       
       xhr.upload.addEventListener("progress", (event) => {
@@ -153,7 +153,7 @@ export async function uploadFile(
     });
   } else {
     // No progress callback, use fetch instead
-    const res = await fetch(`/api/s3/${accountId}/upload`, {
+    const res = await fetch(`/api/s3/${accountId.toString()}/upload`, {
       method: "POST",
       body: formData,
       credentials: "include",
