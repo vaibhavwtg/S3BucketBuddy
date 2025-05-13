@@ -248,7 +248,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Add Amazon S3 Account</DialogTitle>
           <DialogDescription>
@@ -393,8 +393,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
             
             {/* Validation Error Alert */}
             {validationError && (
-              <Alert variant="destructive" className="mt-4">
-                <i className="ri-error-warning-line mr-2"></i>
+              <Alert variant="destructive" className="mt-2">
                 <AlertTitle>Validation Error</AlertTitle>
                 <AlertDescription>{validationError}</AlertDescription>
               </Alert>
@@ -455,7 +454,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
               )}
             />
             
-            <DialogFooter>
+            <DialogFooter className="mt-2 sticky bottom-0 bg-white dark:bg-gray-950 pb-2">
               <Button 
                 type="button" 
                 variant="outline" 
