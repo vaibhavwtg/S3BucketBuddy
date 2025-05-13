@@ -32,8 +32,14 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { S3Client, ListBucketsCommand } from "@aws-sdk/client-s3";
+// We now use server-side validation instead of direct AWS SDK calls
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+// Define a simplified bucket interface matching AWS response format
+interface Bucket {
+  Name?: string;
+  CreationDate?: Date;
+}
 
 const awsRegions = [
   { value: "auto", label: "Auto-detect (Recommended)" },
