@@ -338,9 +338,11 @@ export default function Browser() {
             </div>
             <h3 className="text-lg font-semibold mb-2">Error Loading Files</h3>
             <p className="mb-4">
-              There was a problem loading your files. The bucket might be in a different region than configured.
+              {objectsError instanceof Error 
+                ? objectsError.message 
+                : "There was a problem loading your files. The bucket might be in a different region than configured."}
             </p>
-            <div className="flex justify-center space-x-4">
+            <div className="flex justify-center space-x-4 flex-wrap gap-2">
               <Button onClick={() => navigate(`/browser/${parsedAccountId}`)}>
                 Select Another Bucket
               </Button>

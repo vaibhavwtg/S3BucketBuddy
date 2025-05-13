@@ -661,20 +661,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log("Permanent redirect to endpoint:", error.Endpoint);
           const endpointStr = error.Endpoint.toString();
           
-          // Handle ap-southeast-2 format directly
-          if (endpointStr.includes('ap-southeast-2')) {
-            correctRegion = 'ap-southeast-2';
-            console.log("Explicitly setting region to ap-southeast-2 based on endpoint");
-          }
-          // Handle s3-region format
-          else if (endpointStr.includes('s3-')) {
+          // Handle s3-region format (e.g., bucket.s3-ap-southeast-2.amazonaws.com)
+          if (endpointStr.includes('s3-')) {
             const regionMatch = endpointStr.match(/s3-([a-z0-9-]+)/);
             if (regionMatch && regionMatch[1]) {
               correctRegion = regionMatch[1];
               console.log("Extracted region from s3- format:", correctRegion);
             }
           } 
-          // Handle s3.region format
+          // Handle s3.region format (e.g., bucket.s3.ap-southeast-2.amazonaws.com)
           else if (endpointStr.includes('amazonaws.com')) {
             const matches = endpointStr.match(/s3\.([a-z0-9-]+)\.amazonaws\.com/);
             if (matches && matches[1]) {
@@ -683,21 +678,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
             }
           }
           
-          // For teamwickedyogi bucket specifically
-          if (bucket === 'teamwickedyogi') {
-            correctRegion = 'ap-southeast-2';
-            console.log("Setting teamwickedyogi bucket to ap-southeast-2 region");
-          }
-          
           console.log(`Attempting with corrected region: ${correctRegion}`);
           
           try {
-            // For teamwickedyogi bucket, always use ap-southeast-2 region
-            if (bucket === 'teamwickedyogi') {
-              correctRegion = 'ap-southeast-2';
-              console.log("Forcing ap-southeast-2 region for teamwickedyogi bucket");
-            }
-            
             // Try again with the corrected region
             const correctedS3Client = new S3Client({
               region: correctRegion,
