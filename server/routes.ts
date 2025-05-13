@@ -118,9 +118,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Authentication middleware
   const requireAuth = (req: Request, res: Response, next: any) => {
+    console.log("Authentication check for route:", req.method, req.url);
+    console.log("Authenticated:", req.isAuthenticated());
+    
     if (!req.isAuthenticated()) {
+      console.log("Authentication failed");
       return res.status(401).json({ message: "Unauthorized" });
     }
+    console.log("Authentication successful, user:", req.user ? req.user.id : 'none');
     next();
   };
   
@@ -836,10 +841,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.post("/api/s3/:accountId/upload", requireAuth, upload.single("file"), async (req, res) => {
     try {
+      console.log("Upload request received:", {
+        params: req.params,
+        body: req.body,
+        file: req.file ? {
+          filename: req.file.originalname,
+          mimetype: req.file.mimetype,
+          size: req.file.size
+        } : null
+      });
+      
       const accountId = parseInt(req.params.accountId);
       const { bucket, prefix = "" } = req.body;
       
       if (!bucket || !req.file) {
+        console.log("Missing required fields:", { bucket: !!bucket, file: !!req.file });
         return res.status(400).json({ message: "Bucket and file are required" });
       }
       
@@ -875,7 +891,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ContentType: req.file.mimetype,
       });
       
+      console.log("Executing S3 upload command for bucket:", bucket, "key:", key);
       await s3Client.send(command);
+      console.log("S3 upload completed successfully");
       
       res.status(201).json({
         bucket,
@@ -883,6 +901,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         size: req.file.size,
         mimetype: req.file.mimetype,
       });
+      console.log("Upload response sent to client");
     } catch (error) {
       console.error("Error uploading file:", error);
       res.status(500).json({ message: "Failed to upload file" });
