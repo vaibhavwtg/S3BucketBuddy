@@ -550,37 +550,110 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Account not found" });
       }
       
-      // Create S3 client
-      const s3Client = new S3Client({
-        region: account.region,
-        credentials: {
-          accessKeyId: account.accessKeyId,
-          secretAccessKey: account.secretAccessKey,
-        },
-      });
-      
-      // List objects
-      const command = new ListObjectsV2Command({
+      // Prepare the command outside of try blocks so it's available in all scopes
+      const listObjectsCommand = new ListObjectsV2Command({
         Bucket: bucket as string,
         Prefix: prefix as string,
         Delimiter: delimiter as string,
       });
       
-      const result = await s3Client.send(command);
+      let s3Data;
       
-      // Save path to recently accessed
-      const path = `${bucket}/${prefix}`;
-      await storage.updateLastAccessed(req.user!.id, path);
+      try {
+        // First attempt with the account's stored region
+        const s3Client = new S3Client({
+          region: account.region,
+          credentials: {
+            accessKeyId: account.accessKeyId,
+            secretAccessKey: account.secretAccessKey,
+          },
+        });
+        
+        s3Data = await s3Client.send(listObjectsCommand);
+      } catch (error: any) {
+        console.error("Error listing objects:", error);
+        
+        // Check if it's a permanent redirect error indicating wrong region
+        if (error.Code === 'PermanentRedirect' && error.Endpoint) {
+          // Extract correct region from the endpoint URL
+          let correctRegion = "us-east-1"; // default fallback
+          
+          // Extract region from endpoint hostname (e.g., "bucket-name.s3.us-west-2.amazonaws.com")
+          const endpointStr = error.Endpoint.toString();
+          if (endpointStr.includes('s3-')) {
+            // Extract region from format like "bucket.s3-region.amazonaws.com"
+            const regionMatch = endpointStr.match(/s3-([a-z0-9-]+)/);
+            if (regionMatch && regionMatch[1]) {
+              correctRegion = regionMatch[1];
+            }
+          } else if (endpointStr.includes('amazonaws.com')) {
+            // Extract from format like "bucket.s3.region.amazonaws.com"
+            const matches = endpointStr.match(/s3\.([a-z0-9-]+)\.amazonaws\.com/);
+            if (matches && matches[1]) {
+              correctRegion = matches[1];
+            }
+          }
+          
+          console.log(`Attempting with corrected region: ${correctRegion}`);
+          
+          try {
+            // Try again with the corrected region
+            const correctedS3Client = new S3Client({
+              region: correctRegion,
+              credentials: {
+                accessKeyId: account.accessKeyId,
+                secretAccessKey: account.secretAccessKey,
+              },
+            });
+            
+            s3Data = await correctedS3Client.send(listObjectsCommand);
+            
+            // Update the account with the correct region for future requests
+            await storage.updateS3Account(accountId, { region: correctRegion });
+            console.log(`Updated account region from ${account.region} to ${correctRegion}`);
+          } catch (secondError: any) {
+            console.error("Error with corrected region:", secondError);
+            return res.status(500).json({ 
+              message: "Failed to list objects after region correction",
+              error: secondError.message
+            });
+          }
+        } else {
+          // If it's not a region issue, return the original error
+          return res.status(500).json({ 
+            message: "Failed to list objects", 
+            error: error.message 
+          });
+        }
+      }
       
-      res.json({
-        objects: result.Contents || [],
-        folders: result.CommonPrefixes || [],
-        prefix: result.Prefix || "",
-        delimiter: result.Delimiter || "/",
+      // If we got this far, we have data
+      if (s3Data) {
+        // Save path to recently accessed
+        const path = `${bucket}/${prefix}`;
+        await storage.updateLastAccessed(req.user!.id, path);
+        
+        // Type assertion for ListObjectsV2CommandOutput
+        const typedData = s3Data as {
+          Contents?: any[];
+          CommonPrefixes?: any[];
+        };
+        
+        return res.json({
+          objects: typedData.Contents || [],
+          folders: typedData.CommonPrefixes || [],
+          prefix: prefix as string,
+          delimiter: delimiter as string,
+        });
+      } else {
+        return res.status(500).json({ message: "No data returned from S3" });
+      }
+    } catch (error: any) {
+      console.error("Unexpected error listing objects:", error);
+      res.status(500).json({ 
+        message: "Failed to list objects", 
+        error: error.message 
       });
-    } catch (error) {
-      console.error("Error listing objects:", error);
-      res.status(500).json({ message: "Failed to list objects" });
     }
   });
   
