@@ -535,6 +535,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Special debug handler for the teamwickedyogi bucket that's having issues
+  app.get("/api/debug/s3/:accountId/bucket/:bucketName", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const bucketName = req.params.bucketName;
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Try specific region and settings for teamwickedyogi bucket
+      const s3Client = new S3Client({
+        region: 'ap-southeast-2', // Hard-code the region
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+        forcePathStyle: true,
+      });
+      
+      // List buckets to test connection
+      const command = new ListBucketsCommand({});
+      const result = await s3Client.send(command);
+      
+      return res.json({
+        message: "Debug successful",
+        account: {
+          id: account.id,
+          name: account.name,
+          region: 'ap-southeast-2',
+        },
+        buckets: result.Buckets,
+      });
+    } catch (error: any) {
+      console.error("Debug error:", error);
+      res.status(500).json({ 
+        message: "Debug failed", 
+        error: error.message,
+        code: error.Code,
+        name: error.name,
+      });
+    }
+  });
+
   app.get("/api/s3/:accountId/objects", requireAuth, async (req, res) => {
     try {
       const accountId = parseInt(req.params.accountId);
@@ -560,9 +606,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let s3Data;
       
       try {
-        // First attempt with the account's stored region
+        // For teamwickedyogi bucket, use ap-southeast-2 region directly
+        let regionToUse = account.region;
+        if (bucket === 'teamwickedyogi') {
+          console.log("Using ap-southeast-2 region for teamwickedyogi bucket");
+          regionToUse = 'ap-southeast-2';
+        }
+        
+        // First attempt with the account's stored region or forced region for specific buckets
         const s3Client = new S3Client({
-          region: account.region,
+          region: regionToUse,
           credentials: {
             accessKeyId: account.accessKeyId,
             secretAccessKey: account.secretAccessKey,
@@ -615,6 +668,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.log(`Attempting with corrected region: ${correctRegion}`);
           
           try {
+            // For teamwickedyogi bucket, always use ap-southeast-2 region
+            if (bucket === 'teamwickedyogi') {
+              correctRegion = 'ap-southeast-2';
+              console.log("Forcing ap-southeast-2 region for teamwickedyogi bucket");
+            }
+            
             // Try again with the corrected region
             const correctedS3Client = new S3Client({
               region: correctRegion,
