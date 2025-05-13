@@ -10,10 +10,28 @@ export function Breadcrumbs({ accountId, bucket, prefix }: BreadcrumbsProps) {
   // Split the prefix into path segments
   const segments = prefix.split("/").filter(Boolean);
   
+  // Helper function to build URL with query parameters
+  const createUrl = (prefixPath = "") => {
+    const params = new URLSearchParams();
+    params.set('account', accountId.toString());
+    params.set('bucket', bucket);
+    if (prefixPath) {
+      params.set('prefix', prefixPath);
+    }
+    return `/browser?${params.toString()}`;
+  };
+  
+  // Define item type
+  type BreadcrumbItem = {
+    label: string;
+    path: string;
+    isCurrent?: boolean;
+  };
+  
   // Build the breadcrumb items
-  const items = [
+  const items: BreadcrumbItem[] = [
     { label: "Home", path: "/" },
-    { label: bucket, path: `/browser/${accountId}/${bucket}` },
+    { label: bucket, path: createUrl() },
   ];
   
   // Add path segments to the breadcrumbs
@@ -22,7 +40,7 @@ export function Breadcrumbs({ accountId, bucket, prefix }: BreadcrumbsProps) {
     currentPath += segments[i] + "/";
     items.push({
       label: segments[i],
-      path: `/browser/${accountId}/${bucket}/${currentPath}`,
+      path: createUrl(currentPath),
       isCurrent: i === segments.length - 1,
     });
   }

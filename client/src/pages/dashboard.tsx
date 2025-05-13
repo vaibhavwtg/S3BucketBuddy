@@ -42,7 +42,9 @@ export default function Dashboard() {
   // Users should be able to see the dashboard first
 
   const handleExploreAccount = (accountId: number) => {
-    navigate(`/browser/${accountId}`);
+    const params = new URLSearchParams();
+    params.set('account', accountId.toString());
+    navigate(`/browser?${params.toString()}`);
   };
 
   return (
