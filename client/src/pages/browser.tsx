@@ -142,7 +142,12 @@ export default function Browser() {
     bucket,
     cleanPrefix,
     !isBucketSelection
-  );
+  ) as { 
+    data: any; 
+    isLoading: boolean; 
+    isError: boolean; 
+    error: Error | null | unknown; 
+  };
 
   // Update filtered files when data changes or search query changes
   useEffect(() => {
@@ -266,7 +271,9 @@ export default function Browser() {
           <i className="ri-error-warning-line text-5xl text-destructive mb-4"></i>
           <h2 className="text-xl font-bold mb-2">Error loading bucket contents</h2>
           <p className="text-muted-foreground mb-6">
-            {objectsError instanceof Error ? objectsError.message : "Something went wrong"}
+            {objectsError && typeof objectsError === 'object' && 'message' in objectsError 
+              ? (objectsError as Error).message 
+              : "Something went wrong"}
           </p>
           <Button onClick={() => navigate(`/browser/${accountId}`)}>
             Back to Buckets
@@ -338,8 +345,8 @@ export default function Browser() {
             </div>
             <h3 className="text-lg font-semibold mb-2">Error Loading Files</h3>
             <p className="mb-4">
-              {objectsError instanceof Error 
-                ? objectsError.message 
+              {objectsError && typeof objectsError === 'object' && 'message' in objectsError
+                ? (objectsError as Error).message 
                 : "There was a problem loading your files. The bucket might be in a different region than configured."}
             </p>
             <div className="flex justify-center space-x-4 flex-wrap gap-2">

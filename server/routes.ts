@@ -445,7 +445,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Create S3 client
       const client = new S3Client({
-        region: region === "auto" ? "us-east-1" : region,
+        region: region,
         credentials: {
           accessKeyId,
           secretAccessKey,
