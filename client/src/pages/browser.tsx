@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useS3Buckets, useS3Objects, useS3FileOperations } from "@/hooks/use-s3";
 import { S3Bucket, S3Object, S3CommonPrefix, S3Account } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
+import { UploadDialog } from "@/components/dialogs/UploadDialog";
 
 export default function Browser() {
   const [location, navigate] = useLocation();
@@ -29,6 +30,7 @@ export default function Browser() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, S3Object>>({});
+  const [isUploadOpen, setIsUploadOpen] = useState(false);
   const { toast } = useToast();
 
   // Parse accountId to number
@@ -471,6 +473,17 @@ export default function Browser() {
             ))}
           </div>
         </div>
+      )}
+      
+      {/* Upload Dialog */}
+      {bucket && parsedAccountId && (
+        <UploadDialog
+          open={isUploadOpen}
+          onOpenChange={setIsUploadOpen}
+          bucket={bucket}
+          prefix={cleanPrefix}
+          accountId={parsedAccountId}
+        />
       )}
     </Layout>
   );
