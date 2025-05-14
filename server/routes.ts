@@ -2,7 +2,14 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertS3AccountSchema, insertSharedFileSchema } from "@shared/schema";
+import { 
+  insertS3AccountSchema, 
+  insertSharedFileSchema, 
+  users, 
+  s3Accounts, 
+  sharedFiles, 
+  adminLogs 
+} from "@shared/schema";
 import { randomBytes, scrypt, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { setupAuth, requireAuth } from "./auth";
@@ -10,6 +17,8 @@ import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, P
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import multer from "multer";
 import { Readable } from "stream";
+import { db } from "./db";
+import { eq, desc, inArray } from "drizzle-orm";
 
 // Helper function to convert null to undefined
 function nullToUndefined<T>(value: T | null): T | undefined {
@@ -42,6 +51,21 @@ export function registerRoutes(app: Express): Server {
   // Clear out any authentication error logs
   console.log("Traditional authentication enabled");
   
+  // Admin middleware to check if user is authorized
+  const requireAdmin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: 'Not authenticated' });
+    }
+    
+    const user = req.user as any;
+    // Allow access if the user has admin role
+    if (user?.role !== 'admin') {
+      return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
+    }
+    
+    next();
+  };
+  
   // Add middleware to extract userId for convenience
   app.use((req: AuthenticatedRequest, res, next) => {
     if (req.isAuthenticated() && req.user) {
@@ -72,6 +96,148 @@ export function registerRoutes(app: Express): Server {
     
     // User is already attached to the request by passport
     res.json(req.user);
+  });
+  
+  // ==== ADMIN API ROUTES ====
+  
+  // Get admin dashboard statistics
+  app.get("/api/admin/stats", requireAdmin, async (req: AuthenticatedRequest, res) => {
+    try {
+      // Get all users
+      const allUsers = await db.select().from(users);
+      
+      // Get accounts count
+      const accountsResult = await db.select().from(s3Accounts);
+      
+      // Get shared files
+      const sharedFilesResult = await db.select().from(sharedFiles);
+      
+      // Get active shared files (not expired)
+      const now = new Date();
+      const activeSharedFiles = sharedFilesResult.filter((file: any) => 
+        !file.expiresAt || new Date(file.expiresAt) > now
+      );
+      
+      // Calculate new users in the last week
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const newUsersThisWeek = allUsers.filter((user: any) => 
+        user.createdAt && new Date(user.createdAt) > oneWeekAgo
+      ).length;
+      
+      // Calculate active subscriptions
+      const paidSubscriptions = allUsers.filter((user: any) => 
+        user.subscriptionPlan && user.subscriptionPlan !== 'free'
+      ).length;
+      
+      // Calculate subscription conversion rate
+      const subscriptionConversionRate = allUsers.length > 0 ? 
+        (paidSubscriptions / allUsers.length) * 100 : 0;
+      
+      // Prepare stats to return
+      const stats = {
+        totalUsers: allUsers.length,
+        newUsersThisWeek,
+        activeSubscriptions: paidSubscriptions,
+        subscriptionConversionRate: Math.round(subscriptionConversionRate * 10) / 10, // Round to 1 decimal place
+        totalAccounts: accountsResult.length,
+        totalStorageUsed: "Calculation pending", // Would require S3 API calls to calculate
+        totalSharedFiles: sharedFilesResult.length,
+        activeSharedFiles: activeSharedFiles.length
+      };
+      
+      res.json(stats);
+    } catch (error) {
+      console.error("Error retrieving admin stats:", error);
+      res.status(500).json({ message: "Failed to retrieve admin statistics" });
+    }
+  });
+  
+  // Get users for admin management
+  app.get("/api/admin/users", requireAdmin, async (req, res) => {
+    try {
+      const usersList = await db.select().from(users);
+      
+      // Sort by creation date descending (newest first)
+      usersList.sort((a: any, b: any) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      });
+      
+      res.json(usersList);
+    } catch (error) {
+      console.error("Error retrieving users list:", error);
+      res.status(500).json({ message: "Failed to retrieve users" });
+    }
+  });
+  
+  // Update user (role, subscription, status)
+  app.patch("/api/admin/users/:userId", requireAdmin, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const updateData = req.body;
+      
+      // Check if user exists
+      const existingUser = await storage.getUser(userId);
+      if (!existingUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Update user in database
+      const updatedUser = await db.update(users)
+        .set(updateData)
+        .where(eq(users.id, userId))
+        .returning();
+      
+      if (!updatedUser || updatedUser.length === 0) {
+        return res.status(500).json({ message: "Failed to update user" });
+      }
+      
+      // Log admin action
+      await db.insert(adminLogs).values({
+        adminId: req.user!.id,
+        targetUserId: userId,
+        action: "update_user",
+        details: updateData,
+        ip: req.ip || "unknown"
+      });
+      
+      res.json(updatedUser[0]);
+    } catch (error) {
+      console.error("Error updating user:", error);
+      res.status(500).json({ message: "Failed to update user" });
+    }
+  });
+  
+  // Get admin logs
+  app.get("/api/admin/logs", requireAdmin, async (req, res) => {
+    try {
+      // Get all logs, ordered by most recent first
+      const logs = await db.select().from(adminLogs).orderBy(desc(adminLogs.createdAt));
+      
+      // Get all users for lookup purposes
+      const allUsers = await db.select().from(users);
+      
+      // Create a map for quick lookup
+      const usersMap = new Map();
+      
+      allUsers.forEach((user: any) => {
+        usersMap.set(user.id, user.username || user.email || "Unknown User");
+      });
+      
+      // Add usernames to the logs
+      const enhancedLogs = logs.map((log: any) => ({
+        ...log,
+        adminUsername: usersMap.get(log.adminId) || "Unknown Admin",
+        targetUsername: log.targetUserId ? usersMap.get(log.targetUserId) || "Unknown User" : null
+      }));
+      
+      res.json(enhancedLogs);
+    } catch (error) {
+      console.error("Error retrieving admin logs:", error);
+      res.status(500).json({ message: "Failed to retrieve admin logs" });
+    }
   });
   
   // S3 Account Routes
