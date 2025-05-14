@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index, primaryKey, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -14,6 +14,12 @@ export const sessions = pgTable(
 );
 
 // Users table - supporting both traditional auth and social login
+// User roles enum
+export const userRoleEnum = pgEnum('user_role', ['user', 'admin', 'suspended']);
+
+// Subscription plan enum
+export const subscriptionPlanEnum = pgEnum('subscription_plan', ['free', 'basic', 'premium', 'business']);
+
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().notNull(),
   email: text("email").unique(),
@@ -23,6 +29,11 @@ export const users = pgTable("users", {
   // Add password field for traditional auth
   username: text("username"),
   password: text("password"),
+  role: userRoleEnum("role").default("user").notNull(),
+  isVerified: boolean("is_verified").default(false),
+  stripeCustomerId: varchar("stripe_customer_id"),
+  stripeSubscriptionId: varchar("stripe_subscription_id"),
+  subscriptionPlan: subscriptionPlanEnum("subscription_plan").default("free"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -81,9 +92,42 @@ export const userSettings = pgTable("user_settings", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id).unique(),
   theme: text("theme").default("light"),
+  accentColor: text("accent_color").default("#8BD3D6"), // Default teal color
   defaultAccountId: integer("default_account_id").references(() => s3Accounts.id),
   notifications: boolean("notifications").default(true),
   lastAccessed: text("last_accessed").array().default([]),
+});
+
+// Subscription plans table
+export const subscriptionPlans = pgTable("subscription_plans", {
+  id: serial("id").primaryKey(),
+  name: text("name").notNull().unique(),
+  description: text("description").notNull(),
+  priceMonthly: integer("price_monthly").notNull(), // in cents
+  priceYearly: integer("price_yearly").notNull(), // in cents
+  stripePriceIdMonthly: text("stripe_price_id_monthly"),
+  stripePriceIdYearly: text("stripe_price_id_yearly"),
+  features: jsonb("features").default({}).notNull(),
+  maxAccounts: integer("max_accounts").notNull(),
+  maxStorage: integer("max_storage").notNull(), // in GB
+  maxBandwidth: integer("max_bandwidth").notNull(), // in GB
+  isActive: boolean("is_active").default(true),
+  sortOrder: integer("sort_order").default(0),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+// Billing/invoice records
+export const billingRecords = pgTable("billing_records", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  stripeInvoiceId: text("stripe_invoice_id"),
+  amount: integer("amount").notNull(), // in cents
+  status: text("status").default("pending").notNull(),
+  billingDate: timestamp("billing_date").notNull(),
+  paidDate: timestamp("paid_date"),
+  description: text("description"),
+  receiptUrl: text("receipt_url"),
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // Insert schemas
@@ -130,6 +174,49 @@ export const insertFileAccessLogSchema = createInsertSchema(fileAccessLogs).omit
   accessedAt: true,
 });
 
+export const insertSubscriptionPlanSchema = createInsertSchema(subscriptionPlans).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertBillingRecordSchema = createInsertSchema(billingRecords).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Usage stats table for tracking resource usage
+export const usageStats = pgTable("usage_stats", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull().references(() => users.id),
+  accountId: integer("account_id").references(() => s3Accounts.id),
+  storageUsed: integer("storage_used").default(0), // in bytes
+  bandwidthUsed: integer("bandwidth_used").default(0), // in bytes
+  objectCount: integer("object_count").default(0),
+  date: timestamp("date").defaultNow(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertUsageStatsSchema = createInsertSchema(usageStats).omit({
+  id: true,
+  createdAt: true,
+});
+
+// Admin action logs for auditing
+export const adminLogs = pgTable("admin_logs", {
+  id: serial("id").primaryKey(),
+  adminId: varchar("admin_id").notNull().references(() => users.id),
+  targetUserId: varchar("target_user_id").references(() => users.id),
+  action: text("action").notNull(),
+  details: jsonb("details").default({}),
+  ip: varchar("ip", { length: 45 }),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertAdminLogSchema = createInsertSchema(adminLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -145,3 +232,15 @@ export type UserSettings = typeof userSettings.$inferSelect;
 
 export type InsertFileAccessLog = z.infer<typeof insertFileAccessLogSchema>;
 export type FileAccessLog = typeof fileAccessLogs.$inferSelect;
+
+export type InsertSubscriptionPlan = z.infer<typeof insertSubscriptionPlanSchema>;
+export type SubscriptionPlan = typeof subscriptionPlans.$inferSelect;
+
+export type InsertBillingRecord = z.infer<typeof insertBillingRecordSchema>;
+export type BillingRecord = typeof billingRecords.$inferSelect;
+
+export type InsertUsageStat = z.infer<typeof insertUsageStatsSchema>;
+export type UsageStat = typeof usageStats.$inferSelect;
+
+export type InsertAdminLog = z.infer<typeof insertAdminLogSchema>;
+export type AdminLog = typeof adminLogs.$inferSelect;
