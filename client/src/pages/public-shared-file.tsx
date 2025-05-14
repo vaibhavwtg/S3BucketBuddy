@@ -139,7 +139,7 @@ export default function PublicSharedFile() {
       <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 bg-muted/40">
         <div className="flex items-center mb-8">
           <i className="ri-cloud-line text-primary text-3xl mr-2"></i>
-          <h1 className="text-2xl font-bold">CloudStore</h1>
+          <h1 className="text-2xl font-bold">WickedFiles</h1>
         </div>
         
         <Card className="w-full max-w-md">
@@ -185,7 +185,7 @@ export default function PublicSharedFile() {
       <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 bg-muted/40">
         <div className="flex items-center mb-8">
           <i className="ri-cloud-line text-primary text-3xl mr-2"></i>
-          <h1 className="text-2xl font-bold">CloudStore</h1>
+          <h1 className="text-2xl font-bold">WickedFiles</h1>
         </div>
         
         <div className="flex flex-col items-center">
@@ -217,7 +217,7 @@ export default function PublicSharedFile() {
       <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 bg-muted/40">
         <div className="flex items-center mb-8">
           <i className="ri-cloud-line text-primary text-3xl mr-2"></i>
-          <h1 className="text-2xl font-bold">CloudStore</h1>
+          <h1 className="text-2xl font-bold">WickedFiles</h1>
         </div>
         
         <Card className="w-full max-w-md">
@@ -248,7 +248,7 @@ export default function PublicSharedFile() {
     <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 bg-muted/40">
       <div className="flex items-center mb-8">
         <i className="ri-cloud-line text-primary text-3xl mr-2"></i>
-        <h1 className="text-2xl font-bold">CloudStore</h1>
+        <h1 className="text-2xl font-bold">WickedFiles</h1>
       </div>
       
       <Card className="w-full max-w-md">
@@ -315,7 +315,7 @@ export default function PublicSharedFile() {
         </CardContent>
         <CardFooter className="flex justify-center border-t pt-4">
           <p className="text-xs text-center text-muted-foreground">
-            Shared via CloudStore • Secure file sharing
+            Shared via WickedFiles • Secure file sharing
           </p>
         </CardFooter>
       </Card>

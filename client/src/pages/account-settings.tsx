@@ -254,7 +254,7 @@ export default function AccountSettings() {
                 <CardHeader>
                   <CardTitle>Appearance</CardTitle>
                   <CardDescription>
-                    Customize how CloudStore looks.
+                    Customize how WickedFiles looks.
                   </CardDescription>
                 </CardHeader>
                 <CardContent>

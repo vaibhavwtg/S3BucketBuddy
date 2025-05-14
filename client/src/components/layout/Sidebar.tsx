@@ -96,23 +96,23 @@ export function Sidebar() {
               .map((account) => (
                 <Link 
                   key={`bucket-${account.id}`} 
-                  href={`/browser?account=${account.id}&bucket=${account.defaultBucket}`}
+                  href={`/browser/${account.id}/${account.defaultBucket}`}
                 >
                   <a className={cn(
                     "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
-                    isActive(`/browser?account=${account.id}&bucket=${account.defaultBucket}`) ? 
+                    isActive(`/browser/${account.id}/${account.defaultBucket}`) ? 
                       "bg-muted text-primary" : 
                       "text-foreground hover:bg-muted"
                   )}>
                     <div className={cn(
                       "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
-                      isActive(`/browser?account=${account.id}&bucket=${account.defaultBucket}`) ? 
+                      isActive(`/browser/${account.id}/${account.defaultBucket}`) ? 
                         "bg-primary/10" : 
                         "bg-primary/5"
                     )}>
                       <i className={cn(
                         "ri-folder-fill",
-                        isActive(`/browser?account=${account.id}&bucket=${account.defaultBucket}`) ? 
+                        isActive(`/browser/${account.id}/${account.defaultBucket}`) ? 
                           "text-primary" : 
                           "text-primary/70"
                       )}></i>
@@ -129,22 +129,22 @@ export function Sidebar() {
           <h2 className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">My Accounts</h2>
           <div className="mt-2 space-y-1">
             {accounts.map((account) => (
-              <Link key={account.id} href={`/browser?account=${account.id}`}>
+              <Link key={account.id} href={`/browser/${account.id}`}>
                 <a className={cn(
                   "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
-                  isActive(`/browser?account=${account.id}`) ? 
+                  isActive(`/browser/${account.id}`) ? 
                     "bg-muted text-foreground" : 
                     "text-foreground hover:bg-muted"
                 )}>
                   <div className={cn(
                     "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
-                    isActive(`/browser?account=${account.id}`) ? 
+                    isActive(`/browser/${account.id}`) ? 
                       "bg-primary/10" : 
                       "bg-slate-200 dark:bg-slate-700"
                   )}>
                     <i className={cn(
                       "ri-amazon-line",
-                      isActive(`/browser?account=${account.id}`) ? 
+                      isActive(`/browser/${account.id}`) ? 
                         "text-primary" : 
                         "text-slate-600 dark:text-slate-300"
                     )}></i>

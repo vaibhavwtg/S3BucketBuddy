@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 // Debug helper for browser component
@@ -50,11 +50,26 @@ export default function Browser() {
     }
   }, [authLoading, isAuthenticated, navigate, notify]);
   
-  // Parse URL parameters
+  // Get parameters from URL - support both path parameters and query parameters
+  const { accountId, "*": pathParamRest } = useParams();
+  
+  // Use URL parameters as fallback for backward compatibility
   const urlParams = new URLSearchParams(window.location.search);
-  const accountIdParam = urlParams.get('account');
-  const bucketParam = urlParams.get('bucket');
-  const prefixParam = urlParams.get('prefix') || "";
+  const accountIdParam = accountId || urlParams.get('account');
+  
+  // Handle the bucket and prefix from path or query parameters
+  let bucketParam, prefixParam;
+  
+  if (pathParamRest) {
+    // Extract bucket and prefix from the path parameter
+    const pathSegments = pathParamRest.split('/');
+    bucketParam = pathSegments[0];
+    prefixParam = pathSegments.slice(1).join('/');
+  } else {
+    // Fallback to query parameters
+    bucketParam = urlParams.get('bucket');
+    prefixParam = urlParams.get('prefix') || "";
+  }
   
   // Parse account ID to number or undefined
   const parsedAccountId = accountIdParam ? parseInt(accountIdParam) : undefined;
@@ -73,28 +88,29 @@ export default function Browser() {
     });
   }
   
-  // Helper function for navigation with parameters
+  // Helper function for navigation with parameters - using path params instead of query params
   const navigateTo = useCallback((params: { 
     account?: string | number, 
     bucket?: string, 
     prefix?: string 
   }) => {
-    const queryParams = new URLSearchParams();
+    // Build the path-based URL
+    let navigationUrl = '/browser';
     
-    // Only set parameters that are defined
+    // Add account ID
     if (params.account !== undefined && params.account !== null) {
-      queryParams.set('account', params.account.toString());
+      navigationUrl += `/${params.account}`;
+      
+      // Add bucket
+      if (params.bucket) {
+        navigationUrl += `/${params.bucket}`;
+        
+        // Add prefix if it exists
+        if (params.prefix) {
+          navigationUrl += `/${params.prefix}`;
+        }
+      }
     }
-    
-    if (params.bucket) {
-      queryParams.set('bucket', params.bucket);
-    }
-    
-    if (params.prefix) {
-      queryParams.set('prefix', params.prefix);
-    }
-    
-    const navigationUrl = `/browser?${queryParams.toString()}`;
     
     if (DEBUG) {
       console.log('Navigating to:', { 

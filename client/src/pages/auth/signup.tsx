@@ -55,7 +55,7 @@ export default function SignUp() {
     <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 bg-muted/40">
       <div className="flex items-center mb-8">
         <i className="ri-cloud-line text-primary text-3xl mr-2"></i>
-        <h1 className="text-2xl font-bold">CloudStore</h1>
+        <h1 className="text-2xl font-bold">WickedFiles</h1>
       </div>
       
       <Card className="w-full max-w-md">
