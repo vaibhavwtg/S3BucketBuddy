@@ -442,12 +442,24 @@ export function useS3FileOperations(accountId: number | undefined) {
       batchMoveMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
     downloadFiles,
     
+    // Aliases for backward compatibility
+    batchDownload: downloadFiles,
+    batchDelete: (bucket: string, keys: string[]) => batchDeleteMutation.mutate({ bucket, keys }),
+    batchMove: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
+      batchMoveMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
+    batchCopy: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
+      batchCopyMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
+    
     // Mutation states
     isDeleting: deleteFileMutation.isPending,
     isBatchDeleting: batchDeleteMutation.isPending,
     isBatchCopying: batchCopyMutation.isPending,
     isBatchMoving: batchMoveMutation.isPending,
     isRenaming: renameFileMutation.isPending,
+    
+    // Additional states for backward compatibility
+    isDownloading: false, // Not implemented yet
+    isBatchDownloading: batchDeleteMutation.isPending, // Use as a placeholder
   };
 }
 

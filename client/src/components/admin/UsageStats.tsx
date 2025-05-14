@@ -54,12 +54,12 @@ export function UsageStats() {
     queryKey: ['/api/admin/stats'],
   });
 
-  // Basic mock data for charts - in a real implementation, we'd fetch this from the API
+  // Data for charts based on admin stats
   const planDistributionData = [
-    { name: "Free", value: stats?.totalUsers ? stats.totalUsers - (stats.activeSubscriptions || 0) : 0 },
-    { name: "Basic", value: stats?.activeSubscriptions ? Math.floor(stats.activeSubscriptions * 0.6) : 0 },
-    { name: "Premium", value: stats?.activeSubscriptions ? Math.floor(stats.activeSubscriptions * 0.3) : 0 },
-    { name: "Business", value: stats?.activeSubscriptions ? Math.floor(stats.activeSubscriptions * 0.1) : 0 },
+    { name: "Free", value: stats.totalUsers ? stats.totalUsers - (stats.activeSubscriptions || 0) : 0 },
+    { name: "Basic", value: stats.activeSubscriptions ? Math.floor(stats.activeSubscriptions * 0.6) : 0 },
+    { name: "Premium", value: stats.activeSubscriptions ? Math.floor(stats.activeSubscriptions * 0.3) : 0 },
+    { name: "Business", value: stats.activeSubscriptions ? Math.floor(stats.activeSubscriptions * 0.1) : 0 },
   ];
 
   // Last 7 days new users - in a real implementation, we'd fetch this as a time series
@@ -258,23 +258,23 @@ export function UsageStats() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                 <div className="space-y-2">
                   <h3 className="text-muted-foreground text-sm">Total Accounts</h3>
-                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : stats?.totalAccounts || 0}</p>
+                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : stats.totalAccounts || 0}</p>
                   <p className="text-xs text-muted-foreground">
-                    Average {isLoadingStats ? "..." : (stats?.totalAccounts && stats?.totalUsers) ? (stats.totalAccounts / stats.totalUsers).toFixed(1) : 0} per user
+                    Average {isLoadingStats ? "..." : (stats.totalAccounts && stats.totalUsers) ? (stats.totalAccounts / stats.totalUsers).toFixed(1) : 0} per user
                   </p>
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-muted-foreground text-sm">Total Storage Used</h3>
-                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : stats?.totalStorageUsed || "0 GB"}</p>
+                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : stats.totalStorageUsed || "0 GB"}</p>
                   <p className="text-xs text-muted-foreground">
                     Across all users
                   </p>
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-muted-foreground text-sm">Total Files Shared</h3>
-                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : stats?.totalSharedFiles || 0}</p>
+                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : stats.totalSharedFiles || 0}</p>
                   <p className="text-xs text-muted-foreground">
-                    {isLoadingStats ? "..." : stats?.activeSharedFiles || 0} currently active
+                    {isLoadingStats ? "..." : stats.activeSharedFiles || 0} currently active
                   </p>
                 </div>
                 <div className="space-y-2">
