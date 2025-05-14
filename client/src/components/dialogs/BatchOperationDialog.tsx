@@ -52,6 +52,14 @@ export function BatchOperationDialog({
   }, [open, sourceBucket]);
 
   const handleConfirm = () => {
+    // Debug logging for batch operations
+    console.log('Batch operation confirmation:', {
+      operation: operationType,
+      sourceBucket,
+      destinationBucket,
+      destinationPrefix,
+      selectedCount
+    });
     onConfirm(destinationBucket, destinationPrefix);
   };
 
@@ -85,8 +93,11 @@ export function BatchOperationDialog({
               </SelectTrigger>
               <SelectContent>
                 {allBuckets.map((bucket: EnhancedS3Bucket) => (
-                  <SelectItem key={`${bucket.accountId}-${bucket.Name}`} value={bucket.Name || ""}>
-                    {bucket.Name} ({bucket.accountName})
+                  <SelectItem 
+                    key={`${bucket.accountId}-${bucket.Name}`} 
+                    value={bucket.Name || ""}
+                  >
+                    {bucket.Name} ({bucket.accountName} - {bucket.region})
                   </SelectItem>
                 ))}
               </SelectContent>

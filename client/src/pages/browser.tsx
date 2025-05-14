@@ -219,7 +219,19 @@ export default function Browser() {
 
   // Redirect to default bucket if we have an account with a default bucket but no bucket selected
   useEffect(() => {
+    if (DEBUG) {
+      console.log('Default bucket check:', {
+        parsedAccountId,
+        currentAccount,
+        defaultBucket: currentAccount?.defaultBucket,
+        currentBucket: bucket
+      });
+    }
+    
     if (parsedAccountId && currentAccount && currentAccount.defaultBucket && !bucket) {
+      if (DEBUG) {
+        console.log('Redirecting to default bucket:', currentAccount.defaultBucket);
+      }
       navigateTo({
         account: parsedAccountId,
         bucket: currentAccount.defaultBucket
