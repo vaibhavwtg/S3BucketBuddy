@@ -1184,6 +1184,59 @@ export function registerRoutes(app: Express): Server {
     }
   });
   
+  // API endpoint to expire a shared file (mark as expired without deleting)
+  app.patch("/api/shared-files/:id/expire", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check if file belongs to user
+      const sharedFile = await storage.getSharedFile(id);
+      if (!sharedFile || sharedFile.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Shared file not found" });
+      }
+      
+      // Update the shared file to mark it as expired
+      const updatedFile = await storage.updateSharedFile(id, { 
+        isExpired: true 
+      });
+      
+      res.json({
+        ...updatedFile,
+        message: "Shared file expired successfully"
+      });
+    } catch (error) {
+      console.error("Error expiring shared file:", error);
+      res.status(500).json({ message: "Failed to expire shared file" });
+    }
+  });
+  
+  // API endpoint to toggle public access for a shared file
+  app.patch("/api/shared-files/:id/toggle-public", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { isPublic } = req.body;
+      
+      // Check if file belongs to user
+      const sharedFile = await storage.getSharedFile(id);
+      if (!sharedFile || sharedFile.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Shared file not found" });
+      }
+      
+      // Update the shared file to toggle public access
+      const updatedFile = await storage.updateSharedFile(id, { 
+        isPublic: !!isPublic 
+      });
+      
+      res.json({
+        ...updatedFile,
+        message: isPublic ? "Public access enabled" : "Public access disabled"
+      });
+    } catch (error) {
+      console.error("Error updating shared file public access:", error);
+      res.status(500).json({ message: "Failed to update shared file" });
+    }
+  });
+  
   // File access logs route - get access history for a shared file
   app.get("/api/shared-files/:id/access-logs", requireAuth, async (req, res) => {
     try {
@@ -1271,8 +1324,11 @@ export function registerRoutes(app: Express): Server {
       
       const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
       
-      // Create a direct S3 URL as a fallback option
-      const directS3Url = `https://${sharedFile.bucket}.s3.${account.region}.amazonaws.com/${sharedFile.path}`;
+      // Create a direct S3 URL as a fallback option (only include if file is marked as public)
+      // This URL can be used for embedding in websites or as a fallback when our signed URLs aren't suitable
+      const directS3Url = sharedFile.isPublic 
+        ? `https://${sharedFile.bucket}.s3.${account.region}.amazonaws.com/${sharedFile.path}`
+        : undefined;
       
       // Log the file access
       try {
@@ -1281,8 +1337,6 @@ export function registerRoutes(app: Express): Server {
           ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
           userAgent: req.headers['user-agent'] || 'unknown',
           referrer: req.headers.referer || 'direct',
-          country: null,
-          city: null,
           isDownload: req.query.download === 'true',
         });
         
