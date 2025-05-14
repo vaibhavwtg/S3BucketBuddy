@@ -595,6 +595,32 @@ export default function Browser() {
           accountId={parsedAccountId}
         />
       )}
+      
+      {/* Batch Move Dialog */}
+      {bucket && parsedAccountId && (
+        <BatchOperationDialog
+          open={isBatchMoveOpen}
+          onOpenChange={setIsBatchMoveOpen}
+          operationType="move"
+          sourceBucket={bucket}
+          selectedCount={Object.keys(selectedFiles).length}
+          onConfirm={handleConfirmBatchMove}
+          isProcessing={isBatchMoving}
+        />
+      )}
+      
+      {/* Batch Copy Dialog */}
+      {bucket && parsedAccountId && (
+        <BatchOperationDialog
+          open={isBatchCopyOpen}
+          onOpenChange={setIsBatchCopyOpen}
+          operationType="copy"
+          sourceBucket={bucket}
+          selectedCount={Object.keys(selectedFiles).length}
+          onConfirm={handleConfirmBatchCopy}
+          isProcessing={isBatchCopying}
+        />
+      )}
     </Layout>
   );
 }
