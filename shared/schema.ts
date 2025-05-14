@@ -87,6 +87,8 @@ export const userSettings = pgTable("user_settings", {
 export const insertUserSchema = createInsertSchema(users).omit({
   createdAt: true,
   updatedAt: true,
+}).partial({
+  id: true,  // ID can be auto-generated
 });
 
 export const upsertUserSchema = createInsertSchema(users).omit({
@@ -97,7 +99,7 @@ export const upsertUserSchema = createInsertSchema(users).omit({
   password: true,
 });
 
-export type UpsertUser = z.infer<typeof upsertUserSchema>;
+export type UpsertUser = z.infer<typeof upsertUserSchema>; 
 
 // Create a custom S3 account schema that includes an optional "auto" region
 const baseS3AccountSchema = createInsertSchema(s3Accounts).omit({
