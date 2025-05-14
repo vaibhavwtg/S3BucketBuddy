@@ -17,6 +17,7 @@ export interface IStorage {
   
   // Authentication methods
   createUser(user: InsertUser): Promise<User>;
+  upsertUser(user: UpsertUser): Promise<User>;
   
   // S3 Account operations
   getS3Accounts(userId: number): Promise<S3Account[]>;
@@ -64,6 +65,28 @@ export class DatabaseStorage implements IStorage {
   async createUser(userData: InsertUser): Promise<User> {
     const [newUser] = await db.insert(users).values(userData).returning();
     return newUser;
+  }
+  
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values({
+        // Provide default values for partial fields if needed
+        username: userData.username || 'user_' + Math.random().toString(36).substring(2, 10),
+        password: userData.password || randomBytes(16).toString('hex'),
+        ...userData,
+      })
+      .onConflictDoUpdate({
+        target: users.email,
+        set: {
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          profileImageUrl: userData.profileImageUrl,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
   }
 
   // S3 Account operations
@@ -171,8 +194,9 @@ export class DatabaseStorage implements IStorage {
     const existingSettings = await this.getUserSettings(settings.userId);
     
     // Ensure lastAccessed is properly typed as string[]
-    const lastAccessedArray: string[] = Array.isArray(settings.lastAccessed) ? 
-      settings.lastAccessed : [];
+    const existingPaths = settings.lastAccessed || [];
+    const lastAccessedArray: string[] = Array.isArray(existingPaths) ? 
+      existingPaths.map(p => String(p)) : [];
     
     const settingsToSave = {
       ...settings,
@@ -201,8 +225,10 @@ export class DatabaseStorage implements IStorage {
     
     if (settings) {
       // Add the path to the beginning of the array and limit to 10 items
-      const currentPaths: string[] = Array.isArray(settings.lastAccessed) ? 
-        settings.lastAccessed : [];
+      // Extract or create an empty array
+      const existingPaths = settings.lastAccessed || [];
+      const currentPaths: string[] = Array.isArray(existingPaths) ? 
+        existingPaths.map(p => String(p)) : [];
       
       // Remove if already exists
       const filteredPaths = currentPaths.filter(p => p !== path);

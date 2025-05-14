@@ -1112,7 +1112,15 @@ export function registerRoutes(app: Express): Server {
       // Hash password if provided
       let hashedPassword = null;
       if (password) {
-        hashedPassword = await bcrypt.hash(password, 10);
+        // Use crypto for password hashing
+        const salt = randomBytes(16).toString("hex");
+        const hash = await new Promise<Buffer>((resolve, reject) => {
+          scrypt(password, salt, 64, (err, buf) => {
+            if (err) reject(err);
+            else resolve(buf);
+          });
+        });
+        hashedPassword = `${hash.toString("hex")}.${salt}`;
       }
       
       // Create shared file record

@@ -91,6 +91,9 @@ export const insertUserSchema = createInsertSchema(users).omit({
 export const upsertUserSchema = createInsertSchema(users).omit({
   createdAt: true, 
   updatedAt: true,
+}).partial({
+  username: true,
+  password: true,
 });
 
 export type UpsertUser = z.infer<typeof upsertUserSchema>;
