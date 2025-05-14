@@ -87,9 +87,11 @@ export interface SharedFileAccess {
   contentType?: string;
   filesize: number;
   signedUrl: string;
-  directS3Url?: string; // Add direct S3 URL 
+  directS3Url?: string; // Direct S3 URL for embedding in websites
   allowDownload: boolean;
   expiresAt?: string;
+  accessCount?: number; // Number of times the file has been accessed
+  isExpired?: boolean; // Whether the file has been manually expired
 }
 
 export interface FileUploadProgress {
