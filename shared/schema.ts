@@ -15,20 +15,21 @@ export const sessions = pgTable(
 
 // Users table - supporting both traditional auth and social login
 export const users = pgTable("users", {
-  id: serial("id").primaryKey().notNull(),
-  email: text("email").unique().notNull(),
-  username: text("username").notNull(),
-  password: text("password").notNull(),
+  id: varchar("id").primaryKey().notNull(),
+  email: text("email").unique(),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
+  // Add password field for traditional auth
+  username: text("username"),
+  password: text("password"),
+  createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const s3Accounts = pgTable("s3_accounts", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   accessKeyId: text("access_key_id").notNull(),
   secretAccessKey: text("secret_access_key").notNull(),
@@ -40,7 +41,7 @@ export const s3Accounts = pgTable("s3_accounts", {
 
 export const sharedFiles = pgTable("shared_files", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
   accountId: integer("account_id").notNull().references(() => s3Accounts.id),
   bucket: text("bucket").notNull(),
   path: text("path").notNull(),
@@ -75,7 +76,7 @@ export const fileAccessLogs = pgTable("file_access_logs", {
 
 export const userSettings = pgTable("user_settings", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  userId: varchar("user_id").notNull().references(() => users.id).unique(),
   theme: text("theme").default("light"),
   defaultAccountId: integer("default_account_id").references(() => s3Accounts.id),
   notifications: boolean("notifications").default(true),

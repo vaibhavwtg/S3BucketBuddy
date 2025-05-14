@@ -11,7 +11,7 @@ import { randomBytes } from "crypto";
 
 export interface IStorage {
   // User operations
-  getUser(id: number): Promise<User | undefined>;
+  getUser(id: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   
@@ -20,14 +20,14 @@ export interface IStorage {
   upsertUser(user: UpsertUser): Promise<User>;
   
   // S3 Account operations
-  getS3Accounts(userId: number): Promise<S3Account[]>;
+  getS3Accounts(userId: string): Promise<S3Account[]>;
   getS3Account(id: number): Promise<S3Account | undefined>;
   createS3Account(account: InsertS3Account): Promise<S3Account>;
   updateS3Account(id: number, account: Partial<S3Account>): Promise<S3Account | undefined>;
   deleteS3Account(id: number): Promise<boolean>;
   
   // Shared files operations
-  getSharedFiles(userId: number): Promise<SharedFile[]>;
+  getSharedFiles(userId: string): Promise<SharedFile[]>;
   getSharedFile(id: number): Promise<SharedFile | undefined>;
   getSharedFileByToken(token: string): Promise<SharedFile | undefined>;
   createSharedFile(file: InsertSharedFile): Promise<SharedFile>;
@@ -40,14 +40,14 @@ export interface IStorage {
   logFileAccess(log: InsertFileAccessLog): Promise<FileAccessLog>;
   
   // User settings operations
-  getUserSettings(userId: number): Promise<UserSettings | undefined>;
+  getUserSettings(userId: string): Promise<UserSettings | undefined>;
   createOrUpdateUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
-  updateLastAccessed(userId: number, path: string): Promise<void>;
+  updateLastAccessed(userId: string, path: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
   // User operations
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
@@ -58,16 +58,29 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getUserByUsername(username: string): Promise<User | undefined> {
+    if (!username) {
+      return undefined;
+    }
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
   }
   
   async createUser(userData: InsertUser): Promise<User> {
+    // Generate a unique ID if not provided
+    if (!userData.id) {
+      userData.id = `local_${randomBytes(8).toString('hex')}`;
+    }
+    
     const [newUser] = await db.insert(users).values(userData).returning();
     return newUser;
   }
   
   async upsertUser(userData: UpsertUser): Promise<User> {
+    // Ensure we have an ID
+    if (!userData.id) {
+      userData.id = `local_${randomBytes(8).toString('hex')}`;
+    }
+    
     const [user] = await db
       .insert(users)
       .values({
@@ -77,8 +90,9 @@ export class DatabaseStorage implements IStorage {
         ...userData,
       })
       .onConflictDoUpdate({
-        target: users.email,
+        target: users.id,
         set: {
+          email: userData.email,
           firstName: userData.firstName,
           lastName: userData.lastName,
           profileImageUrl: userData.profileImageUrl,
