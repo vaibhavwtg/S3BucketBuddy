@@ -26,8 +26,20 @@ import { Loader2, LineChart, PieChart as PieChartIcon } from "lucide-react";
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
 export function UsageStats() {
+  // Define AdminStats type
+  type AdminStats = {
+    totalUsers: number;
+    newUsersThisWeek: number;
+    activeSubscriptions: number;
+    subscriptionConversionRate: number;
+    totalAccounts: number;
+    totalStorageUsed: string;
+    totalSharedFiles: number;
+    activeSharedFiles: number;
+  };
+
   // Fetch admin stats - these will be expanded as we add more specific stats endpoints
-  const { data: stats, isLoading: isLoadingStats } = useQuery({
+  const { data: stats = {}, isLoading: isLoadingStats } = useQuery<AdminStats>({
     queryKey: ['/api/admin/stats'],
   });
 

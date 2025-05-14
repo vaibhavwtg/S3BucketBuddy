@@ -56,8 +56,18 @@ export function UserManagement() {
   const [newRole, setNewRole] = useState("");
   const [newPlan, setNewPlan] = useState("");
 
+  // Define Admin User type
+  type AdminUser = {
+    id: string;
+    username: string;
+    email: string;
+    role: string;
+    subscriptionPlan: string;
+    createdAt: string;
+  };
+
   // Fetch users
-  const { data: users = [], isLoading } = useQuery({
+  const { data: users = [], isLoading } = useQuery<AdminUser[]>({
     queryKey: ['/api/admin/users'],
   });
 

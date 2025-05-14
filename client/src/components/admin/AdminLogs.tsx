@@ -20,13 +20,25 @@ import { Loader2, ClipboardList, RefreshCw } from "lucide-react";
 import { format } from "date-fns";
 
 export function AdminLogs() {
+  // Define AdminLog type
+  type AdminLogEntry = {
+    id: number;
+    adminId: string;
+    adminUsername: string;
+    targetUserId?: string;
+    targetUsername?: string;
+    action: string;
+    details: Record<string, any> | string;
+    createdAt: string;
+  };
+
   // Fetch admin logs
   const {
     data: logs = [],
     isLoading,
     refetch,
     isRefetching,
-  } = useQuery({
+  } = useQuery<AdminLogEntry[]>({
     queryKey: ['/api/admin/logs'],
   });
 

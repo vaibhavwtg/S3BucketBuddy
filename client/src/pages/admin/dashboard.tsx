@@ -13,10 +13,22 @@ import { Loader2, Users, Wallet, HardDrive, Share2 } from "lucide-react";
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
   
+  // Define AdminStats type
+  type AdminStats = {
+    totalUsers: number;
+    newUsersThisWeek: number;
+    activeSubscriptions: number;
+    subscriptionConversionRate: number;
+    totalAccounts: number;
+    totalStorageUsed: string;
+    totalSharedFiles: number;
+    activeSharedFiles: number;
+  };
+
   // Fetch admin stats
-  const { data: stats, isLoading: isLoadingStats } = useQuery({
+  const { data: stats = {}, isLoading: isLoadingStats } = useQuery<AdminStats>({
     queryKey: ['/api/admin/stats'],
-    enabled: !!user && (user as any).role === 'admin', // Only run if user is admin
+    enabled: !!user && user.role === 'admin', // Only run if user is admin
   });
   
   // Show loading state
@@ -29,7 +41,7 @@ export default function AdminDashboard() {
   }
   
   // Redirect if not admin
-  if (!user || (user as any).role !== 'admin') {
+  if (!user || user.role !== 'admin') {
     return <Redirect to="/" />;
   }
   

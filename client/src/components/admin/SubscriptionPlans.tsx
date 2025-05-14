@@ -51,8 +51,21 @@ const planSchema = z.object({
 
 type PlanFormValues = z.infer<typeof planSchema>;
 
+// Define SubscriptionPlan type
+type SubscriptionPlanType = {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  maxAccounts: number;
+  maxStorage: number;
+  active: boolean;
+  features: string[];
+  isDefault?: boolean;
+};
+
 // Predefined sample plans - in a real app, these would come from a database
-const samplePlans = [
+const samplePlans: SubscriptionPlanType[] = [
   {
     id: "free",
     name: "Free",
@@ -117,12 +130,12 @@ export function SubscriptionPlans() {
   });
 
   // In a real implementation, we would fetch subscription plans from the API
-  const { data: plans = samplePlans, isLoading } = useQuery({
+  const { data: plans = samplePlans, isLoading } = useQuery<SubscriptionPlanType[]>({
     queryKey: ['/api/admin/subscription-plans'],
     // In the absence of a real endpoint, just provide the predefined plans
     queryFn: async () => {
       // This would be replaced with an actual API call in a real application
-      return new Promise(resolve => setTimeout(() => resolve(samplePlans), 500));
+      return new Promise<SubscriptionPlanType[]>(resolve => setTimeout(() => resolve(samplePlans), 500));
     },
   });
 
@@ -225,7 +238,7 @@ export function SubscriptionPlans() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {plans.map((plan) => (
+                {plans.map((plan: SubscriptionPlanType) => (
                   <TableRow key={plan.id}>
                     <TableCell>
                       <div className="font-medium">{plan.name}</div>
