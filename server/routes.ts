@@ -1121,9 +1121,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
         password: hashedPassword,
       });
       
+      // Generate a direct S3 link that will work regardless of app state
+      const s3Url = new URL(`https://${bucket}.s3.${account.region}.amazonaws.com/${path}`);
+      
+      // Create a share URL that contains both our app URL and a direct S3 URL
       res.status(201).json({
         ...sharedFile,
         shareUrl: `${req.protocol}://${req.get("host")}/shared/${shareToken}`,
+        directS3Url: s3Url.toString()
       });
     } catch (error) {
       console.error("Error creating shared file:", error);
@@ -1135,10 +1140,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const sharedFiles = await storage.getSharedFiles(req.user!.id);
       
-      // Add share URLs
-      const filesWithUrls = sharedFiles.map((file) => ({
-        ...file,
-        shareUrl: `${req.protocol}://${req.get("host")}/shared/${file.shareToken}`,
+      // Add share URLs with direct S3 URLs as backup
+      const filesWithUrls = await Promise.all(sharedFiles.map(async (file) => {
+        // Get account info to build direct S3 URL
+        const account = await storage.getS3Account(file.accountId);
+        let directS3Url = null;
+        
+        if (account) {
+          // Create a direct S3 URL that works regardless of app state
+          const s3Url = new URL(`https://${file.bucket}.s3.${account.region}.amazonaws.com/${file.path}`);
+          directS3Url = s3Url.toString();
+        }
+        
+        return {
+          ...file,
+          shareUrl: `${req.protocol}://${req.get("host")}/shared/${file.shareToken}`,
+          directS3Url
+        };
       }));
       
       res.json(filesWithUrls);
