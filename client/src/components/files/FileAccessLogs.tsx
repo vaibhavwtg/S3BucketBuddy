@@ -85,7 +85,7 @@ export function FileAccessLogs({ fileId, filename, accessCount }: FileAccessLogP
                 <Skeleton className="h-10 w-full" />
                 <Skeleton className="h-10 w-full" />
               </div>
-            ) : logs && logs.length > 0 ? (
+            ) : logs.length > 0 ? (
               <div className="border rounded-md overflow-hidden">
                 <Table>
                   <TableHeader>
@@ -142,21 +142,33 @@ export function FileAccessLogs({ fileId, filename, accessCount }: FileAccessLogP
               <div className="border rounded-md p-4 text-center">
                 <h3 className="text-muted-foreground text-sm font-medium">Total Views</h3>
                 <p className="text-3xl font-bold mt-2">
-                  {logs ? logs.filter((log: FileAccessLog) => !log.isDownload).length : '-'}
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-16 mx-auto" />
+                  ) : (
+                    logs.filter((log: FileAccessLog) => !log.isDownload).length
+                  )}
                 </p>
               </div>
               
               <div className="border rounded-md p-4 text-center">
                 <h3 className="text-muted-foreground text-sm font-medium">Total Downloads</h3>
                 <p className="text-3xl font-bold mt-2">
-                  {logs ? logs.filter((log: FileAccessLog) => log.isDownload).length : '-'}
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-16 mx-auto" />
+                  ) : (
+                    logs.filter((log: FileAccessLog) => log.isDownload).length
+                  )}
                 </p>
               </div>
               
               <div className="border rounded-md p-4 text-center">
                 <h3 className="text-muted-foreground text-sm font-medium">Unique Visitors</h3>
                 <p className="text-3xl font-bold mt-2">
-                  {logs ? new Set(logs.map((log: FileAccessLog) => log.ipAddress)).size : '-'}
+                  {isLoading ? (
+                    <Skeleton className="h-8 w-16 mx-auto" />
+                  ) : (
+                    new Set(logs.map((log: FileAccessLog) => log.ipAddress)).size
+                  )}
                 </p>
               </div>
             </div>

@@ -1339,8 +1339,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
           directS3Url = s3Url.toString();
         }
         
+        // Make sure accessCount is included and is at least 0
+        const accessCount = typeof file.accessCount === 'number' ? file.accessCount : 0;
+        
         return {
           ...file,
+          accessCount,
           shareUrl: `${req.protocol}://${req.get("host")}/shared/${file.shareToken}`,
           directS3Url
         };

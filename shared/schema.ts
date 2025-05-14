@@ -2,20 +2,31 @@ import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, ind
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+// Session storage table - required for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// Users table - updated for Replit Auth
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
-  username: text("username").notNull().unique(),
-  email: text("email").notNull().unique(),
-  password: text("password"),
-  avatarUrl: text("avatar_url"),
-  authProvider: text("auth_provider"), // 'google', 'apple', 'microsoft', 'email'
-  authProviderId: text("auth_provider_id"),
+  id: varchar("id", { length: 50 }).primaryKey().notNull(),
+  email: text("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 });
 
 export const s3Accounts = pgTable("s3_accounts", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id", { length: 50 }).notNull().references(() => users.id),
   name: text("name").notNull(),
   accessKeyId: text("access_key_id").notNull(),
   secretAccessKey: text("secret_access_key").notNull(),
@@ -27,7 +38,7 @@ export const s3Accounts = pgTable("s3_accounts", {
 
 export const sharedFiles = pgTable("shared_files", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id", { length: 50 }).notNull().references(() => users.id),
   accountId: integer("account_id").notNull().references(() => s3Accounts.id),
   bucket: text("bucket").notNull(),
   path: text("path").notNull(),
@@ -62,7 +73,7 @@ export const fileAccessLogs = pgTable("file_access_logs", {
 
 export const userSettings = pgTable("user_settings", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  userId: varchar("user_id", { length: 50 }).notNull().references(() => users.id).unique(),
   theme: text("theme").default("light"),
   defaultAccountId: integer("default_account_id").references(() => s3Accounts.id),
   notifications: boolean("notifications").default(true),
@@ -71,9 +82,16 @@ export const userSettings = pgTable("user_settings", {
 
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({
-  id: true,
   createdAt: true,
+  updatedAt: true,
 });
+
+export const upsertUserSchema = createInsertSchema(users).omit({
+  createdAt: true, 
+  updatedAt: true,
+});
+
+export type UpsertUser = z.infer<typeof upsertUserSchema>;
 
 // Create a custom S3 account schema that includes an optional "auto" region
 const baseS3AccountSchema = createInsertSchema(s3Accounts).omit({
