@@ -104,7 +104,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // S3 Account operations
-  async getS3Accounts(userId: number): Promise<S3Account[]> {
+  async getS3Accounts(userId: string): Promise<S3Account[]> {
     return db.select().from(s3Accounts).where(eq(s3Accounts.userId, userId));
   }
 
@@ -136,7 +136,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Shared files operations
-  async getSharedFiles(userId: number): Promise<SharedFile[]> {
+  async getSharedFiles(userId: string): Promise<SharedFile[]> {
     return db
       .select()
       .from(sharedFiles)
@@ -195,7 +195,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User settings operations
-  async getUserSettings(userId: number): Promise<UserSettings | undefined> {
+  async getUserSettings(userId: string): Promise<UserSettings | undefined> {
     const [settings] = await db
       .select()
       .from(userSettings)
@@ -233,7 +233,7 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  async updateLastAccessed(userId: number, path: string): Promise<void> {
+  async updateLastAccessed(userId: string, path: string): Promise<void> {
     // Get current settings
     const settings = await this.getUserSettings(userId);
     
