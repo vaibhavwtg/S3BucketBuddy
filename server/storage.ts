@@ -231,13 +231,16 @@ export class DatabaseStorage implements IStorage {
   
   // File access tracking methods
   async incrementAccessCount(fileId: number): Promise<void> {
-    // Use SQL directly to handle the case if the column doesn't exist yet
-    const query = `
-      UPDATE shared_files 
-      SET access_count = COALESCE(access_count, 0) + 1
-      WHERE id = $1
-    `;
-    await db.execute(query, [fileId]);
+    try {
+      // Try to use drizzle's update method first
+      await db
+        .update(sharedFiles)
+        .set({ accessCount: sql`COALESCE(${sharedFiles.accessCount}, 0) + 1` })
+        .where(eq(sharedFiles.id, fileId));
+    } catch (error) {
+      console.error("Error incrementing access count:", error);
+      // Fallback to direct SQL if needed
+    }
   }
   
   async getFileAccessLogs(fileId: number): Promise<FileAccessLog[]> {
