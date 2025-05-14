@@ -31,6 +31,8 @@ interface FileCardProps {
   selected?: boolean;
   onSelect?: (file: S3Object, selected: boolean) => void;
   viewMode?: 'grid' | 'list';
+  onDelete?: () => Promise<void>;
+  onDownload?: () => Promise<void>;
 }
 
 export function FileCard({ 
@@ -41,7 +43,9 @@ export function FileCard({
   selectable = false,
   selected = false,
   onSelect,
-  viewMode = 'grid'
+  viewMode = 'grid',
+  onDelete,
+  onDownload
 }: FileCardProps) {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const { toast } = useToast();

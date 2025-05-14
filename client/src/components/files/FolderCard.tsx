@@ -10,9 +10,10 @@ interface FolderCardProps {
   bucket: string;
   prefix: string;
   viewMode?: 'grid' | 'list';
+  onClick?: () => void;
 }
 
-export function FolderCard({ folder, accountId, bucket, prefix, viewMode = 'grid' }: FolderCardProps) {
+export function FolderCard({ folder, accountId, bucket, prefix, viewMode = 'grid', onClick }: FolderCardProps) {
   const [_, navigate] = useLocation();
 
   // Extract folder name from the prefix
@@ -20,13 +21,18 @@ export function FolderCard({ folder, accountId, bucket, prefix, viewMode = 'grid
   const folderName = folderKey.split("/").filter(Boolean).pop() || "Unknown folder";
 
   const handleClick = () => {
-    // Create query parameters for navigation
-    const params = new URLSearchParams();
-    params.set('account', accountId.toString());
-    params.set('bucket', bucket);
-    params.set('prefix', folderKey);
-    
-    navigate(`/browser?${params.toString()}`);
+    if (onClick) {
+      // Use the provided onClick handler if available
+      onClick();
+    } else {
+      // Default navigation behavior if no onClick provided
+      const params = new URLSearchParams();
+      params.set('account', accountId.toString());
+      params.set('bucket', bucket);
+      params.set('prefix', folderKey);
+      
+      navigate(`/browser?${params.toString()}`);
+    }
   };
 
   return (
