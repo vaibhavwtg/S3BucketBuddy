@@ -188,7 +188,7 @@ export function Sidebar() {
                 className="w-full justify-start px-4 py-2 font-medium hover:bg-muted rounded-lg"
               >
                 <Avatar className="w-8 h-8 mr-3">
-                  <AvatarImage src={user.avatarUrl} alt={user.username} />
+                  <AvatarImage src={user.profileImageUrl} alt={user.username} />
                   <AvatarFallback>{generateInitials(user.username)}</AvatarFallback>
                 </Avatar>
                 <div className="text-left">

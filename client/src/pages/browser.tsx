@@ -51,7 +51,7 @@ export default function Browser() {
   }, [authLoading, isAuthenticated, navigate, notify]);
   
   // Get parameters from URL - support both path parameters and query parameters
-  const { accountId, "*": pathParamRest } = useParams();
+  const params = useParams();
   
   // Use URL parameters as fallback for backward compatibility
   const urlParams = new URLSearchParams(window.location.search);
