@@ -22,19 +22,16 @@ export default function Browser() {
   
   // Check if user is authenticated and redirect if not
   useEffect(() => {
-    console.log("Authentication state in browser:", { isAuthenticated, user, authLoading });
-    
     if (!authLoading && !isAuthenticated) {
-      console.log("User not authenticated, redirecting to login");
-      // Use toast from component scope
       notify({
         title: "Authentication Required",
         description: "Please log in to access your S3 buckets",
         variant: "destructive",
       });
       navigate('/login');
+      return;
     }
-  }, [authLoading, isAuthenticated, navigate, user, notify]);
+  }, [authLoading, isAuthenticated, navigate, notify]);
   
   // Get parameters from URL query string
   const searchParams = new URLSearchParams(window.location.search);
@@ -42,8 +39,8 @@ export default function Browser() {
   const bucketParam = searchParams.get('bucket');
   const prefix = searchParams.get('prefix') || "";
   
-  // Convert null to undefined for bucket parameter
-  const bucket: string | undefined = bucketParam ?? undefined;
+  // Set bucket parameter with empty string as fallback
+  const bucket: string = bucketParam || "";
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<string>("name");
   const [filteredFiles, setFilteredFiles] = useState<S3Object[]>([]);
@@ -212,8 +209,24 @@ export default function Browser() {
     isLoading: isLoadingBuckets 
   } = useS3Buckets(parsedAccountId);
 
-  // If no bucket is selected, show bucket selection
-  const isBucketSelection = !bucket;
+  // Hold here if we're waiting for authentication to complete
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center py-20">
+          <div className="animate-spin text-primary mr-3">
+            <i className="ri-loader-4-line text-3xl"></i>
+          </div>
+          <p className="text-muted-foreground">Loading, please wait...</p>
+        </div>
+      </Layout>
+    );
+  }
+
+  // If not authenticated, don't render anything - redirect will happen in useEffect
+  if (!isAuthenticated) {
+    return null;
+  }
 
   // Clean the prefix param to ensure it ends with a /
   const cleanPrefix = prefix ? 
@@ -230,7 +243,7 @@ export default function Browser() {
     parsedAccountId,
     bucket || undefined, // Convert null to undefined
     cleanPrefix,
-    !isBucketSelection && !!bucket // Enable only when we have a bucket
+    !!parsedAccountId && !!bucket // Enable only when we have both account and bucket
   ) as { 
     data: any; 
     isLoading: boolean; 
@@ -325,7 +338,7 @@ export default function Browser() {
   } = useAllS3Buckets();
 
   // Return bucket selection showing all buckets directly if no bucket is selected
-  if (isBucketSelection) {
+  if (!bucket) {
     return (
       <Layout>
         <div className="space-y-6">

@@ -45,6 +45,11 @@ export default function Dashboard() {
   const handleExploreAccount = () => {
     navigate('/browser');
   };
+  
+  // Navigate directly to a specific bucket
+  const handleExploreBucket = (bucket: string, accountId: number) => {
+    navigate(`/browser?account=${accountId}&bucket=${bucket}`);
+  };
 
   return (
     <Layout>
