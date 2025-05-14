@@ -76,6 +76,55 @@ export async function getDownloadUrlsForBatch(
   return await response.json();
 }
 
+export async function copyObjects(
+  accountId: number,
+  sourceBucket: string,
+  keys: string[],
+  destinationBucket: string,
+  destinationPrefix: string = ""
+): Promise<{ copied: string[]; errors: { key: string; message: string }[] }> {
+  const response = await apiRequest("POST", `/api/s3/${accountId}/batch-copy`, {
+    sourceBucket,
+    destinationBucket,
+    destinationPrefix,
+    keys,
+  });
+  
+  return await response.json();
+}
+
+export async function moveObjects(
+  accountId: number,
+  sourceBucket: string,
+  keys: string[],
+  destinationBucket: string,
+  destinationPrefix: string = ""
+): Promise<{ moved: string[]; errors: { key: string; message: string }[] }> {
+  const response = await apiRequest("POST", `/api/s3/${accountId}/batch-move`, {
+    sourceBucket,
+    destinationBucket,
+    destinationPrefix,
+    keys,
+  });
+  
+  return await response.json();
+}
+
+export async function renameObject(
+  accountId: number,
+  bucket: string,
+  sourceKey: string,
+  newName: string
+): Promise<{ newKey: string }> {
+  const response = await apiRequest("POST", `/api/s3/${accountId}/rename`, {
+    bucket,
+    sourceKey,
+    newName,
+  });
+  
+  return await response.json();
+}
+
 export async function uploadFile(
   accountId: number,
   bucket: string,
