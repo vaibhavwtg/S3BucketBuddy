@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useParams, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
+// Debug helper for browser component
+const DEBUG = true;
 import { Breadcrumbs } from "@/components/files/Breadcrumbs";
 import { FileActions } from "@/components/files/FileActions";
 import { FileCard } from "@/components/files/FileCard";
@@ -56,13 +58,35 @@ export default function Browser() {
   // Parse accountId to number
   const parsedAccountId = accountId ? parseInt(accountId) : undefined;
   
+  // Debug logging
+  if (DEBUG) {
+    console.log('Browser parameters:', { 
+      accountId, 
+      parsedAccountId, 
+      bucket, 
+      prefix, 
+      isAuthenticated 
+    });
+  }
+  
   // Helper function to navigate with query params
   const navigateTo = (params: { account?: string | number, bucket?: string, prefix?: string }) => {
     const queryParams = new URLSearchParams();
     if (params.account) queryParams.set('account', params.account.toString());
     if (params.bucket) queryParams.set('bucket', params.bucket);
     if (params.prefix) queryParams.set('prefix', params.prefix);
-    navigate(`/browser?${queryParams.toString()}`);
+    
+    const navigationUrl = `/browser?${queryParams.toString()}`;
+    
+    if (DEBUG) {
+      console.log('Navigating to:', { 
+        params, 
+        queryString: queryParams.toString(),
+        fullUrl: navigationUrl
+      });
+    }
+    
+    navigate(navigationUrl);
   };
 
   // Initialize S3 file operations
@@ -352,6 +376,14 @@ export default function Browser() {
                 className="h-auto p-6 flex flex-col items-center justify-center gap-4 hover:bg-muted"
                 onClick={() => {
                   if (!bucket.Name) return;
+                  if (DEBUG) {
+                    console.log('Selected bucket:', { 
+                      bucketName: bucket.Name,
+                      accountId: bucket.accountId,
+                      accountName: bucket.accountName,
+                      region: bucket.region
+                    });
+                  }
                   navigateTo({
                     account: bucket.accountId,
                     bucket: bucket.Name
