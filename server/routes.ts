@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { z } from "zod";
 import { insertS3AccountSchema, insertSharedFileSchema } from "@shared/schema";
 import { randomBytes } from "crypto";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, requireAuth } from "./auth";
 import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, HeadBucketCommand, CopyObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import multer from "multer";
@@ -32,43 +32,28 @@ interface AuthenticatedRequest extends Request {
   userId?: string;
 }
 
-export async function registerRoutes(app: Express): Promise<Server> {
+export function registerRoutes(app: Express): Server {
   const httpServer = createServer(app);
   
-  // Setup auth with Replit Auth
-  await setupAuth(app);
+  // Setup auth with local strategy
+  setupAuth(app);
   
-  // Add middleware to extract userId from claims for convenience
+  // Add middleware to extract userId for convenience
   app.use((req: AuthenticatedRequest, res, next) => {
     if (req.isAuthenticated() && req.user) {
-      const userObj = req.user as any;
-      if (userObj.claims && userObj.claims.sub) {
-        req.userId = userObj.claims.sub;
-      }
+      // Store user ID for convenience in route handlers
+      req.userId = req.user.id;
     }
     next();
   });
   
-  // Authentication middleware
-  // Create a helper function to log authentication checks
-  const logAuthentication = (req: Request, res: Response, next: NextFunction) => {
-    console.log("Authentication check for route:", req.method, req.url);
-    console.log("Authenticated:", req.isAuthenticated());
-    
-    if (!req.isAuthenticated()) {
-      console.log("Authentication failed");
-    } else {
-      console.log("Authentication successful, user:", req.user ? (req.user as any).claims?.sub : 'none');
+  // Middleware to log authentication status
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith('/api') && !req.path.includes('/api/auth/me')) {
+      console.log(`Auth check for ${req.method} ${req.path}: ${req.isAuthenticated() ? 'Authenticated' : 'Not authenticated'}`);
     }
     next();
-  };
-  
-  // Use isAuthenticated from replitAuth.ts with logging
-  const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-    logAuthentication(req, res, () => {
-      isAuthenticated(req, res, next);
-    });
-  };
+  });
   
   // Configure multer for file uploads
   const upload = multer({ storage: multer.memoryStorage() });
