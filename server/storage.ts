@@ -173,17 +173,24 @@ export class DatabaseStorage implements IStorage {
     // Check if settings already exist
     const existingSettings = await this.getUserSettings(settings.userId);
     
+    // Ensure lastAccessed is properly typed as string[]
+    const settingsToSave = {
+      ...settings,
+      // Set a default empty array if lastAccessed is undefined or not an array
+      lastAccessed: Array.isArray(settings.lastAccessed) ? settings.lastAccessed : []
+    };
+    
     if (existingSettings) {
       const [updated] = await db
         .update(userSettings)
-        .set(settings)
+        .set(settingsToSave)
         .where(eq(userSettings.userId, settings.userId))
         .returning();
       return updated;
     } else {
       const [created] = await db
         .insert(userSettings)
-        .values(settings)
+        .values(settingsToSave)
         .returning();
       return created;
     }
