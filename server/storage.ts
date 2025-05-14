@@ -2,7 +2,8 @@ import {
   users, type User, type InsertUser,
   s3Accounts, type S3Account, type InsertS3Account,
   sharedFiles, type SharedFile, type InsertSharedFile,
-  userSettings, type UserSettings, type InsertUserSettings
+  userSettings, type UserSettings, type InsertUserSettings,
+  fileAccessLogs, type FileAccessLog, type InsertFileAccessLog
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, isNull, gt, desc, asc, or } from "drizzle-orm";
@@ -30,6 +31,11 @@ export interface IStorage {
   createSharedFile(file: InsertSharedFile): Promise<SharedFile>;
   updateSharedFile(id: number, file: Partial<SharedFile>): Promise<SharedFile | undefined>;
   deleteSharedFile(id: number): Promise<boolean>;
+  incrementAccessCount(fileId: number): Promise<void>;
+  
+  // File access logs operations
+  getFileAccessLogs(fileId: number): Promise<FileAccessLog[]>;
+  logFileAccess(log: InsertFileAccessLog): Promise<FileAccessLog>;
   
   // User settings operations
   getUserSettings(userId: number): Promise<UserSettings | undefined>;

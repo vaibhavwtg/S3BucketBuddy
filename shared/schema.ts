@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -38,7 +38,26 @@ export const sharedFiles = pgTable("shared_files", {
   expiresAt: timestamp("expires_at"),
   allowDownload: boolean("allow_download").default(true),
   password: text("password"),
+  accessCount: integer("access_count").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Table to track access/audit history for shared files
+export const fileAccessLogs = pgTable("file_access_logs", {
+  id: serial("id").primaryKey(),
+  fileId: integer("file_id").notNull().references(() => sharedFiles.id),
+  accessedAt: timestamp("accessed_at").defaultNow().notNull(),
+  ipAddress: varchar("ip_address", { length: 45 }), // IPv6 can be up to 45 chars
+  userAgent: text("user_agent"),
+  country: varchar("country", { length: 2 }),
+  city: varchar("city", { length: 100 }),
+  referrer: text("referrer"),
+  isDownload: boolean("is_download").default(false),
+}, (table) => {
+  return {
+    fileIdIdx: index("file_access_logs_file_id_idx").on(table.fileId),
+    accessedAtIdx: index("file_access_logs_accessed_at_idx").on(table.accessedAt),
+  };
 });
 
 export const userSettings = pgTable("user_settings", {
@@ -70,10 +89,16 @@ export const insertS3AccountSchema = baseS3AccountSchema.extend({
 export const insertSharedFileSchema = createInsertSchema(sharedFiles).omit({
   id: true,
   createdAt: true,
+  accessCount: true,
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
   id: true,
+});
+
+export const insertFileAccessLogSchema = createInsertSchema(fileAccessLogs).omit({
+  id: true,
+  accessedAt: true,
 });
 
 // Types
@@ -88,3 +113,6 @@ export type SharedFile = typeof sharedFiles.$inferSelect;
 
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 export type UserSettings = typeof userSettings.$inferSelect;
+
+export type InsertFileAccessLog = z.infer<typeof insertFileAccessLogSchema>;
+export type FileAccessLog = typeof fileAccessLogs.$inferSelect;
