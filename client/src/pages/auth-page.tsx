@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { useAuth } from "@/hooks/use-auth";
+import { useAuth } from "@/hooks/use-auth.tsx";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -35,7 +35,7 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("login");
   const [_, navigate] = useLocation();
-  const { user, isLoading, login, register } = useAuth();
+  const { user, isLoading, loginMutation, registerMutation } = useAuth();
 
   // Redirect to dashboard if already logged in
   useEffect(() => {
@@ -67,7 +67,10 @@ export default function AuthPage() {
   // Handle login form submit
   const onLoginSubmit = async (values: LoginFormValues) => {
     try {
-      await login(values.email, values.password);
+      await loginMutation.mutateAsync({
+        email: values.email,
+        password: values.password
+      });
     } catch (error) {
       console.error("Login error:", error);
     }
@@ -76,7 +79,12 @@ export default function AuthPage() {
   // Handle register form submit
   const onRegisterSubmit = async (values: RegisterFormValues) => {
     try {
-      await register(values.username, values.email, values.password, values.confirmPassword);
+      await registerMutation.mutateAsync({
+        username: values.username,
+        email: values.email,
+        password: values.password,
+        confirmPassword: values.confirmPassword
+      });
     } catch (error) {
       console.error("Registration error:", error);
     }

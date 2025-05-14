@@ -63,6 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery<User>({
     queryKey: ["/api/user"],
     retry: false,
+    refetchOnWindowFocus: true,
   });
 
   // Login mutation

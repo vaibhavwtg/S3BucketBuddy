@@ -13,8 +13,7 @@ import AccountManager from "@/pages/account-manager";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import PublicSharedFile from "@/pages/public-shared-file";
 import { useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth";
-import { AuthProvider } from "@/hooks/use-auth";
+import { useAuth, AuthProvider } from "@/hooks/use-auth.tsx";
 import { Loader2 } from "lucide-react";
 
 // Protected route component
