@@ -9,7 +9,7 @@ import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import session from "express-session";
 import MemoryStore from "memorystore";
-import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
+import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, HeadBucketCommand, CopyObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import multer from "multer";
 import { Readable } from "stream";
@@ -998,6 +998,193 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Batch delete objects
+  app.post("/api/s3/:accountId/batch-copy", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const { sourceBucket, destinationBucket, destinationPrefix = "", keys } = req.body;
+      
+      if (!sourceBucket || !destinationBucket || !keys || !Array.isArray(keys)) {
+        return res.status(400).json({ message: "Missing required parameters" });
+      }
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // Copy objects
+      const copied: string[] = [];
+      const errors: { key: string; message: string }[] = [];
+      
+      for (const key of keys) {
+        try {
+          // Determine the destination key (keeping same filename but with new prefix)
+          const fileName = key.split('/').pop();
+          const destKey = destinationPrefix ? `${destinationPrefix}${destinationPrefix.endsWith('/') ? '' : '/'}${fileName}` : fileName;
+          
+          // Create copy command
+          const command = new CopyObjectCommand({
+            Bucket: destinationBucket,
+            CopySource: `${sourceBucket}/${encodeURIComponent(key)}`,
+            Key: destKey,
+          });
+          
+          // Execute copy
+          await s3Client.send(command);
+          copied.push(key);
+        } catch (error: any) {
+          console.error(`Error copying object ${key}:`, error);
+          errors.push({ key, message: error.message || "Unknown error" });
+        }
+      }
+      
+      res.json({ copied, errors });
+    } catch (error: any) {
+      console.error("Unexpected error copying objects:", error);
+      res.status(500).json({ 
+        message: "Failed to copy objects", 
+        error: error.message 
+      });
+    }
+  });
+  
+  app.post("/api/s3/:accountId/batch-move", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const { sourceBucket, destinationBucket, destinationPrefix = "", keys } = req.body;
+      
+      if (!sourceBucket || !destinationBucket || !keys || !Array.isArray(keys)) {
+        return res.status(400).json({ message: "Missing required parameters" });
+      }
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // Move objects (copy then delete)
+      const moved: string[] = [];
+      const errors: { key: string; message: string }[] = [];
+      
+      for (const key of keys) {
+        try {
+          // Determine the destination key (keeping same filename but with new prefix)
+          const fileName = key.split('/').pop();
+          const destKey = destinationPrefix ? `${destinationPrefix}${destinationPrefix.endsWith('/') ? '' : '/'}${fileName}` : fileName;
+          
+          // 1. Copy the object to the destination
+          const copyCommand = new CopyObjectCommand({
+            Bucket: destinationBucket,
+            CopySource: `${sourceBucket}/${encodeURIComponent(key)}`,
+            Key: destKey,
+          });
+          
+          await s3Client.send(copyCommand);
+          
+          // 2. Delete the original object
+          const deleteCommand = new DeleteObjectCommand({
+            Bucket: sourceBucket,
+            Key: key,
+          });
+          
+          await s3Client.send(deleteCommand);
+          
+          moved.push(key);
+        } catch (error: any) {
+          console.error(`Error moving object ${key}:`, error);
+          errors.push({ key, message: error.message || "Unknown error" });
+        }
+      }
+      
+      res.json({ moved, errors });
+    } catch (error: any) {
+      console.error("Unexpected error moving objects:", error);
+      res.status(500).json({ 
+        message: "Failed to move objects", 
+        error: error.message 
+      });
+    }
+  });
+  
+  app.post("/api/s3/:accountId/rename", requireAuth, async (req, res) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      const { bucket, sourceKey, newName } = req.body;
+      
+      if (!bucket || !sourceKey || !newName) {
+        return res.status(400).json({ message: "Missing required parameters" });
+      }
+      
+      // Check if account belongs to user
+      const account = await storage.getS3Account(accountId);
+      if (!account || account.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      
+      // Create S3 client
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey,
+        },
+      });
+      
+      // Get the directory path if exists
+      const pathParts = sourceKey.split('/');
+      pathParts.pop(); // Remove the filename
+      const directoryPath = pathParts.length > 0 ? pathParts.join('/') + '/' : '';
+      
+      // Create the new key with the directory path and new filename
+      const newKey = directoryPath + newName;
+      
+      // 1. Copy the object with the new name
+      const copyCommand = new CopyObjectCommand({
+        Bucket: bucket,
+        CopySource: `${bucket}/${encodeURIComponent(sourceKey)}`,
+        Key: newKey,
+      });
+      
+      await s3Client.send(copyCommand);
+      
+      // 2. Delete the original object
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: bucket,
+        Key: sourceKey,
+      });
+      
+      await s3Client.send(deleteCommand);
+      
+      res.json({ newKey });
+    } catch (error: any) {
+      console.error("Unexpected error renaming object:", error);
+      res.status(500).json({ 
+        message: "Failed to rename object", 
+        error: error.message 
+      });
+    }
+  });
+  
   app.post("/api/s3/:accountId/batch-delete", requireAuth, async (req, res) => {
     try {
       const accountId = parseInt(req.params.accountId);
