@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useParams } from "wouter";
+import { useState, useEffect } from "react";
+import { useParams, useLocation } from "wouter";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,12 @@ import { SharedFileAccess } from "@/lib/types";
 
 export default function PublicSharedFile() {
   const { token } = useParams();
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [password, setPassword] = useState("");
   const [isPasswordRequired, setIsPasswordRequired] = useState(false);
+  const [useFallbackUrl, setUseFallbackUrl] = useState(false);
+  const [directS3Url, setDirectS3Url] = useState<string | null>(null);
 
   // Fetch shared file details
   const { 

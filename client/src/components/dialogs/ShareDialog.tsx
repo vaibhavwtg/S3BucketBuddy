@@ -62,6 +62,7 @@ type ShareFileFormValues = z.infer<typeof shareFileSchema>;
 
 export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
   const [shareUrl, setShareUrl] = useState<string>("");
+  const [directS3Url, setDirectS3Url] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const fileIcon = getFileIcon(file.contentType);
@@ -118,6 +119,10 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
     },
     onSuccess: (data) => {
       setShareUrl(data.shareUrl);
+      // Store the direct S3 URL if available
+      if (data.directS3Url) {
+        setDirectS3Url(data.directS3Url);
+      }
       
       toast({
         title: "Share link created",
@@ -192,6 +197,30 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
                   Copy
                 </Button>
               </div>
+              
+              {/* Direct S3 link as a backup option */}
+              {directS3Url && (
+                <div className="mt-3 text-xs text-muted-foreground flex items-center">
+                  <i className="ri-information-line mr-1"></i>
+                  <span>
+                    If the share link doesn't work, you can use a{" "}
+                    <Button 
+                      variant="link" 
+                      className="h-auto p-0 text-xs underline" 
+                      onClick={() => {
+                        navigator.clipboard.writeText(directS3Url);
+                        toast({
+                          title: "Direct link copied",
+                          description: "A direct S3 URL has been copied to your clipboard"
+                        });
+                      }}
+                    >
+                      direct S3 link
+                    </Button>{" "}
+                    instead.
+                  </span>
+                </div>
+              )}
             </div>
             
             <Button onClick={() => onOpenChange(false)} className="w-full">
