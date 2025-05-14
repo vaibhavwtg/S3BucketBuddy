@@ -1,17 +1,5 @@
-import { useQuery } from "@tanstack/react-query";
-import {
-  BarChart,
-  Bar,
-  XAxis, 
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -19,8 +7,31 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, LineChart, PieChart as PieChartIcon } from "lucide-react";
+import { Loader2, RefreshCw, BarChart2, PieChart } from "lucide-react";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart as RechartsPieChart,
+  Pie,
+  Cell,
+  LineChart,
+  Line,
+  Radar,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  AreaChart,
+  Area,
+} from "recharts";
 
 // Color palette for charts
 const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
@@ -49,153 +60,391 @@ export function UsageStats() {
     { name: "Basic", value: stats?.activeSubscriptions ? Math.floor(stats.activeSubscriptions * 0.6) : 0 },
     { name: "Premium", value: stats?.activeSubscriptions ? Math.floor(stats.activeSubscriptions * 0.3) : 0 },
     { name: "Business", value: stats?.activeSubscriptions ? Math.floor(stats.activeSubscriptions * 0.1) : 0 },
-  ].filter(item => item.value > 0);
-
-  const mockMonthlyUsers = [
-    { name: "Jan", users: 10 },
-    { name: "Feb", users: 15 },
-    { name: "Mar", users: 25 },
-    { name: "Apr", users: 40 },
-    { name: "May", users: 60 },
-    { name: "Jun", users: 80 },
-    { name: "Jul", users: 100 },
-    { name: "Aug", users: 120 },
-    { name: "Sep", users: 150 },
-    { name: "Oct", users: 180 },
-    { name: "Nov", users: 200 },
-    { name: "Dec", users: stats?.totalUsers || 220 },
   ];
 
-  if (isLoadingStats) {
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
+  // Last 7 days new users - in a real implementation, we'd fetch this as a time series
+  const weeklySignupsData = [
+    { name: "Day 1", users: 3 },
+    { name: "Day 2", users: 5 },
+    { name: "Day 3", users: 2 },
+    { name: "Day 4", users: 7 },
+    { name: "Day 5", users: 4 },
+    { name: "Day 6", users: 8 },
+    { name: "Day 7", users: stats?.newUsersThisWeek || 0 },
+  ];
+
+  const monthlyRevenueData = [
+    { name: "Jan", revenue: 2400 },
+    { name: "Feb", revenue: 4200 },
+    { name: "Mar", revenue: 3800 },
+    { name: "Apr", revenue: 5600 },
+    { name: "May", revenue: 4900 },
+    { name: "Jun", revenue: 6800 },
+    { name: "Jul", revenue: 7900 },
+    { name: "Aug", revenue: 8900 },
+    { name: "Sep", revenue: 7500 },
+    { name: "Oct", revenue: 9200 },
+    { name: "Nov", revenue: 10800 },
+    { name: "Dec", revenue: 12500 },
+  ];
+
+  // Feature usage - in a real implementation, this would be actual feature usage
+  const featureUsageData = [
+    { feature: "File Uploads", usage: 80 },
+    { feature: "File Downloads", usage: 95 },
+    { feature: "Sharing", usage: 55 },
+    { feature: "Account Creation", usage: 40 },
+    { feature: "Batch Operations", usage: 65 },
+  ];
+
+  // Growth comparison by plan
+  const monthlyGrowthByPlanData = [
+    { name: "W1", free: 25, basic: 10, premium: 5, business: 1 },
+    { name: "W2", free: 30, basic: 15, premium: 7, business: 2 },
+    { name: "W3", free: 35, basic: 18, premium: 9, business: 3 },
+    { name: "W4", free: 40, basic: 22, premium: 12, business: 4 },
+  ];
+
+  const planFeatures = [
+    { 
+      plan: "Free", 
+      accounts: 1, 
+      storage: 5, 
+      sharing: 1, 
+      batchOps: 0.2, 
+      support: 0.3 
+    },
+    { 
+      plan: "Basic", 
+      accounts: 3, 
+      storage: 50, 
+      sharing: 3, 
+      batchOps: 0.5, 
+      support: 0.6 
+    },
+    { 
+      plan: "Premium", 
+      accounts: 10, 
+      storage: 200, 
+      sharing: 5, 
+      batchOps: 0.8, 
+      support: 0.9 
+    },
+    { 
+      plan: "Business", 
+      accounts: 50, 
+      storage: 1000, 
+      sharing: 10, 
+      batchOps: 1, 
+      support: 1 
+    },
+  ];
+
+  const queryClient = useQueryClient();
+  const [activeChartTab, setActiveChartTab] = useState("usage");
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <LineChart className="h-5 w-5" />
-            Usage Analytics
-          </CardTitle>
-          <CardDescription>
-            View key usage metrics and trends for the platform
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="growth" className="space-y-4">
-            <TabsList>
-              <TabsTrigger value="growth">User Growth</TabsTrigger>
-              <TabsTrigger value="plans">Subscription Plans</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="growth" className="space-y-4">
-              <div className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={mockMonthlyUsers}
-                    margin={{
-                      top: 10,
-                      right: 30,
-                      left: 0,
-                      bottom: 5,
-                    }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="users" fill="#8884d8" name="Total Users" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </TabsContent>
-            
-            <TabsContent value="plans" className="space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="h-72 w-[45%]">
+      <div className="flex justify-between items-start">
+        <div>
+          <h2 className="text-2xl font-bold">System Usage Statistics</h2>
+          <p className="text-muted-foreground">
+            Analyze system usage, user growth, and subscription metrics
+          </p>
+        </div>
+
+        <Button 
+          variant="outline" 
+          onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] })}
+          disabled={isLoadingStats}
+        >
+          {isLoadingStats ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+          Refresh Data
+        </Button>
+      </div>
+
+      <Tabs defaultValue="usage" value={activeChartTab} onValueChange={setActiveChartTab}>
+        <TabsList className="grid grid-cols-5 mb-4">
+          <TabsTrigger value="usage">Usage Overview</TabsTrigger>
+          <TabsTrigger value="users">User Growth</TabsTrigger>
+          <TabsTrigger value="plans">Subscription Plans</TabsTrigger>
+          <TabsTrigger value="revenue">Revenue</TabsTrigger>
+          <TabsTrigger value="features">Feature Usage</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="usage" className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Subscription Distribution</CardTitle>
+                <CardDescription>
+                  Breakdown of users by subscription plan
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-80">
+                {isLoadingStats ? (
+                  <div className="flex justify-center items-center h-full">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
+                    <RechartsPieChart>
                       <Pie
                         data={planDistributionData}
                         cx="50%"
                         cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                        labelLine={true}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="value"
+                        nameKey="name"
+                        label={({ name, percent }) => 
+                          `${name}: ${(percent * 100).toFixed(0)}%`
+                        }
                       >
                         {planDistributionData.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                         ))}
                       </Pie>
-                      <Tooltip formatter={(value) => [`${value} users`, 'Count']} />
-                      <Legend />
-                    </PieChart>
+                      <Tooltip />
+                      <Legend verticalAlign="bottom" />
+                    </RechartsPieChart>
                   </ResponsiveContainer>
-                </div>
-                
-                <div className="flex-1">
-                  <h3 className="text-lg font-medium mb-4">Subscription Plan Distribution</h3>
-                  <div className="space-y-4">
-                    {planDistributionData.map((plan, i) => (
-                      <div key={i} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div 
-                            className="w-3 h-3 rounded-full" 
-                            style={{ backgroundColor: COLORS[i % COLORS.length] }}
-                          />
-                          <span>{plan.name}</span>
-                        </div>
-                        <div className="font-medium">{plan.value} users</div>
-                      </div>
-                    ))}
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Feature Usage</CardTitle>
+                <CardDescription>
+                  Most used features in the application
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="h-80">
+                {isLoadingStats ? (
+                  <div className="flex justify-center items-center h-full">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
+                ) : (
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadarChart cx="50%" cy="50%" outerRadius="80%" data={featureUsageData}>
+                      <PolarGrid />
+                      <PolarAngleAxis dataKey="feature" />
+                      <PolarRadiusAxis angle={30} domain={[0, 100]} />
+                      <Radar
+                        name="Feature Usage %"
+                        dataKey="usage"
+                        stroke="#8884d8"
+                        fill="#8884d8"
+                        fillOpacity={0.6}
+                      />
+                      <Tooltip />
+                    </RadarChart>
+                  </ResponsiveContainer>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>System Usage Summary</CardTitle>
+              <CardDescription>
+                Current usage statistics across all accounts
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div className="space-y-2">
+                  <h3 className="text-muted-foreground text-sm">Total Accounts</h3>
+                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : stats?.totalAccounts || 0}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Average {isLoadingStats ? "..." : (stats?.totalAccounts && stats?.totalUsers) ? (stats.totalAccounts / stats.totalUsers).toFixed(1) : 0} per user
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-muted-foreground text-sm">Total Storage Used</h3>
+                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : stats?.totalStorageUsed || "0 GB"}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Across all users
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-muted-foreground text-sm">Total Files Shared</h3>
+                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : stats?.totalSharedFiles || 0}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {isLoadingStats ? "..." : stats?.activeSharedFiles || 0} currently active
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-muted-foreground text-sm">Conversion Rate</h3>
+                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : `${stats?.subscriptionConversionRate || 0}%`}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Free to paid conversion
+                  </p>
                 </div>
               </div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <PieChartIcon className="h-5 w-5" />
-            Storage & Activity
-          </CardTitle>
-          <CardDescription>
-            Storage usage statistics and user activity metrics
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="flex flex-col space-y-1.5">
-              <h3 className="text-sm font-medium">Total Storage Accounts</h3>
-              <div className="text-2xl font-bold">{stats?.totalAccounts || 0}</div>
-              <p className="text-sm text-muted-foreground">
-                Across {stats?.totalUsers || 0} users
-              </p>
-            </div>
-            
-            <div className="flex flex-col space-y-1.5">
-              <h3 className="text-sm font-medium">Shared Files</h3>
-              <div className="text-2xl font-bold">{stats?.totalSharedFiles || 0}</div>
-              <p className="text-sm text-muted-foreground">
-                {stats?.activeSharedFiles || 0} currently active
-              </p>
-            </div>
-          </div>
-          
-          {/* Note: In a real implementation, we would add more charts showing storage usage trends,
-               file sharing activity, etc. based on additional API endpoints */}
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Weekly New Users</CardTitle>
+              <CardDescription>
+                New user signups over the past week
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              {isLoadingStats ? (
+                <div className="flex justify-center items-center h-full">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={weeklySignupsData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="users" fill="#8884d8" name="New Users" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>User Growth by Plan</CardTitle>
+              <CardDescription>
+                Monthly growth trend by subscription plan
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              {isLoadingStats ? (
+                <div className="flex justify-center items-center h-full">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={monthlyGrowthByPlanData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Area type="monotone" dataKey="free" stackId="1" stroke="#8884d8" fill="#8884d8" />
+                    <Area type="monotone" dataKey="basic" stackId="1" stroke="#82ca9d" fill="#82ca9d" />
+                    <Area type="monotone" dataKey="premium" stackId="1" stroke="#ffc658" fill="#ffc658" />
+                    <Area type="monotone" dataKey="business" stackId="1" stroke="#ff8042" fill="#ff8042" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="plans" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Plan Comparison</CardTitle>
+              <CardDescription>
+                Feature comparison across all subscription plans
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-[500px]">
+              {isLoadingStats ? (
+                <div className="flex justify-center items-center h-full">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={planFeatures} layout="vertical" barSize={20}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" domain={[0, 1]} />
+                    <YAxis dataKey="plan" type="category" />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="accounts" fill="#8884d8" name="Accounts (normalized)" />
+                    <Bar dataKey="storage" fill="#82ca9d" name="Storage (normalized)" />
+                    <Bar dataKey="sharing" fill="#ffc658" name="Sharing Features" />
+                    <Bar dataKey="batchOps" fill="#ff8042" name="Batch Operations" />
+                    <Bar dataKey="support" fill="#0088FE" name="Support Level" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="revenue" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Revenue</CardTitle>
+              <CardDescription>
+                Revenue trend over the past year
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              {isLoadingStats ? (
+                <div className="flex justify-center items-center h-full">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={monthlyRevenueData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip formatter={(value) => [`$${value}`, "Revenue"]} />
+                    <Legend />
+                    <Line
+                      type="monotone"
+                      dataKey="revenue"
+                      stroke="#8884d8"
+                      activeDot={{ r: 8 }}
+                      name="Revenue ($)"
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="features" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Feature Usage Breakdown</CardTitle>
+              <CardDescription>
+                Most used features by percentage
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="h-80">
+              {isLoadingStats ? (
+                <div className="flex justify-center items-center h-full">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={featureUsageData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="feature" />
+                    <YAxis domain={[0, 100]} />
+                    <Tooltip formatter={(value) => [`${value}%`, "Usage"]} />
+                    <Legend />
+                    <Bar dataKey="usage" fill="#8884d8" name="Usage %" />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

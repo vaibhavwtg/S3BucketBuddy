@@ -3,10 +3,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
-import { UserManagement } from "@/components/admin/UserManagement";
-import { SubscriptionPlans } from "@/components/admin/SubscriptionPlans";
-import { UsageStats } from "@/components/admin/UsageStats";
-import { AdminLogs } from "@/components/admin/AdminLogs";
+import { UserManagement } from "../../components/admin/UserManagement";
+import { SubscriptionPlans } from "../../components/admin/SubscriptionPlans";
+import { UsageStats } from "../../components/admin/UsageStats";
+import { AdminLogs } from "../../components/admin/AdminLogs";
 import { Redirect } from "wouter";
 import { Loader2, Users, Wallet, HardDrive, Share2 } from "lucide-react";
 

@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -9,42 +19,40 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, Plus, CreditCard, Edit, Trash } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { z } from "zod";
+import { Loader2, Plus, Edit } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import * as z from "zod";
 
-// Define the subscription plan schema
+// Validation schema for subscription plan form
 const planSchema = z.object({
-  name: z.string().min(2, { message: "Plan name must be at least 2 characters" }),
-  price: z.number().min(0, { message: "Price must be non-negative" }), 
-  description: z.string().optional(),
-  maxAccounts: z.number().int().min(1, { message: "Max accounts must be at least 1" }),
-  maxStorage: z.number().int().min(1, { message: "Max storage must be at least 1 GB" }),
+  id: z.string().min(2, "ID must be at least 2 characters"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  description: z.string().min(10, "Description must be at least 10 characters"),
+  price: z.coerce.number().min(0, "Price must be a positive number"),
+  maxAccounts: z.coerce.number().int().min(1, "Must allow at least 1 account"),
+  maxStorage: z.coerce.number().int().min(1, "Must allow at least 1 GB of storage"),
   active: z.boolean().default(true),
   features: z.array(z.string()).default([]),
 });
@@ -112,16 +120,18 @@ const samplePlans: SubscriptionPlanType[] = [
 export function SubscriptionPlans() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [editingPlan, setEditingPlan] = useState<any>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [feature, setFeature] = useState("");
   
-  // Initialize form with the schema
+  // Initialize form
   const form = useForm<PlanFormValues>({
     resolver: zodResolver(planSchema),
     defaultValues: {
+      id: "",
       name: "",
-      price: 0,
       description: "",
+      price: 0,
       maxAccounts: 1,
       maxStorage: 1,
       active: true,
@@ -142,95 +152,98 @@ export function SubscriptionPlans() {
   // Reset form for adding a new plan
   const resetForm = () => {
     form.reset({
+      id: "",
       name: "",
-      price: 0,
       description: "",
+      price: 0,
       maxAccounts: 1,
       maxStorage: 1,
       active: true,
       features: [],
     });
-    setEditingPlan(null);
   };
 
   // Set up form for editing an existing plan
-  const setupEditForm = (plan: any) => {
-    setEditingPlan(plan);
+  const setupEditForm = (plan: SubscriptionPlanType) => {
     form.reset({
+      id: plan.id,
       name: plan.name,
+      description: plan.description,
       price: plan.price,
-      description: plan.description || "",
       maxAccounts: plan.maxAccounts,
       maxStorage: plan.maxStorage,
       active: plan.active,
-      features: plan.features,
+      features: plan.features || [],
     });
-    setIsAddDialogOpen(true);
+    setIsEditing(true);
+    setIsDialogOpen(true);
   };
 
-  // Handle form submission
-  const onSubmit = (data: PlanFormValues) => {
-    console.log("Submitted plan:", data);
-    
-    // In a real implementation, we would send this to the API
-    toast({
-      title: editingPlan ? "Plan Updated" : "Plan Created",
-      description: `The ${data.name} plan has been ${editingPlan ? "updated" : "created"} successfully.`,
-    });
-    
-    setIsAddDialogOpen(false);
-    resetForm();
-    
-    // In a real implementation, we would refetch the plans or update the cache
-  };
-
-  // Add a custom input for features (comma-separated)
-  const [featureInput, setFeatureInput] = useState("");
+  // Handle adding a new feature
   const addFeature = () => {
-    if (featureInput.trim()) {
+    if (feature.trim() !== "") {
       const currentFeatures = form.getValues("features") || [];
-      form.setValue("features", [...currentFeatures, featureInput.trim()]);
-      setFeatureInput("");
+      form.setValue("features", [...currentFeatures, feature.trim()]);
+      setFeature("");
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+  // Handle removing a feature
+  const removeFeature = (index: number) => {
+    const currentFeatures = form.getValues("features") || [];
+    form.setValue(
+      "features",
+      currentFeatures.filter((_, i) => i !== index)
     );
-  }
+  };
+
+  // Submit handler for form
+  const onSubmit = (data: PlanFormValues) => {
+    // In a real app, this would make an API call to create/update the plan
+    toast({
+      title: isEditing ? "Plan Updated" : "Plan Created",
+      description: `The ${data.name} plan has been ${isEditing ? "updated" : "created"} successfully.`,
+    });
+    
+    // Close dialog and reset form
+    setIsDialogOpen(false);
+    resetForm();
+    setIsEditing(false);
+    
+    // Invalidate the plans query to refetch data
+    queryClient.invalidateQueries({ queryKey: ['/api/admin/subscription-plans'] });
+  };
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <div className="flex justify-between items-center">
-            <div>
-              <CardTitle className="flex items-center gap-2">
-                <CreditCard className="h-5 w-5" />
-                Subscription Plans
-              </CardTitle>
-              <CardDescription>
-                Manage pricing tiers and subscription features
-              </CardDescription>
-            </div>
-            <DialogTrigger asChild onClick={resetForm}>
-              <Button size="sm" className="flex items-center gap-1">
-                <Plus className="h-4 w-4" />
-                Add Plan
-              </Button>
-            </DialogTrigger>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <div>
+          <CardTitle>Subscription Plans</CardTitle>
+          <CardDescription>
+            Manage subscription plans for users
+          </CardDescription>
+        </div>
+        <Button onClick={() => {
+          resetForm();
+          setIsEditing(false);
+          setIsDialogOpen(true);
+        }}>
+          <Plus className="mr-2 h-4 w-4" />
+          Add New Plan
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="flex justify-center p-8">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md border overflow-x-auto">
+        ) : (
+          <div className="rounded-md border">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Plan</TableHead>
-                  <TableHead>Pricing</TableHead>
+                  <TableHead>Price</TableHead>
                   <TableHead>Accounts</TableHead>
                   <TableHead>Storage</TableHead>
                   <TableHead>Status</TableHead>
@@ -283,24 +296,46 @@ export function SubscriptionPlans() {
               </TableBody>
             </Table>
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </CardContent>
 
-      {/* Dialog for adding/editing subscription plans */}
-      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-        <DialogContent className="max-w-2xl">
+      {/* Plan Dialog */}
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingPlan ? "Edit Subscription Plan" : "Add New Subscription Plan"}</DialogTitle>
+            <DialogTitle>
+              {isEditing ? "Edit Subscription Plan" : "Create New Subscription Plan"}
+            </DialogTitle>
             <DialogDescription>
-              {editingPlan 
-                ? "Update the details of this subscription plan."
-                : "Create a new subscription plan for your customers."}
+              {isEditing 
+                ? "Update the details of this subscription plan" 
+                : "Add a new subscription plan to offer to users"}
             </DialogDescription>
           </DialogHeader>
-
+          
           <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="id"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Plan ID</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., basic" 
+                          {...field} 
+                          disabled={isEditing}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Unique identifier for the plan
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
                 <FormField
                   control={form.control}
                   name="name"
@@ -314,29 +349,7 @@ export function SubscriptionPlans() {
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="price"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Monthly Price ($)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="0.01"
-                          placeholder="9.99"
-                          {...field}
-                          onChange={e => field.onChange(parseFloat(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
               </div>
-
               <FormField
                 control={form.control}
                 name="description"
@@ -344,64 +357,68 @@ export function SubscriptionPlans() {
                   <FormItem>
                     <FormLabel>Description</FormLabel>
                     <FormControl>
-                      <Input placeholder="A short description of the plan" {...field} />
+                      <Textarea 
+                        placeholder="Describe what this plan offers" 
+                        className="resize-none" 
+                        {...field}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-
               <div className="grid grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
-                  name="maxAccounts"
+                  name="price"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Max S3 Accounts</FormLabel>
+                      <FormLabel>Price ($/month)</FormLabel>
                       <FormControl>
-                        <Input
-                          type="number"
-                          min="1"
-                          placeholder="1"
-                          {...field}
-                          onChange={e => field.onChange(parseInt(e.target.value))}
-                        />
+                        <Input type="number" step="0.01" min="0" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-
-                <FormField
-                  control={form.control}
-                  name="maxStorage"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Max Storage (GB)</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="number"
-                          min="1"
-                          placeholder="5"
-                          {...field}
-                          onChange={e => field.onChange(parseInt(e.target.value))}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={form.control}
+                    name="maxAccounts"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Accounts</FormLabel>
+                        <FormControl>
+                          <Input type="number" min="1" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="maxStorage"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Max Storage (GB)</FormLabel>
+                        <FormControl>
+                          <Input type="number" min="1" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
               </div>
-
               <FormField
                 control={form.control}
                 name="active"
                 render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3">
                     <div className="space-y-0.5">
-                      <FormLabel>Active Status</FormLabel>
+                      <FormLabel>Active</FormLabel>
                       <FormDescription>
-                        Whether this plan is available for users to subscribe to.
+                        Make this plan available to users
                       </FormDescription>
                     </div>
                     <FormControl>
@@ -413,54 +430,56 @@ export function SubscriptionPlans() {
                   </FormItem>
                 )}
               />
-
-              {/* Features section */}
-              <div className="space-y-2">
-                <Label>Plan Features</Label>
-                <div className="flex gap-2">
+              <div>
+                <FormLabel>Features</FormLabel>
+                <div className="flex items-center space-x-2 mt-1.5 mb-3">
                   <Input
-                    value={featureInput}
-                    onChange={(e) => setFeatureInput(e.target.value)}
-                    placeholder="Add a feature, e.g., '24/7 Support'"
+                    placeholder="Add a feature"
+                    value={feature}
+                    onChange={(e) => setFeature(e.target.value)}
+                    className="flex-1"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addFeature();
+                      }
+                    }}
                   />
-                  <Button type="button" onClick={addFeature} size="sm">
+                  <Button type="button" onClick={addFeature}>
                     Add
                   </Button>
                 </div>
-
-                <div className="mt-2 space-y-2">
-                  {form.watch("features").map((feature, index) => (
-                    <div key={index} className="flex items-center justify-between bg-muted p-2 rounded-sm">
-                      <span>{feature}</span>
+                <div className="space-y-2">
+                  {form.watch("features")?.map((feat, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between rounded-md border px-3 py-2"
+                    >
+                      <span>{feat}</span>
                       <Button
                         type="button"
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          const currentFeatures = [...form.getValues("features")];
-                          currentFeatures.splice(index, 1);
-                          form.setValue("features", currentFeatures);
-                        }}
+                        onClick={() => removeFeature(index)}
                       >
-                        <Trash className="h-4 w-4" />
+                        Remove
                       </Button>
                     </div>
                   ))}
                 </div>
               </div>
-
               <DialogFooter>
-                <Button variant="outline" type="button" onClick={() => setIsAddDialogOpen(false)}>
+                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}>
                   Cancel
                 </Button>
                 <Button type="submit">
-                  {editingPlan ? "Update Plan" : "Create Plan"}
+                  {isEditing ? "Save Changes" : "Create Plan"}
                 </Button>
               </DialogFooter>
             </form>
           </Form>
         </DialogContent>
       </Dialog>
-    </div>
+    </Card>
   );
 }

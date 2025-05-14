@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -8,21 +16,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,12 +26,20 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Loader2, MoreHorizontal, UserCog } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
-import { format } from "date-fns";
-import { useToast } from "@/hooks/use-toast";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -46,12 +47,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, Search, MoreHorizontal, UserCog, Shield, CreditCard } from "lucide-react";
+import { format } from "date-fns";
+import { apiRequest } from "@/lib/queryClient";
 
 export function UserManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [selectedUser, setSelectedUser] = useState<any>(null);
-  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedUser, setSelectedUser] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isAlertDialogOpen, setIsAlertDialogOpen] = useState(false);
   const [isSubDialogOpen, setIsSubDialogOpen] = useState(false);
   const [newRole, setNewRole] = useState("");
   const [newPlan, setNewPlan] = useState("");
@@ -74,204 +83,242 @@ export function UserManagement() {
   // Update user role mutation
   const updateRoleMutation = useMutation({
     mutationFn: async ({userId, role}: {userId: string, role: string}) => {
-      const response = await apiRequest("PATCH", `/api/admin/users/${userId}`, { role });
+      const response = await apiRequest("PATCH", `/api/admin/users/${userId}/role`, { role });
       return response.json();
     },
-    onSuccess: (data) => {
-      toast({
-        title: "Role updated",
-        description: `User role has been updated to ${data.role}.`,
-      });
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/logs'] });
-      setIsRoleDialogOpen(false);
-    },
-    onError: (error: any) => {
       toast({
-        title: "Update failed",
-        description: error.message || "Failed to update user role",
+        title: "User role updated",
+        description: "User role has been updated successfully",
+      });
+      setIsDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to update user role",
+        description: error.message,
         variant: "destructive",
       });
-    },
+    }
   });
 
   // Update subscription plan mutation
-  const updateSubscriptionMutation = useMutation({
-    mutationFn: async ({userId, subscriptionPlan}: {userId: string, subscriptionPlan: string}) => {
-      const response = await apiRequest("PATCH", `/api/admin/users/${userId}`, { subscriptionPlan });
+  const updatePlanMutation = useMutation({
+    mutationFn: async ({userId, plan}: {userId: string, plan: string}) => {
+      const response = await apiRequest("PATCH", `/api/admin/users/${userId}/subscription`, { plan });
       return response.json();
     },
-    onSuccess: (data) => {
-      toast({
-        title: "Subscription updated",
-        description: `User subscription has been updated to ${data.subscriptionPlan}.`,
-      });
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
-      queryClient.invalidateQueries({ queryKey: ['/api/admin/logs'] });
+      toast({
+        title: "Subscription plan updated",
+        description: "User's subscription plan has been updated successfully",
+      });
       setIsSubDialogOpen(false);
     },
-    onError: (error: any) => {
+    onError: (error: Error) => {
       toast({
-        title: "Update failed",
-        description: error.message || "Failed to update subscription plan",
+        title: "Failed to update subscription plan",
+        description: error.message,
         variant: "destructive",
       });
-    },
+    }
   });
 
-  const handleRoleChange = () => {
-    if (!selectedUser || !newRole) return;
-    updateRoleMutation.mutate({
-      userId: selectedUser.id,
-      role: newRole
-    });
+  // Delete/suspend user mutation
+  const suspendUserMutation = useMutation({
+    mutationFn: async (userId: string) => {
+      const response = await apiRequest("PATCH", `/api/admin/users/${userId}/suspend`, {});
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: "User suspended",
+        description: "User has been suspended successfully",
+      });
+      setIsAlertDialogOpen(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to suspend user",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  });
+
+  // Filter users based on search query
+  const filteredUsers = users.filter(user => 
+    user.username.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    user.email.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Get user by ID
+  const getSelectedUser = () => {
+    return users.find(user => user.id === selectedUser);
   };
 
-  const handleSubscriptionChange = () => {
-    if (!selectedUser || !newPlan) return;
-    updateSubscriptionMutation.mutate({
-      userId: selectedUser.id,
-      subscriptionPlan: newPlan
-    });
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center p-8">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Function to get appropriate color for role badge
-  const getRoleBadgeColor = (role: string) => {
+  // Get badge variant based on user role
+  const getRoleBadgeVariant = (role: string) => {
     switch (role) {
       case 'admin':
-        return "bg-red-500 hover:bg-red-600";
+        return 'default';
+      case 'user':
+        return 'secondary';
       case 'suspended':
-        return "bg-gray-400 hover:bg-gray-500";
+        return 'destructive';
       default:
-        return "bg-green-500 hover:bg-green-600";
+        return 'outline';
     }
   };
-  
-  // Function to get appropriate color for subscription badge
-  const getPlanBadgeColor = (plan: string) => {
-    switch (plan) {
-      case 'premium':
-        return "bg-purple-500 hover:bg-purple-600";
-      case 'business':
-        return "bg-indigo-500 hover:bg-indigo-600";
-      case 'basic':
-        return "bg-blue-500 hover:bg-blue-600";
-      default:
-        return "bg-gray-500 hover:bg-gray-600";
+
+  // Update user role
+  const handleUpdateRole = () => {
+    if (selectedUser && newRole) {
+      updateRoleMutation.mutate({ userId: selectedUser, role: newRole });
+    }
+  };
+
+  // Update subscription plan
+  const handleUpdatePlan = () => {
+    if (selectedUser && newPlan) {
+      updatePlanMutation.mutate({ userId: selectedUser, plan: newPlan });
+    }
+  };
+
+  // Suspend user
+  const handleSuspendUser = () => {
+    if (selectedUser) {
+      suspendUserMutation.mutate(selectedUser);
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <UserCog className="h-5 w-5" />
-          User Management
-        </CardTitle>
-        <CardDescription>
-          Manage user roles, subscriptions and account status
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Subscription</TableHead>
-                <TableHead>Joined</TableHead>
-                <TableHead className="w-10"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {users.map((user: any) => (
-                <TableRow key={user.id}>
-                  <TableCell>
-                    <div className="flex flex-col">
-                      <span className="font-medium">{user.username || user.email}</span>
-                      {user.email && user.username && <span className="text-xs text-muted-foreground">{user.email}</span>}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getRoleBadgeColor(user.role)}>
-                      {user.role || 'user'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={getPlanBadgeColor(user.subscriptionPlan)}>
-                      {user.subscriptionPlan || 'free'}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {user.createdAt ? format(new Date(user.createdAt), 'MMM d, yyyy') : 'Unknown'}
-                  </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-8 w-8 p-0">
-                          <span className="sr-only">Open menu</span>
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setNewRole(user.role || "user");
-                            setIsRoleDialogOpen(true);
-                          }}
-                        >
-                          Change Role
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            setSelectedUser(user);
-                            setNewPlan(user.subscriptionPlan || "free");
-                            setIsSubDialogOpen(true);
-                          }}
-                        >
-                          Change Subscription
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-              {users.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-4">
-                    No users found
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
+    <>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>User Management</CardTitle>
+            <CardDescription>
+              Manage users and their access levels
+            </CardDescription>
+          </div>
+          <div className="relative w-64">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search users..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex justify-center p-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <div className="rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>User</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead>Joined</TableHead>
+                    <TableHead className="w-16">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredUsers.map((user: AdminUser) => (
+                    <TableRow key={user.id}>
+                      <TableCell>{user.username}</TableCell>
+                      <TableCell>{user.email}</TableCell>
+                      <TableCell>
+                        <Badge variant={getRoleBadgeVariant(user.role)}>
+                          {user.role}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline">
+                          {user.subscriptionPlan || "Free"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {format(new Date(user.createdAt), "MMM d, yyyy")}
+                      </TableCell>
+                      <TableCell>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon">
+                              <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUser(user.id);
+                                setNewRole(user.role);
+                                setIsDialogOpen(true);
+                              }}
+                            >
+                              <Shield className="mr-2 h-4 w-4" />
+                              Change Role
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUser(user.id);
+                                setNewPlan(user.subscriptionPlan || "free");
+                                setIsSubDialogOpen(true);
+                              }}
+                            >
+                              <CreditCard className="mr-2 h-4 w-4" />
+                              Manage Subscription
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={() => {
+                                setSelectedUser(user.id);
+                                setIsAlertDialogOpen(true);
+                              }}
+                              className="text-red-600"
+                              disabled={user.role === 'admin'}
+                            >
+                              <UserCog className="mr-2 h-4 w-4" />
+                              Suspend User
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                  {filteredUsers.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-4">
+                        No users found matching your search
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Change Role Dialog */}
-      <AlertDialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Change User Role</AlertDialogTitle>
-            <AlertDialogDescription>
-              Update the role for {selectedUser?.username || selectedUser?.email}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="my-4">
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change User Role</DialogTitle>
+            <DialogDescription>
+              Update the role for user {getSelectedUser()?.username}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
             <Select value={newRole} onValueChange={setNewRole}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a role" />
@@ -283,31 +330,37 @@ export function UserManagement() {
               </SelectContent>
             </Select>
           </div>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleRoleChange}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateRole}
               disabled={updateRoleMutation.isPending}
             >
               {updateRoleMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
-              Save
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Role"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Change Subscription Dialog */}
-      <AlertDialog open={isSubDialogOpen} onOpenChange={setIsSubDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Change Subscription Plan</AlertDialogTitle>
-            <AlertDialogDescription>
-              Update the subscription plan for {selectedUser?.username || selectedUser?.email}.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <div className="my-4">
+      <Dialog open={isSubDialogOpen} onOpenChange={setIsSubDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Change Subscription Plan</DialogTitle>
+            <DialogDescription>
+              Update the subscription for user {getSelectedUser()?.username}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
             <Select value={newPlan} onValueChange={setNewPlan}>
               <SelectTrigger>
                 <SelectValue placeholder="Select a plan" />
@@ -320,20 +373,55 @@ export function UserManagement() {
               </SelectContent>
             </Select>
           </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsSubDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdatePlan}
+              disabled={updatePlanMutation.isPending}
+            >
+              {updatePlanMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                "Update Plan"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Suspend User Alert Dialog */}
+      <AlertDialog open={isAlertDialogOpen} onOpenChange={setIsAlertDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will suspend the user account for {getSelectedUser()?.username}.
+              They will no longer be able to log in or access their accounts until reinstated.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={handleSubscriptionChange}
-              disabled={updateSubscriptionMutation.isPending}
+              onClick={handleSuspendUser}
+              className="bg-red-600 hover:bg-red-700"
             >
-              {updateSubscriptionMutation.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
-              Save
+              {suspendUserMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Suspending...
+                </>
+              ) : (
+                "Suspend User"
+              )}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </>
   );
 }
