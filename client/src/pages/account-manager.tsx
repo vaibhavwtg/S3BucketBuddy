@@ -131,7 +131,7 @@ export default function AccountManager() {
                 <CardFooter className="flex justify-between">
                   <Button 
                     variant="outline"
-                    onClick={() => window.location.href = `/browser/${account.id}`}
+                    onClick={() => window.location.href = `/browser?account=${account.id}`}
                   >
                     <i className="ri-folder-open-line mr-2"></i>
                     Browse
