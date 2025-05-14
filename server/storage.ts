@@ -67,11 +67,21 @@ export class DatabaseStorage implements IStorage {
   
   async createUser(userData: InsertUser): Promise<User> {
     // Generate a unique ID if not provided
-    if (!userData.id) {
-      userData.id = `local_${randomBytes(8).toString('hex')}`;
-    }
+    const userId = userData.id || `local_${randomBytes(8).toString('hex')}`;
     
-    const [newUser] = await db.insert(users).values(userData).returning();
+    // Insert user with properly typed values (matches SQL schema)
+    const [newUser] = await db.insert(users).values({
+      id: userId,
+      email: userData.email || null,
+      username: userData.username || null,
+      firstName: userData.firstName || null,
+      lastName: userData.lastName || null,
+      profileImageUrl: userData.profileImageUrl || null,
+      password: userData.password || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    }).returning();
+    
     return newUser;
   }
   
@@ -81,14 +91,22 @@ export class DatabaseStorage implements IStorage {
       userData.id = `local_${randomBytes(8).toString('hex')}`;
     }
     
+    // Create values object with proper types
+    const insertValues = {
+      id: userData.id,
+      email: userData.email,
+      username: userData.username || `user_${Math.random().toString(36).substring(2, 10)}`,
+      firstName: userData.firstName,
+      lastName: userData.lastName,
+      profileImageUrl: userData.profileImageUrl,
+      password: userData.password || null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    
     const [user] = await db
       .insert(users)
-      .values({
-        // Provide default values for partial fields if needed
-        username: userData.username || 'user_' + Math.random().toString(36).substring(2, 10),
-        password: userData.password || randomBytes(16).toString('hex'),
-        ...userData,
-      })
+      .values(insertValues)
       .onConflictDoUpdate({
         target: users.id,
         set: {
