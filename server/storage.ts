@@ -305,16 +305,37 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(fileAccessLogs.accessedAt));
   }
   
+  /**
+   * Logs file access and increases the access counter for a shared file
+   * 
+   * @param log - Information about the file access
+   * @returns The created file access log entry
+   */
   async logFileAccess(log: InsertFileAccessLog): Promise<FileAccessLog> {
-    const [accessLog] = await db
-      .insert(fileAccessLogs)
-      .values(log)
-      .returning();
-    
-    // Increment the access count on the shared file
-    await this.incrementAccessCount(log.fileId);
-    
-    return accessLog;
+    try {
+      // Make sure we're only sending fields that exist in the database
+      const sanitizedLog = {
+        fileId: log.fileId,
+        ipAddress: log.ipAddress,
+        userAgent: log.userAgent,
+        referrer: log.referrer,
+        isDownload: log.isDownload
+      };
+      
+      const [accessLog] = await db
+        .insert(fileAccessLogs)
+        .values(sanitizedLog)
+        .returning();
+      
+      // Increment the access count on the shared file
+      await this.incrementAccessCount(log.fileId);
+      
+      return accessLog;
+    } catch (error) {
+      console.error("Error logging file access:", error);
+      // Rethrow to let the caller handle it
+      throw error;
+    }
   }
 }
 

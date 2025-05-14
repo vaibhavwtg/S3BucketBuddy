@@ -51,6 +51,10 @@ export const sharedFiles = pgTable("shared_files", {
   shareToken: text("share_token").notNull().unique(),
   expiresAt: timestamp("expires_at"),
   allowDownload: boolean("allow_download").default(true),
+  // New field: For manually expiring links regardless of expiration date
+  isExpired: boolean("is_expired").default(false),
+  // New field: Whether to allow public/direct S3 access
+  isPublic: boolean("is_public").default(false),
   password: text("password"),
   accessCount: integer("access_count").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -63,8 +67,7 @@ export const fileAccessLogs = pgTable("file_access_logs", {
   accessedAt: timestamp("accessed_at").defaultNow().notNull(),
   ipAddress: varchar("ip_address", { length: 45 }), // IPv6 can be up to 45 chars
   userAgent: text("user_agent"),
-  country: varchar("country", { length: 2 }),
-  city: varchar("city", { length: 100 }),
+  // Removed country and city fields that were causing schema errors
   referrer: text("referrer"),
   isDownload: boolean("is_download").default(false),
 }, (table) => {
