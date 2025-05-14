@@ -33,40 +33,43 @@ export function useS3Buckets(accountId: number | undefined) {
  * This is used to display buckets directly as folders
  */
 export function useAllS3Buckets() {
-  const { data: accounts = [] } = useQuery<S3Account[]>({
+  const { data: accounts = [], isLoading: isLoadingAccounts } = useQuery<S3Account[]>({
     queryKey: ['/api/s3-accounts'],
-  });
-  
-  // Create a map to batch queries for buckets by account
-  const accountBucketQueries = accounts.map(account => {
-    return {
-      queryKey: [`/api/s3/${account.id}/buckets`],
-      queryFn: () => listBuckets(account.id),
-      enabled: !!account.id,
-    };
   });
   
   // Fetch buckets for all accounts
   const results = useQuery<EnhancedS3Bucket[]>({
     queryKey: ['all-buckets'],
     queryFn: async () => {
-      // Create a map of account info keyed by accountId
-      const accountMap = accounts.reduce<Record<number, S3Account>>((acc, account) => {
-        acc[account.id] = account;
-        return acc;
-      }, {});
+      // Add debug logging
+      console.log('Fetching buckets for accounts:', accounts);
+      
+      if (!accounts || accounts.length === 0) {
+        console.log('No accounts available for fetching buckets');
+        return [];
+      }
       
       // Fetch buckets for each account in parallel
       const bucketsPromises = accounts.map(async (account) => {
+        if (!account || !account.id) {
+          console.log('Invalid account detected:', account);
+          return [];
+        }
+        
         try {
+          console.log(`Fetching buckets for account ${account.id} (${account.name})`);
           const buckets = await listBuckets(account.id);
-          // Attach account info to each bucket
-          return buckets.map(bucket => ({
-            ...bucket,
-            accountId: account.id,
-            accountName: account.name,
-            region: account.region,
-          } as EnhancedS3Bucket));
+          console.log(`Retrieved ${buckets.length} buckets for account ${account.id}`);
+          
+          // Attach account info to each bucket and filter out invalid buckets
+          return buckets
+            .filter(bucket => bucket && bucket.Name) // Filter out invalid buckets
+            .map(bucket => ({
+              ...bucket,
+              accountId: account.id,
+              accountName: account.name,
+              region: account.region,
+            } as EnhancedS3Bucket));
         } catch (error) {
           console.error(`Error fetching buckets for account ${account.id}:`, error);
           return [];
@@ -75,15 +78,17 @@ export function useAllS3Buckets() {
       
       const results = await Promise.all(bucketsPromises);
       
-      // Flatten the results
-      return results.flat();
+      // Flatten the results and log
+      const flattenedResults = results.flat();
+      console.log('All buckets data:', flattenedResults);
+      return flattenedResults;
     },
     enabled: accounts.length > 0,
   });
   
   return {
     data: results.data || [],
-    isLoading: results.isLoading,
+    isLoading: results.isLoading || isLoadingAccounts,
     isError: results.isError,
     error: results.error,
   };

@@ -343,10 +343,17 @@ export default function Browser() {
   };
 
   // Handle bucket selection
-  const handleSelectBucket = (bucket: S3Bucket) => {
+  const handleSelectBucket = (bucket: any) => { // Allow EnhancedS3Bucket type
     if (!bucket.Name) return;
+    
+    // Log the bucket selection for debugging
+    console.log('Selected bucket:', bucket);
+    
+    // If the bucket has an accountId, use that, otherwise use parsedAccountId
+    const accountIdToUse = bucket.accountId || parsedAccountId;
+    
     navigateTo({
-      account: parsedAccountId,
+      account: accountIdToUse,
       bucket: bucket.Name
     });
   };
