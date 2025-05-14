@@ -39,6 +39,9 @@ export function registerRoutes(app: Express): Server {
   // Setup auth with local strategy
   setupAuth(app);
   
+  // Clear out any authentication error logs
+  console.log("Traditional authentication enabled");
+  
   // Add middleware to extract userId for convenience
   app.use((req: AuthenticatedRequest, res, next) => {
     if (req.isAuthenticated() && req.user) {
