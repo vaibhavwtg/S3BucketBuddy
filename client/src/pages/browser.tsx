@@ -565,8 +565,8 @@ export default function Browser() {
               <FolderCard
                 key={index}
                 folder={folder}
-                accountId={parsedAccountId || 0}
-                bucket={bucket}
+                accountId={parsedAccountId !== undefined ? parsedAccountId : 0}
+                bucket={bucket || ""}
                 prefix={cleanPrefix}
                 viewMode={viewMode}
               />
@@ -588,7 +588,7 @@ export default function Browser() {
                 key={index}
                 file={file}
                 bucket={bucket}
-                accountId={parsedAccountId || 0}
+                accountId={parsedAccountId !== undefined ? parsedAccountId : 0}
                 prefix={cleanPrefix}
                 selectable={selectionMode}
                 selected={Boolean(file.Key && selectedFiles[file.Key])}
