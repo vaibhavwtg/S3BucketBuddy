@@ -16,6 +16,8 @@ type User = {
   firstName?: string | null;
   lastName?: string | null;
   profileImageUrl?: string | null;
+  role?: 'user' | 'admin' | 'suspended';
+  subscriptionPlan?: 'free' | 'basic' | 'premium' | 'business';
   createdAt: string;
   updatedAt?: string | null;
 };

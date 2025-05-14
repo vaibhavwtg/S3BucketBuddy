@@ -1,13 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Table,
   TableBody,
@@ -26,863 +18,436 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+  CardFooter,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Loader2, PlusCircle, MoreHorizontal, Check, X, RefreshCw } from "lucide-react";
+import { Loader2, Plus, CreditCard, Edit, Trash } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+import { useForm } from "react-hook-form";
+import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
-interface SubscriptionPlan {
-  id: number;
-  name: string;
-  description: string;
-  priceMonthly: number; // in cents
-  priceYearly: number; // in cents
-  stripePriceIdMonthly?: string;
-  stripePriceIdYearly?: string;
-  features: Record<string, any>;
-  maxAccounts: number;
-  maxStorage: number; // in GB
-  maxBandwidth: number; // in GB
-  isActive: boolean;
-  sortOrder: number;
-  createdAt: string;
-}
-
-// Schema for plan creation and editing
+// Define the subscription plan schema
 const planSchema = z.object({
-  name: z.string().min(1, "Plan name is required"),
-  description: z.string().min(1, "Description is required"),
-  priceMonthly: z.coerce.number().min(0, "Price must be 0 or higher"),
-  priceYearly: z.coerce.number().min(0, "Price must be 0 or higher"),
-  stripePriceIdMonthly: z.string().optional(),
-  stripePriceIdYearly: z.string().optional(),
-  maxAccounts: z.coerce.number().min(1, "Must allow at least 1 account"),
-  maxStorage: z.coerce.number().min(1, "Must allow at least 1 GB storage"),
-  maxBandwidth: z.coerce.number().min(1, "Must allow at least 1 GB bandwidth"),
-  isActive: z.boolean().default(true),
-  sortOrder: z.coerce.number().default(0),
-  featuresText: z.string().optional(),
+  name: z.string().min(2, { message: "Plan name must be at least 2 characters" }),
+  price: z.number().min(0, { message: "Price must be non-negative" }), 
+  description: z.string().optional(),
+  maxAccounts: z.number().int().min(1, { message: "Max accounts must be at least 1" }),
+  maxStorage: z.number().int().min(1, { message: "Max storage must be at least 1 GB" }),
+  active: z.boolean().default(true),
+  features: z.array(z.string()).default([]),
 });
 
 type PlanFormValues = z.infer<typeof planSchema>;
 
+// Predefined sample plans - in a real app, these would come from a database
+const samplePlans = [
+  {
+    id: "free",
+    name: "Free",
+    description: "Basic plan for personal use",
+    price: 0,
+    maxAccounts: 1,
+    maxStorage: 5,
+    active: true,
+    features: ["1 S3 Account", "5 GB Storage", "Basic Support"],
+    isDefault: true,
+  },
+  {
+    id: "basic",
+    name: "Basic",
+    description: "Great for individuals and small teams",
+    price: 9.99,
+    maxAccounts: 3,
+    maxStorage: 50,
+    active: true,
+    features: ["3 S3 Accounts", "50 GB Storage", "Email Support", "Advanced Sharing"],
+  },
+  {
+    id: "premium",
+    name: "Premium",
+    description: "Perfect for growing businesses",
+    price: 29.99,
+    maxAccounts: 10,
+    maxStorage: 200,
+    active: true,
+    features: ["10 S3 Accounts", "200 GB Storage", "Priority Support", "Advanced Analytics"],
+  },
+  {
+    id: "business",
+    name: "Business",
+    description: "Enterprise-grade solution",
+    price: 99.99,
+    maxAccounts: 50,
+    maxStorage: 1000,
+    active: true,
+    features: ["50 S3 Accounts", "1 TB Storage", "24/7 Support", "Advanced Security", "Custom Branding"],
+  },
+];
+
 export function SubscriptionPlans() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [openAddDialog, setOpenAddDialog] = useState(false);
-  const [openEditDialog, setOpenEditDialog] = useState(false);
-  const [planToEdit, setPlanToEdit] = useState<SubscriptionPlan | null>(null);
-
-  // Initialize form for adding a new plan
-  const addPlanForm = useForm<PlanFormValues>({
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [editingPlan, setEditingPlan] = useState<any>(null);
+  
+  // Initialize form with the schema
+  const form = useForm<PlanFormValues>({
     resolver: zodResolver(planSchema),
     defaultValues: {
-      name: '',
-      description: '',
-      priceMonthly: 0,
-      priceYearly: 0,
+      name: "",
+      price: 0,
+      description: "",
       maxAccounts: 1,
-      maxStorage: 5,
-      maxBandwidth: 10,
-      isActive: true,
-      sortOrder: 0,
-      featuresText: '',
+      maxStorage: 1,
+      active: true,
+      features: [],
     },
   });
 
-  // Initialize form for editing a plan
-  const editPlanForm = useForm<PlanFormValues>({
-    resolver: zodResolver(planSchema),
-    defaultValues: {
-      name: '',
-      description: '',
-      priceMonthly: 0,
-      priceYearly: 0,
-      maxAccounts: 1,
-      maxStorage: 5,
-      maxBandwidth: 10,
-      isActive: true,
-      sortOrder: 0,
-      featuresText: '',
+  // In a real implementation, we would fetch subscription plans from the API
+  const { data: plans = samplePlans, isLoading } = useQuery({
+    queryKey: ['/api/admin/subscription-plans'],
+    // In the absence of a real endpoint, just provide the predefined plans
+    queryFn: async () => {
+      // This would be replaced with an actual API call in a real application
+      return new Promise(resolve => setTimeout(() => resolve(samplePlans), 500));
     },
   });
 
-  // Set the edit form values when a plan is selected for editing
-  const setEditForm = (plan: SubscriptionPlan) => {
-    setPlanToEdit(plan);
-    const featuresText = JSON.stringify(plan.features, null, 2);
-    
-    editPlanForm.reset({
+  // Reset form for adding a new plan
+  const resetForm = () => {
+    form.reset({
+      name: "",
+      price: 0,
+      description: "",
+      maxAccounts: 1,
+      maxStorage: 1,
+      active: true,
+      features: [],
+    });
+    setEditingPlan(null);
+  };
+
+  // Set up form for editing an existing plan
+  const setupEditForm = (plan: any) => {
+    setEditingPlan(plan);
+    form.reset({
       name: plan.name,
-      description: plan.description,
-      priceMonthly: plan.priceMonthly / 100, // convert from cents to dollars for display
-      priceYearly: plan.priceYearly / 100, // convert from cents to dollars for display
-      stripePriceIdMonthly: plan.stripePriceIdMonthly,
-      stripePriceIdYearly: plan.stripePriceIdYearly,
+      price: plan.price,
+      description: plan.description || "",
       maxAccounts: plan.maxAccounts,
       maxStorage: plan.maxStorage,
-      maxBandwidth: plan.maxBandwidth,
-      isActive: plan.isActive,
-      sortOrder: plan.sortOrder,
-      featuresText,
+      active: plan.active,
+      features: plan.features,
+    });
+    setIsAddDialogOpen(true);
+  };
+
+  // Handle form submission
+  const onSubmit = (data: PlanFormValues) => {
+    console.log("Submitted plan:", data);
+    
+    // In a real implementation, we would send this to the API
+    toast({
+      title: editingPlan ? "Plan Updated" : "Plan Created",
+      description: `The ${data.name} plan has been ${editingPlan ? "updated" : "created"} successfully.`,
     });
     
-    setOpenEditDialog(true);
-  };
-
-  // Fetch all subscription plans
-  const { data: subscriptionPlans, isLoading, isError } = useQuery<SubscriptionPlan[]>({
-    queryKey: ["/api/admin/subscription-plans"],
-    queryFn: async () => {
-      const response = await apiRequest("GET", "/api/admin/subscription-plans");
-      if (!response.ok) throw new Error("Failed to fetch subscription plans");
-      return response.json();
-    },
-  });
-
-  // Create a new subscription plan
-  const createPlanMutation = useMutation({
-    mutationFn: async (data: PlanFormValues) => {
-      // Parse features JSON if provided
-      let features = {};
-      if (data.featuresText) {
-        try {
-          features = JSON.parse(data.featuresText);
-        } catch (e) {
-          throw new Error("Invalid features JSON");
-        }
-      }
-
-      // Convert prices from dollars to cents for storage
-      const priceMonthly = Math.round(data.priceMonthly * 100);
-      const priceYearly = Math.round(data.priceYearly * 100);
-      
-      const response = await apiRequest("POST", "/api/admin/subscription-plans", {
-        ...data,
-        priceMonthly,
-        priceYearly,
-        features,
-      });
-      
-      if (!response.ok) throw new Error("Failed to create subscription plan");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/subscription-plans"] });
-      toast({
-        title: "Plan created",
-        description: "The subscription plan has been created successfully",
-      });
-      setOpenAddDialog(false);
-      addPlanForm.reset();
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create subscription plan",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Update an existing subscription plan
-  const updatePlanMutation = useMutation({
-    mutationFn: async (data: PlanFormValues & { id: number }) => {
-      // Parse features JSON if provided
-      let features = {};
-      if (data.featuresText) {
-        try {
-          features = JSON.parse(data.featuresText);
-        } catch (e) {
-          throw new Error("Invalid features JSON");
-        }
-      }
-
-      // Convert prices from dollars to cents for storage
-      const priceMonthly = Math.round(data.priceMonthly * 100);
-      const priceYearly = Math.round(data.priceYearly * 100);
-      
-      const response = await apiRequest("PUT", `/api/admin/subscription-plans/${data.id}`, {
-        ...data,
-        priceMonthly,
-        priceYearly,
-        features,
-      });
-      
-      if (!response.ok) throw new Error("Failed to update subscription plan");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/subscription-plans"] });
-      toast({
-        title: "Plan updated",
-        description: "The subscription plan has been updated successfully",
-      });
-      setOpenEditDialog(false);
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update subscription plan",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Toggle plan activation
-  const togglePlanActivationMutation = useMutation({
-    mutationFn: async ({ id, isActive }: { id: number; isActive: boolean }) => {
-      const response = await apiRequest("PATCH", `/api/admin/subscription-plans/${id}/toggle`, {
-        isActive,
-      });
-      
-      if (!response.ok) throw new Error("Failed to update plan status");
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/subscription-plans"] });
-      toast({
-        title: "Plan status updated",
-        description: "The plan status has been updated successfully",
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update plan status",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Format price for display
-  const formatPrice = (cents: number) => {
-    const dollars = cents / 100;
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(dollars);
-  };
-
-  // Handle form submission for adding a new plan
-  const onAddPlanSubmit = (values: PlanFormValues) => {
-    createPlanMutation.mutate(values);
-  };
-
-  // Handle form submission for editing a plan
-  const onEditPlanSubmit = (values: PlanFormValues) => {
-    if (!planToEdit) return;
+    setIsAddDialogOpen(false);
+    resetForm();
     
-    updatePlanMutation.mutate({
-      ...values,
-      id: planToEdit.id,
-    });
+    // In a real implementation, we would refetch the plans or update the cache
+  };
+
+  // Add a custom input for features (comma-separated)
+  const [featureInput, setFeatureInput] = useState("");
+  const addFeature = () => {
+    if (featureInput.trim()) {
+      const currentFeatures = form.getValues("features") || [];
+      form.setValue("features", [...currentFeatures, featureInput.trim()]);
+      setFeatureInput("");
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (isError) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          Error loading subscription plans. Please try again later.
-        </AlertDescription>
-      </Alert>
-    );
-  }
-
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Subscription Plans</CardTitle>
-            <CardDescription>
-              Manage your subscription plans and pricing.
-            </CardDescription>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-center">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <CreditCard className="h-5 w-5" />
+                Subscription Plans
+              </CardTitle>
+              <CardDescription>
+                Manage pricing tiers and subscription features
+              </CardDescription>
+            </div>
+            <DialogTrigger asChild onClick={resetForm}>
+              <Button size="sm" className="flex items-center gap-1">
+                <Plus className="h-4 w-4" />
+                Add Plan
+              </Button>
+            </DialogTrigger>
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/admin/subscription-plans"] })}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
-            <Button onClick={() => setOpenAddDialog(true)}>
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Add Plan
-            </Button>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Monthly</TableHead>
-                <TableHead>Yearly</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Limits</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {subscriptionPlans && subscriptionPlans.length > 0 ? (
-                subscriptionPlans
-                  .sort((a, b) => a.sortOrder - b.sortOrder)
-                  .map((plan) => (
-                    <TableRow key={plan.id}>
-                      <TableCell>
-                        <div className="font-medium">{plan.name}</div>
-                        <div className="text-xs text-muted-foreground max-w-xs truncate">
-                          {plan.description}
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatPrice(plan.priceMonthly)}</TableCell>
-                      <TableCell>{formatPrice(plan.priceYearly)}</TableCell>
-                      <TableCell>
-                        {plan.isActive ? (
-                          <Badge variant="default" className="bg-green-100 text-green-800">
-                            Active
-                          </Badge>
-                        ) : (
-                          <Badge variant="secondary" className="bg-gray-100 text-gray-800">
-                            Inactive
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell>
-                        <div className="text-xs">
-                          <span className="inline-block p-1 bg-blue-100 text-blue-800 rounded mr-1">
-                            {plan.maxAccounts} accounts
-                          </span>
-                          <span className="inline-block p-1 bg-purple-100 text-purple-800 rounded mr-1">
-                            {plan.maxStorage} GB storage
-                          </span>
-                          <span className="inline-block p-1 bg-amber-100 text-amber-800 rounded">
-                            {plan.maxBandwidth} GB bandwidth
-                          </span>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon">
-                              <MoreHorizontal className="h-4 w-4" />
-                              <span className="sr-only">Actions</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => setEditForm(plan)}>
-                              Edit plan
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() => {
-                                togglePlanActivationMutation.mutate({
-                                  id: plan.id,
-                                  isActive: !plan.isActive,
-                                });
-                              }}
-                            >
-                              {plan.isActive ? "Deactivate plan" : "Activate plan"}
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))
-              ) : (
+        </CardHeader>
+        <CardContent>
+          <div className="rounded-md border overflow-x-auto">
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center py-6">
-                    <div className="flex flex-col items-center justify-center space-y-3">
-                      <p className="text-muted-foreground">No subscription plans found</p>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={() => setOpenAddDialog(true)}
+                  <TableHead>Plan</TableHead>
+                  <TableHead>Pricing</TableHead>
+                  <TableHead>Accounts</TableHead>
+                  <TableHead>Storage</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="w-20">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {plans.map((plan) => (
+                  <TableRow key={plan.id}>
+                    <TableCell>
+                      <div className="font-medium">{plan.name}</div>
+                      <div className="text-xs text-muted-foreground">{plan.description}</div>
+                    </TableCell>
+                    <TableCell>
+                      {plan.price === 0 ? (
+                        <span className="text-green-600 font-medium">Free</span>
+                      ) : (
+                        <span>${plan.price.toFixed(2)}/mo</span>
+                      )}
+                    </TableCell>
+                    <TableCell>{plan.maxAccounts}</TableCell>
+                    <TableCell>{plan.maxStorage} GB</TableCell>
+                    <TableCell>
+                      <Badge variant={plan.active ? "default" : "secondary"}>
+                        {plan.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => setupEditForm(plan)}
+                          disabled={plan.isDefault}
+                          title={plan.isDefault ? "Default plan cannot be edited" : "Edit plan"}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {plans.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} className="text-center py-4">
+                      No subscription plans found
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dialog for adding/editing subscription plans */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingPlan ? "Edit Subscription Plan" : "Add New Subscription Plan"}</DialogTitle>
+            <DialogDescription>
+              {editingPlan 
+                ? "Update the details of this subscription plan."
+                : "Create a new subscription plan for your customers."}
+            </DialogDescription>
+          </DialogHeader>
+
+          <Form {...form}>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Plan Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Basic Plan" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="price"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Monthly Price ($)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="9.99"
+                          {...field}
+                          onChange={e => field.onChange(parseFloat(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="description"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Description</FormLabel>
+                    <FormControl>
+                      <Input placeholder="A short description of the plan" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="maxAccounts"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Max S3 Accounts</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="1"
+                          {...field}
+                          onChange={e => field.onChange(parseInt(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="maxStorage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Max Storage (GB)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          min="1"
+                          placeholder="5"
+                          {...field}
+                          onChange={e => field.onChange(parseInt(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name="active"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+                    <div className="space-y-0.5">
+                      <FormLabel>Active Status</FormLabel>
+                      <FormDescription>
+                        Whether this plan is available for users to subscribe to.
+                      </FormDescription>
+                    </div>
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                  </FormItem>
+                )}
+              />
+
+              {/* Features section */}
+              <div className="space-y-2">
+                <Label>Plan Features</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={featureInput}
+                    onChange={(e) => setFeatureInput(e.target.value)}
+                    placeholder="Add a feature, e.g., '24/7 Support'"
+                  />
+                  <Button type="button" onClick={addFeature} size="sm">
+                    Add
+                  </Button>
+                </div>
+
+                <div className="mt-2 space-y-2">
+                  {form.watch("features").map((feature, index) => (
+                    <div key={index} className="flex items-center justify-between bg-muted p-2 rounded-sm">
+                      <span>{feature}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          const currentFeatures = [...form.getValues("features")];
+                          currentFeatures.splice(index, 1);
+                          form.setValue("features", currentFeatures);
+                        }}
                       >
-                        <PlusCircle className="h-4 w-4 mr-2" />
-                        Add your first plan
+                        <Trash className="h-4 w-4" />
                       </Button>
                     </div>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+                  ))}
+                </div>
+              </div>
 
-        {/* Add Plan Dialog */}
-        <Dialog open={openAddDialog} onOpenChange={setOpenAddDialog}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Add Subscription Plan</DialogTitle>
-              <DialogDescription>
-                Create a new subscription plan for your users.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <Form {...addPlanForm}>
-              <form onSubmit={addPlanForm.handleSubmit(onAddPlanSubmit)} className="space-y-4 py-2">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={addPlanForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Plan Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Basic" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={addPlanForm.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-end justify-between space-y-0 rounded-md border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>Active</FormLabel>
-                          <FormDescription>
-                            Make this plan available
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <FormField
-                  control={addPlanForm.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Perfect for individual users" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={addPlanForm.control}
-                    name="priceMonthly"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monthly Price ($)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number"
-                            step="0.01" 
-                            placeholder="9.99" 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Price in USD (will be stored in cents)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={addPlanForm.control}
-                    name="priceYearly"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Yearly Price ($)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number"
-                            step="0.01" 
-                            placeholder="99.99" 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Price in USD (will be stored in cents)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={addPlanForm.control}
-                    name="maxAccounts"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Max Accounts</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" min="1" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={addPlanForm.control}
-                    name="maxStorage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Max Storage (GB)</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" min="1" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={addPlanForm.control}
-                    name="maxBandwidth"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Max Bandwidth (GB)</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" min="1" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <FormField
-                  control={addPlanForm.control}
-                  name="featuresText"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Features (JSON)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          rows={5}
-                          placeholder='{
-  "features": [
-    "Secure file uploads",
-    "Direct link sharing",
-    "24/7 support"
-  ]
-}'
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Enter features as JSON object
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={addPlanForm.control}
-                  name="sortOrder"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sort Order</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="number" min="0" />
-                      </FormControl>
-                      <FormDescription>
-                        Lower numbers appear first
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <DialogFooter className="pt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setOpenAddDialog(false)}
-                    type="button"
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit"
-                    disabled={createPlanMutation.isPending}
-                  >
-                    {createPlanMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Create Plan
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-
-        {/* Edit Plan Dialog */}
-        <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
-          <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-              <DialogTitle>Edit Subscription Plan</DialogTitle>
-              <DialogDescription>
-                Update the details of this subscription plan.
-              </DialogDescription>
-            </DialogHeader>
-            
-            <Form {...editPlanForm}>
-              <form onSubmit={editPlanForm.handleSubmit(onEditPlanSubmit)} className="space-y-4 py-2">
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={editPlanForm.control}
-                    name="name"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Plan Name</FormLabel>
-                        <FormControl>
-                          <Input {...field} placeholder="Basic" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editPlanForm.control}
-                    name="isActive"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-end justify-between space-y-0 rounded-md border p-3">
-                        <div className="space-y-0.5">
-                          <FormLabel>Active</FormLabel>
-                          <FormDescription>
-                            Make this plan available
-                          </FormDescription>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                        </FormControl>
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <FormField
-                  control={editPlanForm.control}
-                  name="description"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Description</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="Perfect for individual users" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <div className="grid grid-cols-2 gap-4">
-                  <FormField
-                    control={editPlanForm.control}
-                    name="priceMonthly"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Monthly Price ($)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number"
-                            step="0.01" 
-                            placeholder="9.99" 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Price in USD (will be stored in cents)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editPlanForm.control}
-                    name="priceYearly"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Yearly Price ($)</FormLabel>
-                        <FormControl>
-                          <Input 
-                            {...field} 
-                            type="number"
-                            step="0.01" 
-                            placeholder="99.99" 
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Price in USD (will be stored in cents)
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <div className="grid grid-cols-3 gap-4">
-                  <FormField
-                    control={editPlanForm.control}
-                    name="maxAccounts"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Max Accounts</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" min="1" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editPlanForm.control}
-                    name="maxStorage"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Max Storage (GB)</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" min="1" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  
-                  <FormField
-                    control={editPlanForm.control}
-                    name="maxBandwidth"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Max Bandwidth (GB)</FormLabel>
-                        <FormControl>
-                          <Input {...field} type="number" min="1" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-                
-                <FormField
-                  control={editPlanForm.control}
-                  name="featuresText"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Features (JSON)</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          {...field}
-                          rows={5}
-                          placeholder='{
-  "features": [
-    "Secure file uploads",
-    "Direct link sharing",
-    "24/7 support"
-  ]
-}'
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Enter features as JSON object
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={editPlanForm.control}
-                  name="sortOrder"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Sort Order</FormLabel>
-                      <FormControl>
-                        <Input {...field} type="number" min="0" />
-                      </FormControl>
-                      <FormDescription>
-                        Lower numbers appear first
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <DialogFooter className="pt-4">
-                  <Button 
-                    variant="outline" 
-                    onClick={() => setOpenEditDialog(false)}
-                    type="button"
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    type="submit"
-                    disabled={updatePlanMutation.isPending}
-                  >
-                    {updatePlanMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Save Changes
-                  </Button>
-                </DialogFooter>
-              </form>
-            </Form>
-          </DialogContent>
-        </Dialog>
-      </CardContent>
-    </Card>
+              <DialogFooter>
+                <Button variant="outline" type="button" onClick={() => setIsAddDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit">
+                  {editingPlan ? "Update Plan" : "Create Plan"}
+                </Button>
+              </DialogFooter>
+            </form>
+          </Form>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

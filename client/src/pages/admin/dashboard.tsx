@@ -1,186 +1,153 @@
-import { useState } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/hooks/use-auth";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UserManagement } from "@/components/admin/UserManagement";
 import { SubscriptionPlans } from "@/components/admin/SubscriptionPlans";
 import { UsageStats } from "@/components/admin/UsageStats";
-import { AdminSettings } from "@/components/admin/AdminSettings";
 import { AdminLogs } from "@/components/admin/AdminLogs";
-import { useAuth } from "@/hooks/use-auth";
-import { useToast } from "@/hooks/use-toast";
-import { Loader2, BarChart3, Users, CreditCard, Settings, History } from "lucide-react";
+import { Redirect } from "wouter";
+import { Loader2, Users, Wallet, HardDrive, Share2 } from "lucide-react";
 
 export default function AdminDashboard() {
-  const { user } = useAuth();
-  const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState("overview");
-
-  // Check if user is admin, redirect if not
-  const isAdmin = user?.role === "admin";
-
-  if (!isAdmin) {
-    return (
-      <Layout>
-        <div className="container mx-auto p-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Access Denied</CardTitle>
-              <CardDescription>
-                You don't have permission to access the admin dashboard.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p>This area is restricted to administrators only.</p>
-            </CardContent>
-          </Card>
-        </div>
-      </Layout>
-    );
-  }
-
-  // Fetch admin dashboard stats
-  const { data: stats, isLoading: statsLoading } = useQuery({
-    queryKey: ["/api/admin/stats"],
-    enabled: isAdmin,
+  const { user, isLoading } = useAuth();
+  
+  // Fetch admin stats
+  const { data: stats, isLoading: isLoadingStats } = useQuery({
+    queryKey: ['/api/admin/stats'],
+    enabled: !!user && (user as any).role === 'admin', // Only run if user is admin
   });
-
-  if (statsLoading) {
+  
+  // Show loading state
+  if (isLoading) {
     return (
-      <Layout>
-        <div className="container mx-auto py-10">
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-          </div>
-        </div>
-      </Layout>
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
-
+  
+  // Redirect if not admin
+  if (!user || (user as any).role !== 'admin') {
+    return <Redirect to="/" />;
+  }
+  
   return (
     <Layout>
-      <div className="container mx-auto py-10">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
-          <p className="text-muted-foreground">
-            Manage users, subscriptions, and system settings.
-          </p>
+      <div className="container mx-auto p-6">
+        <h1 className="text-3xl font-bold mb-6">Admin Dashboard</h1>
+        
+        {/* Overview Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-2">
+                <Users className="h-5 w-5 text-muted-foreground" />
+                <div className="text-2xl font-bold">
+                  {isLoadingStats ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  ) : (
+                    stats?.totalUsers || 0
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {isLoadingStats ? "Loading..." : `${stats?.newUsersThisWeek || 0} new this week`}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Subscriptions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-2">
+                <Wallet className="h-5 w-5 text-muted-foreground" />
+                <div className="text-2xl font-bold">
+                  {isLoadingStats ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  ) : (
+                    stats?.activeSubscriptions || 0
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {isLoadingStats ? "Loading..." : `${stats?.subscriptionConversionRate || 0}% conversion rate`}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Storage Accounts</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-2">
+                <HardDrive className="h-5 w-5 text-muted-foreground" />
+                <div className="text-2xl font-bold">
+                  {isLoadingStats ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  ) : (
+                    stats?.totalAccounts || 0
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {isLoadingStats ? "Loading..." : (stats?.totalStorageUsed || "Calculating...")}
+              </p>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Shared Files</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center space-x-2">
+                <Share2 className="h-5 w-5 text-muted-foreground" />
+                <div className="text-2xl font-bold">
+                  {isLoadingStats ? (
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  ) : (
+                    stats?.totalSharedFiles || 0
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {isLoadingStats ? "Loading..." : `${stats?.activeSharedFiles || 0} active files`}
+              </p>
+            </CardContent>
+          </Card>
         </div>
-
-        {/* Dashboard Overview Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-8">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Users</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalUsers || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                +{stats?.newUsersThisWeek || 0} from last week
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Active Subscriptions</CardTitle>
-              <CreditCard className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.activeSubscriptions || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats?.subscriptionConversionRate || 0}% conversion rate
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Storage</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalStorageUsed || '0 GB'}</div>
-              <p className="text-xs text-muted-foreground">
-                Across {stats?.totalAccounts || 0} accounts
-              </p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Shared Files</CardTitle>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="2"
-                className="h-4 w-4 text-muted-foreground"
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-              </svg>
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats?.totalSharedFiles || 0}</div>
-              <p className="text-xs text-muted-foreground">
-                {stats?.activeSharedFiles || 0} currently active
-              </p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Admin Tabs */}
-        <Tabs 
-          defaultValue="overview" 
-          value={activeTab} 
-          onValueChange={setActiveTab}
-          className="space-y-4"
-        >
-          <TabsList>
-            <TabsTrigger value="overview">
-              <BarChart3 className="h-4 w-4 mr-2" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="users">
-              <Users className="h-4 w-4 mr-2" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="subscriptions">
-              <CreditCard className="h-4 w-4 mr-2" />
-              Subscriptions
-            </TabsTrigger>
-            <TabsTrigger value="logs">
-              <History className="h-4 w-4 mr-2" />
-              Audit Logs
-            </TabsTrigger>
-            <TabsTrigger value="settings">
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </TabsTrigger>
+        
+        {/* Admin Tabs */}
+        <Tabs defaultValue="users" className="space-y-4">
+          <TabsList className="grid grid-cols-4 md:w-auto w-full">
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="subscriptions">Subscriptions</TabsTrigger>
+            <TabsTrigger value="usage">Usage Stats</TabsTrigger>
+            <TabsTrigger value="logs">Logs</TabsTrigger>
           </TabsList>
           
-          <TabsContent value="overview">
-            <UsageStats />
-          </TabsContent>
-          
-          <TabsContent value="users">
+          <TabsContent value="users" className="space-y-4">
             <UserManagement />
           </TabsContent>
           
-          <TabsContent value="subscriptions">
+          <TabsContent value="subscriptions" className="space-y-4">
             <SubscriptionPlans />
           </TabsContent>
           
-          <TabsContent value="logs">
-            <AdminLogs />
+          <TabsContent value="usage" className="space-y-4">
+            <UsageStats />
           </TabsContent>
           
-          <TabsContent value="settings">
-            <AdminSettings />
+          <TabsContent value="logs" className="space-y-4">
+            <AdminLogs />
           </TabsContent>
         </Tabs>
       </div>

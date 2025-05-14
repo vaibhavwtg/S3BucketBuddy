@@ -1,37 +1,13 @@
 import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { 
-  Card, 
-  CardContent, 
-  CardDescription, 
-  CardHeader, 
-  CardTitle 
-} from "@/components/ui/card";
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -40,306 +16,233 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { 
-  Avatar, 
-  AvatarFallback, 
-  AvatarImage 
-} from "@/components/ui/avatar";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { generateInitials } from "@/lib/utils";
-import { Loader2, MoreHorizontal, Search, UserPlus, Filter, RefreshCw } from "lucide-react";
+import { Loader2, MoreHorizontal, UserCog } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
+import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
-
-interface User {
-  id: string;
-  email: string;
-  username: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  profileImageUrl?: string | null;
-  role: 'user' | 'admin' | 'suspended';
-  subscriptionPlan: 'free' | 'basic' | 'premium' | 'business';
-  isVerified: boolean;
-  createdAt: string;
-  updatedAt?: string | null;
-  stripeCustomerId?: string | null;
-  stripeSubscriptionId?: string | null;
-}
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function UserManagement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<string | undefined>(undefined);
-  const [planFilter, setPlanFilter] = useState<string | undefined>(undefined);
-  const [userToEdit, setUserToEdit] = useState<User | null>(null);
-  const [openEditDialog, setOpenEditDialog] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [isRoleDialogOpen, setIsRoleDialogOpen] = useState(false);
+  const [isSubDialogOpen, setIsSubDialogOpen] = useState(false);
+  const [newRole, setNewRole] = useState("");
+  const [newPlan, setNewPlan] = useState("");
 
-  // Fetch users with possible filters
-  const { data: users, isLoading, isError } = useQuery<User[]>({
-    queryKey: ["/api/admin/users", searchQuery, roleFilter, planFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (searchQuery) params.append('search', searchQuery);
-      if (roleFilter) params.append('role', roleFilter);
-      if (planFilter) params.append('plan', planFilter);
-      
-      const queryString = params.toString();
-      const url = `/api/admin/users${queryString ? `?${queryString}` : ''}`;
-      
-      const response = await apiRequest("GET", url);
-      if (!response.ok) throw new Error("Failed to fetch users");
-      return response.json();
-    },
+  // Fetch users
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['/api/admin/users'],
   });
 
   // Update user role mutation
-  const updateUserMutation = useMutation({
-    mutationFn: async (data: { userId: string; role: string; plan?: string }) => {
-      const response = await apiRequest("PUT", `/api/admin/users/${data.userId}`, {
-        role: data.role,
-        ...(data.plan && { subscriptionPlan: data.plan }),
-      });
-      if (!response.ok) throw new Error("Failed to update user");
+  const updateRoleMutation = useMutation({
+    mutationFn: async ({userId, role}: {userId: string, role: string}) => {
+      const response = await apiRequest("PATCH", `/api/admin/users/${userId}`, { role });
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+    onSuccess: (data) => {
       toast({
-        title: "User updated",
-        description: "The user has been successfully updated.",
+        title: "Role updated",
+        description: `User role has been updated to ${data.role}.`,
       });
-      setOpenEditDialog(false);
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/logs'] });
+      setIsRoleDialogOpen(false);
     },
-    onError: (error) => {
+    onError: (error: any) => {
       toast({
-        title: "Error",
-        description: error.message || "Failed to update user",
+        title: "Update failed",
+        description: error.message || "Failed to update user role",
         variant: "destructive",
       });
     },
   });
 
-  const handleUserUpdate = () => {
-    if (!userToEdit) return;
-    
-    updateUserMutation.mutate({
-      userId: userToEdit.id,
-      role: userToEdit.role,
-      plan: userToEdit.subscriptionPlan,
+  // Update subscription plan mutation
+  const updateSubscriptionMutation = useMutation({
+    mutationFn: async ({userId, subscriptionPlan}: {userId: string, subscriptionPlan: string}) => {
+      const response = await apiRequest("PATCH", `/api/admin/users/${userId}`, { subscriptionPlan });
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Subscription updated",
+        description: `User subscription has been updated to ${data.subscriptionPlan}.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/logs'] });
+      setIsSubDialogOpen(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Update failed",
+        description: error.message || "Failed to update subscription plan",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleRoleChange = () => {
+    if (!selectedUser || !newRole) return;
+    updateRoleMutation.mutate({
+      userId: selectedUser.id,
+      role: newRole
     });
   };
 
-  // Convert timestamp to readable date
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return "N/A";
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  // Get role badge styling
-  const getRoleBadgeVariant = (role: string) => {
-    switch (role) {
-      case 'admin':
-        return 'default';
-      case 'user':
-        return 'secondary';
-      case 'suspended':
-        return 'destructive';
-      default:
-        return 'outline';
-    }
-  };
-
-  // Get subscription plan badge styling
-  const getPlanBadgeVariant = (plan: string) => {
-    switch (plan) {
-      case 'free':
-        return 'outline';
-      case 'basic':
-        return 'secondary';
-      case 'premium':
-        return 'default';
-      case 'business':
-        return 'destructive';
-      default:
-        return 'outline';
-    }
+  const handleSubscriptionChange = () => {
+    if (!selectedUser || !newPlan) return;
+    updateSubscriptionMutation.mutate({
+      userId: selectedUser.id,
+      subscriptionPlan: newPlan
+    });
   };
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="flex justify-center p-8">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
     );
   }
 
-  if (isError) {
-    return (
-      <Alert variant="destructive">
-        <AlertDescription>
-          Error loading users. Please try again later.
-        </AlertDescription>
-      </Alert>
-    );
-  }
+  // Function to get appropriate color for role badge
+  const getRoleBadgeColor = (role: string) => {
+    switch (role) {
+      case 'admin':
+        return "bg-red-500 hover:bg-red-600";
+      case 'suspended':
+        return "bg-gray-400 hover:bg-gray-500";
+      default:
+        return "bg-green-500 hover:bg-green-600";
+    }
+  };
+  
+  // Function to get appropriate color for subscription badge
+  const getPlanBadgeColor = (plan: string) => {
+    switch (plan) {
+      case 'premium':
+        return "bg-purple-500 hover:bg-purple-600";
+      case 'business':
+        return "bg-indigo-500 hover:bg-indigo-600";
+      case 'basic':
+        return "bg-blue-500 hover:bg-blue-600";
+      default:
+        return "bg-gray-500 hover:bg-gray-600";
+    }
+  };
 
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>User Management</CardTitle>
-            <CardDescription>
-              Manage your users, roles, and subscription plans.
-            </CardDescription>
-          </div>
-          <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] })}>
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
+        <CardTitle className="flex items-center gap-2">
+          <UserCog className="h-5 w-5" />
+          User Management
+        </CardTitle>
+        <CardDescription>
+          Manage user roles, subscriptions and account status
+        </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* Search and Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="relative flex-1">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search users..."
-              className="pl-8"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="flex gap-2">
-            <Select value={roleFilter} onValueChange={setRoleFilter}>
-              <SelectTrigger className="w-[150px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by role" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All roles</SelectItem>
-                <SelectItem value="user">User</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="suspended">Suspended</SelectItem>
-              </SelectContent>
-            </Select>
-            <Select value={planFilter} onValueChange={setPlanFilter}>
-              <SelectTrigger className="w-[150px]">
-                <Filter className="h-4 w-4 mr-2" />
-                <SelectValue placeholder="Filter by plan" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All plans</SelectItem>
-                <SelectItem value="free">Free</SelectItem>
-                <SelectItem value="basic">Basic</SelectItem>
-                <SelectItem value="premium">Premium</SelectItem>
-                <SelectItem value="business">Business</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
-        {/* Users Table */}
         <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>User</TableHead>
                 <TableHead>Role</TableHead>
-                <TableHead>Plan</TableHead>
+                <TableHead>Subscription</TableHead>
                 <TableHead>Joined</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {users && users.length > 0 ? (
-                users.map((user) => (
-                  <TableRow key={user.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          <AvatarImage src={user.profileImageUrl || undefined} alt={user.username || "User"} />
-                          <AvatarFallback>
-                            {generateInitials(user.username || user.firstName || "U")}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col">
-                          <span className="font-medium">{user.username || "Unnamed User"}</span>
-                          <span className="text-xs text-muted-foreground">{user.email}</span>
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getRoleBadgeVariant(user.role)}>
-                        {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={getPlanBadgeVariant(user.subscriptionPlan)}>
-                        {user.subscriptionPlan.charAt(0).toUpperCase() + user.subscriptionPlan.slice(1)}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>{formatDate(user.createdAt)}</TableCell>
-                    <TableCell>
-                      {user.isVerified ? (
-                        <Badge variant="outline" className="bg-green-100 text-green-800">Verified</Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-yellow-100 text-yellow-800">Pending</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon">
-                            <MoreHorizontal className="h-4 w-4" />
-                            <span className="sr-only">Action menu</span>
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
-                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem onClick={() => {
-                            setUserToEdit(user);
-                            setOpenEditDialog(true);
-                          }}>
-                            Edit user
-                          </DropdownMenuItem>
-                          <DropdownMenuItem>View details</DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          {user.role === 'suspended' ? (
-                            <DropdownMenuItem onClick={() => {
-                              updateUserMutation.mutate({
-                                userId: user.id,
-                                role: 'user'
-                              });
-                            }}>
-                              Unsuspend account
-                            </DropdownMenuItem>
-                          ) : (
-                            <DropdownMenuItem onClick={() => {
-                              updateUserMutation.mutate({
-                                userId: user.id,
-                                role: 'suspended'
-                              });
-                            }}>
-                              Suspend account
-                            </DropdownMenuItem>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
+              {users.map((user: any) => (
+                <TableRow key={user.id}>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{user.username || user.email}</span>
+                      {user.email && user.username && <span className="text-xs text-muted-foreground">{user.email}</span>}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getRoleBadgeColor(user.role)}>
+                      {user.role || 'user'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className={getPlanBadgeColor(user.subscriptionPlan)}>
+                      {user.subscriptionPlan || 'free'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {user.createdAt ? format(new Date(user.createdAt), 'MMM d, yyyy') : 'Unknown'}
+                  </TableCell>
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                          <span className="sr-only">Open menu</span>
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setNewRole(user.role || "user");
+                            setIsRoleDialogOpen(true);
+                          }}
+                        >
+                          Change Role
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => {
+                            setSelectedUser(user);
+                            setNewPlan(user.subscriptionPlan || "free");
+                            setIsSubDialogOpen(true);
+                          }}
+                        >
+                          Change Subscription
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                </TableRow>
+              ))}
+              {users.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={6} className="text-center">
+                  <TableCell colSpan={5} className="text-center py-4">
                     No users found
                   </TableCell>
                 </TableRow>
@@ -349,82 +252,78 @@ export function UserManagement() {
         </div>
       </CardContent>
 
-      {/* Edit User Dialog */}
-      <Dialog open={openEditDialog} onOpenChange={setOpenEditDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit User</DialogTitle>
-            <DialogDescription>
-              Update user role and subscription plan.
-            </DialogDescription>
-          </DialogHeader>
-          
-          {userToEdit && (
-            <div className="space-y-4 py-2">
-              <div className="flex items-center gap-3 mb-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={userToEdit.profileImageUrl || undefined} alt={userToEdit.username || "User"} />
-                  <AvatarFallback>
-                    {generateInitials(userToEdit.username || userToEdit.firstName || "U")}
-                  </AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-medium">{userToEdit.username || "User"}</h3>
-                  <p className="text-sm text-muted-foreground">{userToEdit.email}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="user-role">Role</Label>
-                <Select 
-                  value={userToEdit.role} 
-                  onValueChange={(value) => setUserToEdit({...userToEdit, role: value as any})}
-                >
-                  <SelectTrigger id="user-role">
-                    <SelectValue placeholder="Select role" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="user">User</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                    <SelectItem value="suspended">Suspended</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="user-plan">Subscription Plan</Label>
-                <Select 
-                  value={userToEdit.subscriptionPlan} 
-                  onValueChange={(value) => setUserToEdit({...userToEdit, subscriptionPlan: value as any})}
-                >
-                  <SelectTrigger id="user-plan">
-                    <SelectValue placeholder="Select plan" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="free">Free</SelectItem>
-                    <SelectItem value="basic">Basic</SelectItem>
-                    <SelectItem value="premium">Premium</SelectItem>
-                    <SelectItem value="business">Business</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          )}
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setOpenEditDialog(false)}>Cancel</Button>
-            <Button 
-              onClick={handleUserUpdate}
-              disabled={updateUserMutation.isPending}
+      {/* Change Role Dialog */}
+      <AlertDialog open={isRoleDialogOpen} onOpenChange={setIsRoleDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change User Role</AlertDialogTitle>
+            <AlertDialogDescription>
+              Update the role for {selectedUser?.username || selectedUser?.email}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="my-4">
+            <Select value={newRole} onValueChange={setNewRole}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a role" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="user">User</SelectItem>
+                <SelectItem value="admin">Admin</SelectItem>
+                <SelectItem value="suspended">Suspended</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRoleChange}
+              disabled={updateRoleMutation.isPending}
             >
-              {updateUserMutation.isPending && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              {updateRoleMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Change Subscription Dialog */}
+      <AlertDialog open={isSubDialogOpen} onOpenChange={setIsSubDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Change Subscription Plan</AlertDialogTitle>
+            <AlertDialogDescription>
+              Update the subscription plan for {selectedUser?.username || selectedUser?.email}.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="my-4">
+            <Select value={newPlan} onValueChange={setNewPlan}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select a plan" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="free">Free</SelectItem>
+                <SelectItem value="basic">Basic</SelectItem>
+                <SelectItem value="premium">Premium</SelectItem>
+                <SelectItem value="business">Business</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleSubscriptionChange}
+              disabled={updateSubscriptionMutation.isPending}
+            >
+              {updateSubscriptionMutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              Save
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
