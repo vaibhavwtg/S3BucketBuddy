@@ -63,12 +63,12 @@ export default function AdminDashboard() {
                   {isLoadingStats ? (
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   ) : (
-                    stats?.totalUsers || 0
+                    (stats as AdminStats)?.totalUsers || 0
                   )}
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {isLoadingStats ? "Loading..." : `${stats?.newUsersThisWeek || 0} new this week`}
+                {isLoadingStats ? "Loading..." : `${(stats as AdminStats)?.newUsersThisWeek || 0} new this week`}
               </p>
             </CardContent>
           </Card>
@@ -84,12 +84,12 @@ export default function AdminDashboard() {
                   {isLoadingStats ? (
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   ) : (
-                    stats?.activeSubscriptions || 0
+                    (stats as AdminStats)?.activeSubscriptions || 0
                   )}
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {isLoadingStats ? "Loading..." : `${stats?.subscriptionConversionRate || 0}% conversion rate`}
+                {isLoadingStats ? "Loading..." : `${(stats as AdminStats)?.subscriptionConversionRate || 0}% conversion rate`}
               </p>
             </CardContent>
           </Card>
@@ -105,12 +105,12 @@ export default function AdminDashboard() {
                   {isLoadingStats ? (
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   ) : (
-                    stats?.totalAccounts || 0
+                    (stats as AdminStats)?.totalAccounts || 0
                   )}
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {isLoadingStats ? "Loading..." : (stats?.totalStorageUsed || "Calculating...")}
+                {isLoadingStats ? "Loading..." : ((stats as AdminStats)?.totalStorageUsed || "Calculating...")}
               </p>
             </CardContent>
           </Card>
@@ -126,12 +126,12 @@ export default function AdminDashboard() {
                   {isLoadingStats ? (
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   ) : (
-                    stats?.totalSharedFiles || 0
+                    (stats as AdminStats)?.totalSharedFiles || 0
                   )}
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-1">
-                {isLoadingStats ? "Loading..." : `${stats?.activeSharedFiles || 0} active files`}
+                {isLoadingStats ? "Loading..." : `${(stats as AdminStats)?.activeSharedFiles || 0} active files`}
               </p>
             </CardContent>
           </Card>
