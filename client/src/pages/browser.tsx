@@ -454,6 +454,8 @@ export default function Browser() {
         onToggleSelectionMode={toggleSelectionMode}
         onBatchDownload={handleBatchDownload}
         onBatchDelete={handleBatchDelete}
+        onBatchMove={handleOpenBatchMove}
+        onBatchCopy={handleOpenBatchCopy}
         onSelectAll={selectAllFiles}
         onClearSelection={clearSelection}
       />
