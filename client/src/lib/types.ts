@@ -4,6 +4,12 @@ export interface S3Bucket {
   CreationDate?: Date;
 }
 
+export interface EnhancedS3Bucket extends S3Bucket {
+  accountId: number;
+  accountName: string;
+  region: string;
+}
+
 export interface S3Object {
   Key?: string;
   LastModified?: Date;

@@ -41,10 +41,9 @@ export default function Dashboard() {
   // No longer auto-navigating to browser by default
   // Users should be able to see the dashboard first
 
-  const handleExploreAccount = (accountId: number) => {
-    const params = new URLSearchParams();
-    params.set('account', accountId.toString());
-    navigate(`/browser?${params.toString()}`);
+  // Update to navigate directly to browser without account param
+  const handleExploreAccount = () => {
+    navigate('/browser');
   };
 
   return (
@@ -96,7 +95,7 @@ export default function Dashboard() {
                   Manage
                 </Button>
                 <Button 
-                  onClick={() => handleExploreAccount(account.id)}
+                  onClick={handleExploreAccount}
                 >
                   Browse Files
                 </Button>

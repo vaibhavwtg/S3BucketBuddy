@@ -8,7 +8,7 @@ import { FileCard } from "@/components/files/FileCard";
 import { FolderCard } from "@/components/files/FolderCard";
 import { StorageStats } from "@/components/files/StorageStats";
 import { Button } from "@/components/ui/button";
-import { useS3Buckets, useS3Objects, useS3FileOperations } from "@/hooks/use-s3";
+import { useS3Buckets, useS3Objects, useS3FileOperations, useAllS3Buckets } from "@/hooks/use-s3";
 import { S3Bucket, S3Object, S3CommonPrefix, S3Account } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -269,35 +269,58 @@ export default function Browser() {
     );
   }
 
-  // Return bucket selection if no bucket is selected
+  // Get all buckets from all accounts
+  const { 
+    data: allBuckets = [], 
+    isLoading: isLoadingAllBuckets 
+  } = useAllS3Buckets();
+
+  // Return bucket selection showing all buckets directly if no bucket is selected
   if (isBucketSelection) {
     return (
       <Layout>
         <div className="space-y-6">
-          <h1 className="text-2xl font-bold tracking-tight">Select a Bucket</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Your S3 Buckets</h1>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {buckets.map((bucket, index) => (
+            {allBuckets.map((bucket, index) => (
               <Button
                 key={index}
                 variant="outline"
                 className="h-auto p-6 flex flex-col items-center justify-center gap-4 hover:bg-muted"
-                onClick={() => handleSelectBucket(bucket)}
+                onClick={() => {
+                  if (!bucket.Name) return;
+                  navigateTo({
+                    account: bucket.accountId,
+                    bucket: bucket.Name
+                  });
+                }}
               >
-                <i className="ri-bucket-line text-4xl text-primary"></i>
-                <span className="text-lg font-medium">{bucket.Name}</span>
+                <div className="flex flex-col items-center justify-center gap-2">
+                  <i className="ri-bucket-line text-4xl text-primary"></i>
+                  <span className="text-lg font-medium">{bucket.Name}</span>
+                  <span className="text-xs text-muted-foreground">{bucket.accountName} • {bucket.region}</span>
+                </div>
               </Button>
             ))}
-            {buckets.length === 0 && (
+            {!isLoadingAllBuckets && allBuckets.length === 0 && (
               <div className="col-span-full flex flex-col items-center justify-center p-12 border rounded-lg border-dashed">
                 <i className="ri-information-line text-4xl text-muted-foreground mb-4"></i>
                 <h3 className="text-lg font-medium mb-2">No Buckets Found</h3>
                 <p className="text-center text-muted-foreground mb-4">
-                  This AWS account doesn't have any S3 buckets, or your IAM user doesn't have permission to list them.
+                  No S3 buckets found across your accounts, or your IAM users don't have permission to list them.
                 </p>
-                <Button onClick={() => navigate("/settings")}>
+                <Button onClick={() => navigate("/account-manager")}>
                   Manage S3 Accounts
                 </Button>
+              </div>
+            )}
+            {isLoadingAllBuckets && (
+              <div className="col-span-full flex flex-col items-center justify-center p-12">
+                <div className="animate-spin text-primary mb-4">
+                  <i className="ri-loader-4-line text-4xl"></i>
+                </div>
+                <p>Loading buckets from all accounts...</p>
               </div>
             )}
           </div>

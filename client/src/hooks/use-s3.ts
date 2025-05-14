@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { listBuckets, listObjects, deleteObject, deleteObjects, getDownloadUrl, getDownloadUrlsForBatch, uploadFile } from "@/lib/s3";
 import { useToast } from "@/hooks/use-toast";
-import { S3Bucket, S3Object, S3CommonPrefix, S3ListObjectsResult, FileUploadProgress } from "@/lib/types";
+import { S3Bucket, S3Object, S3CommonPrefix, S3ListObjectsResult, FileUploadProgress, S3Account, EnhancedS3Bucket } from "@/lib/types";
 
 /**
  * Hook for working with S3 buckets
@@ -15,6 +15,67 @@ export function useS3Buckets(accountId: number | undefined) {
     queryFn: () => listBuckets(accountId as number),
     enabled,
   });
+}
+
+/**
+ * Hook for fetching all buckets across all accounts
+ * This is used to display buckets directly as folders
+ */
+export function useAllS3Buckets() {
+  const { data: accounts = [] } = useQuery<S3Account[]>({
+    queryKey: ['/api/s3-accounts'],
+  });
+  
+  // Create a map to batch queries for buckets by account
+  const accountBucketQueries = accounts.map(account => {
+    return {
+      queryKey: [`/api/s3/${account.id}/buckets`],
+      queryFn: () => listBuckets(account.id),
+      enabled: !!account.id,
+    };
+  });
+  
+  // Fetch buckets for all accounts
+  const results = useQuery<EnhancedS3Bucket[]>({
+    queryKey: ['all-buckets'],
+    queryFn: async () => {
+      // Create a map of account info keyed by accountId
+      const accountMap = accounts.reduce<Record<number, S3Account>>((acc, account) => {
+        acc[account.id] = account;
+        return acc;
+      }, {});
+      
+      // Fetch buckets for each account in parallel
+      const bucketsPromises = accounts.map(async (account) => {
+        try {
+          const buckets = await listBuckets(account.id);
+          // Attach account info to each bucket
+          return buckets.map(bucket => ({
+            ...bucket,
+            accountId: account.id,
+            accountName: account.name,
+            region: account.region,
+          } as EnhancedS3Bucket));
+        } catch (error) {
+          console.error(`Error fetching buckets for account ${account.id}:`, error);
+          return [];
+        }
+      });
+      
+      const results = await Promise.all(bucketsPromises);
+      
+      // Flatten the results
+      return results.flat();
+    },
+    enabled: accounts.length > 0,
+  });
+  
+  return {
+    data: results.data || [],
+    isLoading: results.isLoading,
+    isError: results.isError,
+    error: results.error,
+  };
 }
 
 /**
