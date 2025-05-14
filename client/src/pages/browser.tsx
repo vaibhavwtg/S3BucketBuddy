@@ -432,35 +432,74 @@ export default function Browser() {
     );
   }
   
-  // Return bucket selection if no bucket is selected
-  if (!bucket) {
+  // If we have an account selected but no bucket selected, check for a default bucket
+  if (!bucket && parsedAccountId) {
+    // Find the account to see if it has a default bucket
+    const account = accounts.find(a => a.id === parsedAccountId);
+    
+    // If the account has a default bucket, automatically navigate to it
+    if (account && account.defaultBucket) {
+      if (DEBUG) {
+        console.log(`Account ${parsedAccountId} has default bucket ${account.defaultBucket}, redirecting...`);
+      }
+      
+      // Use setTimeout to avoid rendering issues
+      setTimeout(() => {
+        navigateTo({
+          account: parsedAccountId,
+          bucket: account.defaultBucket
+        });
+      }, 0);
+      
+      // Show loading while redirecting
+      return (
+        <Layout>
+          <div className="flex items-center justify-center h-[70vh]">
+            <div className="flex flex-col items-center">
+              <div className="animate-spin text-primary mb-4">
+                <svg className="h-12 w-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              </div>
+              <p>Loading default bucket...</p>
+            </div>
+          </div>
+        </Layout>
+      );
+    }
+    
+    // If no default bucket, show bucket selection
     return (
       <Layout>
         <div className="space-y-6">
           <h1 className="text-2xl font-bold tracking-tight">Your S3 Buckets</h1>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {allBuckets.map((bucket, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                className="h-auto p-6 flex flex-col items-center justify-center gap-4 hover:bg-muted"
-                onClick={() => handleSelectBucket(bucket)}
-              >
-                <div className="flex flex-col items-center justify-center gap-2">
-                  <svg className="h-12 w-12 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                  </svg>
-                  <span className="text-lg font-medium">{bucket.Name}</span>
-                  <span className="text-xs text-muted-foreground">{bucket.accountName} • {bucket.region}</span>
-                </div>
-              </Button>
-            ))}
+            {/* Only show buckets for the selected account */}
+            {allBuckets
+              .filter(bucket => bucket.accountId === parsedAccountId)
+              .map((bucket, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="h-auto p-6 flex flex-col items-center justify-center gap-4 hover:bg-muted"
+                  onClick={() => handleSelectBucket(bucket)}
+                >
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <svg className="h-12 w-12 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    <span className="text-lg font-medium">{bucket.Name}</span>
+                    <span className="text-xs text-muted-foreground">{bucket.accountName} • {bucket.region}</span>
+                  </div>
+                </Button>
+              ))}
           </div>
           
-          {allBuckets.length === 0 && (
+          {allBuckets.filter(b => b.accountId === parsedAccountId).length === 0 && (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No buckets found. Please add an S3 account first.</p>
+              <p className="text-muted-foreground">No buckets found for this account.</p>
               <Button 
                 className="mt-4"
                 onClick={() => navigate('/account-manager')}
@@ -472,6 +511,12 @@ export default function Browser() {
         </div>
       </Layout>
     );
+  }
+  
+  // If there's no account selected at all, redirect to the dashboard
+  if (!parsedAccountId && !bucket) {
+    navigate('/dashboard');
+    return null;
   }
   
   // Return file browser if bucket is selected

@@ -100,9 +100,15 @@ export default function Dashboard() {
                   Manage
                 </Button>
                 <Button 
-                  onClick={handleExploreAccount}
+                  onClick={() => {
+                    if (account.defaultBucket) {
+                      handleExploreBucket(account.defaultBucket, account.id);
+                    } else {
+                      navigate(`/browser?account=${account.id}`);
+                    }
+                  }}
                 >
-                  Browse Files
+                  {account.defaultBucket ? `Browse ${account.defaultBucket}` : 'Browse Files'}
                 </Button>
               </CardFooter>
             </Card>
