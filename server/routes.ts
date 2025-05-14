@@ -1234,11 +1234,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
       
+      // Create a direct S3 URL as a fallback option
+      const directS3Url = `https://${sharedFile.bucket}.s3.${account.region}.amazonaws.com/${sharedFile.path}`;
+      
       res.json({
         filename: sharedFile.filename,
         contentType: sharedFile.contentType,
         filesize: sharedFile.filesize,
         signedUrl,
+        directS3Url, // Add direct S3 URL to the response
         allowDownload: sharedFile.allowDownload,
         expiresAt: sharedFile.expiresAt,
       });

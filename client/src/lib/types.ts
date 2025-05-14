@@ -78,6 +78,7 @@ export interface SharedFileAccess {
   contentType?: string;
   filesize: number;
   signedUrl: string;
+  directS3Url?: string; // Add direct S3 URL 
   allowDownload: boolean;
   expiresAt?: string;
 }

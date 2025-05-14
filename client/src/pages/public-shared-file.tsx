@@ -33,6 +33,12 @@ export default function PublicSharedFile() {
           `/api/shared/${token}${password ? `?password=${password}` : ""}`
         );
         const data = await res.json();
+        
+        // Store the direct S3 URL if it exists
+        if (data.directS3Url) {
+          setDirectS3Url(data.directS3Url);
+        }
+        
         return data;
       } catch (error: any) {
         // Check if password is required
@@ -45,6 +51,14 @@ export default function PublicSharedFile() {
     },
     retry: false,
   });
+  
+  // Effect to track failed downloads and offer fallback
+  useEffect(() => {
+    if (useFallbackUrl && directS3Url) {
+      window.open(directS3Url, '_blank');
+      setUseFallbackUrl(false);
+    }
+  }, [useFallbackUrl, directS3Url]);
 
   // Check password mutation
   const passwordMutation = useMutation({
@@ -74,22 +88,41 @@ export default function PublicSharedFile() {
     passwordMutation.mutate(password);
   };
 
-  // Handle download
+  // Handle download with fallback to direct S3 URL
   const handleDownload = () => {
     if (!sharedFile?.signedUrl) return;
     
-    // Create a temporary link and click it to start the download
-    const link = document.createElement("a");
-    link.href = sharedFile.signedUrl;
-    link.setAttribute("download", sharedFile.filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    
-    toast({
-      title: "Download started",
-      description: "Your file will download shortly",
-    });
+    try {
+      // Create a temporary link and click it to start the download
+      const link = document.createElement("a");
+      link.href = sharedFile.signedUrl;
+      link.setAttribute("download", sharedFile.filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      toast({
+        title: "Download started",
+        description: "Your file will download shortly",
+      });
+    } catch (error) {
+      console.error("Download error:", error);
+      // If the signed URL fails, offer to try the direct S3 URL
+      if (directS3Url) {
+        toast({
+          title: "Download error",
+          description: "We're trying an alternative download method for you.",
+          variant: "destructive",
+        });
+        setUseFallbackUrl(true);
+      } else {
+        toast({
+          title: "Download failed",
+          description: "Unable to download the file. Please try again later.",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   // If password is required, show password input
@@ -226,13 +259,37 @@ export default function PublicSharedFile() {
               </p>
             </div>
           ) : (
-            <Button 
-              onClick={handleDownload} 
-              className="w-full"
-            >
-              <i className="ri-download-line mr-2"></i>
-              Download File
-            </Button>
+            <div className="space-y-3">
+              <Button 
+                onClick={handleDownload} 
+                className="w-full"
+              >
+                <i className="ri-download-line mr-2"></i>
+                Download File
+              </Button>
+              
+              {/* Direct S3 URL option as fallback */}
+              {directS3Url && (
+                <div className="text-xs text-center text-muted-foreground">
+                  Having trouble downloading?{" "}
+                  <Button
+                    variant="link"
+                    className="h-auto p-0 text-xs underline"
+                    onClick={() => {
+                      if (directS3Url) {
+                        window.open(directS3Url, '_blank');
+                        toast({
+                          title: "Alternative download",
+                          description: "Using direct S3 access for this file",
+                        });
+                      }
+                    }}
+                  >
+                    Try direct download
+                  </Button>
+                </div>
+              )}
+            </div>
           )}
         </CardContent>
         <CardFooter className="flex justify-center border-t pt-4">

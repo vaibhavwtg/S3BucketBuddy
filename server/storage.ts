@@ -208,10 +208,10 @@ export class DatabaseStorage implements IStorage {
         lastAccessed = lastAccessed.slice(0, 10);
       }
       
-      // Update
+      // Update with properly typed lastAccessed array
       await db
         .update(userSettings)
-        .set({ lastAccessed })
+        .set({ lastAccessed: lastAccessed as string[] })
         .where(eq(userSettings.userId, userId));
     }
   }
