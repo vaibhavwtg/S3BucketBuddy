@@ -80,7 +80,7 @@ export const userSettings = pgTable("user_settings", {
   theme: text("theme").default("light"),
   defaultAccountId: integer("default_account_id").references(() => s3Accounts.id),
   notifications: boolean("notifications").default(true),
-  lastAccessed: jsonb("last_accessed").$type<string[]>().default([]),
+  lastAccessed: text("last_accessed").array().default([]),
 });
 
 // Insert schemas
