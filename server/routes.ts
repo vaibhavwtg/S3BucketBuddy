@@ -1424,6 +1424,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create a direct S3 URL as a fallback option
       const directS3Url = `https://${sharedFile.bucket}.s3.${account.region}.amazonaws.com/${sharedFile.path}`;
       
+      // Log the file access
+      try {
+        await storage.logFileAccess({
+          fileId: sharedFile.id,
+          ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
+          userAgent: req.headers['user-agent'] || 'unknown',
+          referrer: req.headers.referer || 'direct',
+          country: null,
+          city: null,
+          isDownload: req.query.download === 'true',
+        });
+        
+        console.log(`Access logged for shared file ${sharedFile.id}`);
+      } catch (logError) {
+        // Just log the error but continue with the response
+        console.error("Error logging file access:", logError);
+      }
+      
       res.json({
         filename: sharedFile.filename,
         contentType: sharedFile.contentType,
@@ -1432,6 +1450,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         directS3Url, // Add direct S3 URL to the response
         allowDownload: sharedFile.allowDownload,
         expiresAt: sharedFile.expiresAt,
+        accessCount: sharedFile.accessCount, // Include access count in response
       });
     } catch (error) {
       console.error("Error accessing shared file:", error);

@@ -228,6 +228,37 @@ export class DatabaseStorage implements IStorage {
         .where(eq(userSettings.userId, userId));
     }
   }
+  
+  // File access tracking methods
+  async incrementAccessCount(fileId: number): Promise<void> {
+    // Use SQL directly to handle the case if the column doesn't exist yet
+    const query = `
+      UPDATE shared_files 
+      SET access_count = COALESCE(access_count, 0) + 1
+      WHERE id = $1
+    `;
+    await db.execute(query, [fileId]);
+  }
+  
+  async getFileAccessLogs(fileId: number): Promise<FileAccessLog[]> {
+    return await db
+      .select()
+      .from(fileAccessLogs)
+      .where(eq(fileAccessLogs.fileId, fileId))
+      .orderBy(desc(fileAccessLogs.accessedAt));
+  }
+  
+  async logFileAccess(log: InsertFileAccessLog): Promise<FileAccessLog> {
+    const [accessLog] = await db
+      .insert(fileAccessLogs)
+      .values(log)
+      .returning();
+    
+    // Increment the access count on the shared file
+    await this.incrementAccessCount(log.fileId);
+    
+    return accessLog;
+  }
 }
 
 export const storage = new DatabaseStorage();
