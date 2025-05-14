@@ -444,7 +444,7 @@ export default function Browser() {
     >
       {/* Breadcrumbs */}
       <Breadcrumbs
-        accountId={parsedAccountId || 0}
+        accountId={parsedAccountId !== undefined ? parsedAccountId : 0}
         bucket={bucket}
         prefix={cleanPrefix}
       />
@@ -457,7 +457,7 @@ export default function Browser() {
         title={folderName || "My Files"}
         bucket={bucket}
         prefix={cleanPrefix}
-        accountId={parsedAccountId || 0}
+        accountId={parsedAccountId !== undefined ? parsedAccountId : 0}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
         sortBy={sortBy}
