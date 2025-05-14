@@ -1,14 +1,10 @@
-import type { Express, Request, Response } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertUserSchema, insertS3AccountSchema, insertSharedFileSchema } from "@shared/schema";
-import bcrypt from "bcryptjs";
+import { insertS3AccountSchema, insertSharedFileSchema } from "@shared/schema";
 import { randomBytes } from "crypto";
-import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
-import session from "express-session";
-import MemoryStore from "memorystore";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, HeadBucketCommand, CopyObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import multer from "multer";
@@ -22,12 +18,7 @@ function nullToUndefined<T>(value: T | null): T | undefined {
 // Define types for authenticated requests
 declare global {
   namespace Express {
-    interface User {
-      id: number;
-      username: string;
-      email: string;
-      avatarUrl?: string;
-    }
+    // User will be handled by Replit Auth
     
     // Add multer file to Request type
     interface Request {
@@ -36,239 +27,85 @@ declare global {
   }
 }
 
+// Add user ID extraction utility for route handlers
+interface AuthenticatedRequest extends Request {
+  userId?: string;
+}
+
 export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
-  const MemoryStoreSession = MemoryStore(session);
   
-  // Configure session middleware
-  app.use(
-    session({
-      secret: process.env.SESSION_SECRET || "super-secret-key",
-      resave: false,
-      saveUninitialized: true, // Changed to true to ensure session is always created
-      cookie: {
-        secure: process.env.NODE_ENV === "production",
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        httpOnly: true,
-        sameSite: 'lax', // Helps with CSRF protection while allowing redirects
-        path: '/', // Ensure cookie is available throughout the application
-      },
-      store: new MemoryStoreSession({
-        checkPeriod: 86400000, // prune expired entries every 24h
-      }),
-    })
-  );
+  // Setup auth with Replit Auth
+  await setupAuth(app);
   
-  // Initialize Passport
-  app.use(passport.initialize());
-  app.use(passport.session());
-  
-  // Configure Local Strategy for authentication
-  passport.use(
-    new LocalStrategy(
-      {
-        usernameField: "email",
-        passwordField: "password",
-      },
-      async (email, password, done) => {
-        try {
-          const user = await storage.getUserByEmail(email);
-          
-          if (!user || !user.password) {
-            return done(null, false, { message: "Incorrect email or password" });
-          }
-          
-          const isValid = await bcrypt.compare(password, user.password);
-          
-          if (!isValid) {
-            return done(null, false, { message: "Incorrect email or password" });
-          }
-          
-          return done(null, {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            avatarUrl: user.avatarUrl || undefined,
-          });
-        } catch (error) {
-          return done(error);
-        }
+  // Add middleware to extract userId from claims for convenience
+  app.use((req: AuthenticatedRequest, res, next) => {
+    if (req.isAuthenticated() && req.user) {
+      const userObj = req.user as any;
+      if (userObj.claims && userObj.claims.sub) {
+        req.userId = userObj.claims.sub;
       }
-    )
-  );
-  
-  // Serialize and Deserialize User
-  passport.serializeUser((user, done) => {
-    done(null, user.id);
-  });
-  
-  passport.deserializeUser(async (id: number, done) => {
-    try {
-      console.log(`Deserializing user with ID: ${id}`);
-      const user = await storage.getUser(id);
-      
-      if (!user) {
-        console.error(`User with ID ${id} not found during deserialization`);
-        return done(new Error("User not found"));
-      }
-      
-      const userData = {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        avatarUrl: user.avatarUrl || undefined,
-      };
-      
-      console.log(`Successfully deserialized user: ${user.username} (${user.id})`);
-      done(null, userData);
-    } catch (error) {
-      console.error("Error during user deserialization:", error);
-      done(error);
     }
+    next();
   });
   
   // Authentication middleware
-  const requireAuth = (req: Request, res: Response, next: any) => {
+  // Create a helper function to log authentication checks
+  const logAuthentication = (req: Request, res: Response, next: NextFunction) => {
     console.log("Authentication check for route:", req.method, req.url);
     console.log("Authenticated:", req.isAuthenticated());
     
     if (!req.isAuthenticated()) {
       console.log("Authentication failed");
-      return res.status(401).json({ message: "Unauthorized" });
+    } else {
+      console.log("Authentication successful, user:", req.user ? (req.user as any).claims?.sub : 'none');
     }
-    console.log("Authentication successful, user:", req.user ? req.user.id : 'none');
     next();
+  };
+  
+  // Use isAuthenticated from replitAuth.ts with logging
+  const requireAuth = (req: Request, res: Response, next: NextFunction) => {
+    logAuthentication(req, res, () => {
+      isAuthenticated(req, res, next);
+    });
   };
   
   // Configure multer for file uploads
   const upload = multer({ storage: multer.memoryStorage() });
   
-  // Authentication Routes
-  app.post("/api/auth/register", async (req, res) => {
-    try {
-      const userSchema = insertUserSchema.extend({
-        confirmPassword: z.string(),
-      });
-      
-      const validatedData = userSchema.parse(req.body);
-      
-      // Check if passwords match
-      if (validatedData.password !== validatedData.confirmPassword) {
-        return res.status(400).json({ message: "Passwords do not match" });
-      }
-      
-      // Check if email is already taken
-      const existingEmail = await storage.getUserByEmail(validatedData.email);
-      if (existingEmail) {
-        return res.status(400).json({ message: "Email already in use" });
-      }
-      
-      // If username is not provided, use email as username
-      if (!validatedData.username) {
-        validatedData.username = validatedData.email.split('@')[0];
-      }
-      
-      // Ensure username is unique by adding a suffix if needed
-      let finalUsername = validatedData.username;
-      let counter = 1;
-      
-      while (await storage.getUserByUsername(finalUsername)) {
-        finalUsername = `${validatedData.username}${counter}`;
-        counter++;
-      }
-      
-      // Hash password
-      const hashedPassword = await bcrypt.hash(validatedData.password, 10);
-      
-      // Create user
-      const user = await storage.createUser({
-        ...validatedData,
-        username: finalUsername,
-        password: hashedPassword,
-        authProvider: "email",
-      });
-      
-      // Create default user settings
-      await storage.createOrUpdateUserSettings({
-        userId: user.id,
-        theme: "light",
-        notifications: true,
-      });
-      
-      // Authenticate the user
-      req.login(
-        {
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          avatarUrl: user.avatarUrl || undefined,
-        },
-        (err) => {
-          if (err) {
-            return res.status(500).json({ message: "Authentication failed" });
-          }
-          return res.status(201).json({
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            avatarUrl: user.avatarUrl,
-          });
-        }
-      );
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ errors: error.errors });
-      }
-      console.error("Registration error:", error);
-      res.status(500).json({ message: "Registration failed" });
-    }
-  });
+  // Authentication routes are handled by Replit Auth in replitAuth.ts
+  // The /api/login and /api/logout routes are already set up there
   
-  app.post("/api/auth/login", (req, res, next) => {
-    console.log("Login attempt:", req.body.email);
+  // User info route
+  app.get("/api/auth/user", async (req: any, res) => {
+    if (!req.isAuthenticated() || !req.user?.claims?.sub) {
+      return res.status(401).json({ message: "Unauthorized" });
+    }
     
-    passport.authenticate("local", (err: any, user: any, info: { message?: string }) => {
-      if (err) {
-        console.error("Login error:", err);
-        return res.status(500).json({ message: "Login failed", error: err.message });
-      }
+    try {
+      const userId = req.user.claims.sub;
+      console.log("Fetching user with ID:", userId);
+      
+      let user = await storage.getUser(userId);
       
       if (!user) {
-        console.log("Login failed:", info?.message || "Invalid credentials");
-        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+        // If user doesn't exist yet in our database, create a basic record
+        // This can happen on first login
+        console.log("Creating new user record for ID:", userId);
+        user = await storage.upsertUser({
+          id: userId,
+          email: req.user.claims.email,
+          firstName: req.user.claims.first_name,
+          lastName: req.user.claims.last_name,
+          profileImageUrl: req.user.claims.profile_image_url,
+        });
       }
       
-      req.login(user, (loginErr) => {
-        if (loginErr) {
-          console.error("Session creation error:", loginErr);
-          return res.status(500).json({ message: "Failed to create session" });
-        }
-        
-        console.log("Login successful for user:", user.username, `(${user.id})`);
-        console.log("Session established:", req.session.id);
-        
-        // Set a response header for debugging
-        res.setHeader('X-Session-ID', req.session.id);
-        
-        return res.json(user);
-      });
-    })(req, res, next);
-  });
-  
-  app.post("/api/auth/logout", (req, res) => {
-    req.logout((err) => {
-      if (err) {
-        return res.status(500).json({ message: "Logout failed" });
-      }
-      res.json({ message: "Logged out successfully" });
-    });
-  });
-  
-  app.get("/api/auth/me", (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Not authenticated" });
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
-    res.json(req.user);
   });
   
   // S3 Account Routes

@@ -8,8 +8,37 @@ import memoize from "memoizee";
 import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 
-if (!process.env.REPLIT_DOMAINS) {
-  throw new Error("Environment variable REPLIT_DOMAINS not provided");
+// Always get the Replit domain 
+const replitDomain = process.env.REPLIT_DOMAINS || '';
+console.log(`Current Replit domain: ${replitDomain}`);
+
+// For development mode, handle both Replit and local domains
+if (process.env.NODE_ENV === 'development') {
+  // Add both Replit domain and local domains
+  process.env.REPLIT_DOMAINS = replitDomain;
+  
+  if (replitDomain) {
+    // If we have a Replit domain, also add the local domains
+    process.env.REPLIT_DOMAINS = `${replitDomain},127.0.0.1,localhost`;
+  } else {
+    // If no Replit domain, just use local domains
+    process.env.REPLIT_DOMAINS = '127.0.0.1,localhost';
+  }
+  
+  console.log(`Development mode: Using domains for auth: ${process.env.REPLIT_DOMAINS}`);
+}
+
+// Set default values for development
+if (process.env.NODE_ENV === 'development') {
+  if (!process.env.REPL_ID) {
+    process.env.REPL_ID = 'dev-repl-id';
+    console.log('Development mode: Using placeholder REPL_ID');
+  }
+  
+  if (!process.env.SESSION_SECRET) {
+    process.env.SESSION_SECRET = 'dev-session-secret-2j3h4j23h4';
+    console.log('Development mode: Using placeholder SESSION_SECRET');
+  }
 }
 
 const getOidcConfig = memoize(
@@ -84,14 +113,57 @@ export async function setupAuth(app: Express) {
     verified(null, user);
   };
 
-  for (const domain of process.env
-    .REPLIT_DOMAINS!.split(",")) {
+  // Determine if we're in development mode
+  const isDev = process.env.NODE_ENV === 'development';
+  
+  // For development mode, add a special strategy for localhost/127.0.0.1
+  if (isDev) {
+    // First, add the actual Replit domain strategy (if available)
+    if (replitDomain && !replitDomain.includes('localhost') && !replitDomain.includes('127.0.0.1')) {
+      const replit_callback = `https://${replitDomain}/api/callback`;
+      console.log(`Setting up auth strategy for Replit domain: ${replitDomain} with callback: ${replit_callback}`);
+      
+      const replitStrategy = new Strategy(
+        {
+          name: `replitauth:${replitDomain}`,
+          config,
+          scope: "openid email profile offline_access",
+          callbackURL: replit_callback,
+        },
+        verify,
+      );
+      passport.use(replitStrategy);
+    }
+    
+    // Always add strategies for localhost and 127.0.0.1 in development
+    const localDomains = ['127.0.0.1', 'localhost'];
+    
+    for (const domain of localDomains) {
+      const localCallbackUrl = `http://${domain}:5000/api/callback`;
+      console.log(`Setting up auth strategy for local domain: ${domain} with callback: ${localCallbackUrl}`);
+      
+      const localStrategy = new Strategy(
+        {
+          name: `replitauth:${domain}`,
+          config,
+          scope: "openid email profile offline_access",
+          callbackURL: localCallbackUrl,
+        },
+        verify,
+      );
+      passport.use(localStrategy);
+    }
+  } else {
+    // In production, just use the Replit domain
+    const callbackURL = `https://${replitDomain}/api/callback`;
+    console.log(`Setting up auth strategy for domain: ${replitDomain} with callback: ${callbackURL}`);
+    
     const strategy = new Strategy(
       {
-        name: `replitauth:${domain}`,
+        name: `replitauth:${replitDomain}`,
         config,
         scope: "openid email profile offline_access",
-        callbackURL: `https://${domain}/api/callback`,
+        callbackURL,
       },
       verify,
     );
@@ -102,17 +174,41 @@ export async function setupAuth(app: Express) {
   passport.deserializeUser((user: Express.User, cb) => cb(null, user));
 
   app.get("/api/login", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      prompt: "login consent",
-      scope: ["openid", "email", "profile", "offline_access"],
-    })(req, res, next);
+    const hostname = req.hostname || '127.0.0.1';
+    console.log(`Login request from hostname: ${hostname}`);
+    
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('127.0.0.1')) {
+      // For local development, always use 127.0.0.1
+      passport.authenticate('replitauth:127.0.0.1', {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
+    } else {
+      // For Replit environment, use the actual hostname
+      passport.authenticate(`replitauth:${hostname}`, {
+        prompt: "login consent",
+        scope: ["openid", "email", "profile", "offline_access"],
+      })(req, res, next);
+    }
   });
 
   app.get("/api/callback", (req, res, next) => {
-    passport.authenticate(`replitauth:${req.hostname}`, {
-      successReturnToOrRedirect: "/",
-      failureRedirect: "/api/login",
-    })(req, res, next);
+    const hostname = req.hostname || '127.0.0.1';
+    console.log(`Callback request from hostname: ${hostname}`);
+    
+    if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname.includes('127.0.0.1')) {
+      // For local development, always use 127.0.0.1
+      passport.authenticate('replitauth:127.0.0.1', {
+        successReturnToOrRedirect: "/",
+        failureRedirect: "/api/login",
+      })(req, res, next);
+    } else {
+      // For Replit environment, use the actual hostname
+      passport.authenticate(`replitauth:${hostname}`, {
+        successReturnToOrRedirect: "/",
+        failureRedirect: "/api/login",
+      })(req, res, next);
+    }
   });
 
   app.get("/api/logout", (req, res) => {
