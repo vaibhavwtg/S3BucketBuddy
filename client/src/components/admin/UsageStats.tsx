@@ -70,7 +70,7 @@ export function UsageStats() {
     { name: "Day 4", users: 7 },
     { name: "Day 5", users: 4 },
     { name: "Day 6", users: 8 },
-    { name: "Day 7", users: stats?.newUsersThisWeek || 0 },
+    { name: "Day 7", users: stats.newUsersThisWeek || 0 },
   ];
 
   const monthlyRevenueData = [
@@ -279,7 +279,7 @@ export function UsageStats() {
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-muted-foreground text-sm">Conversion Rate</h3>
-                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : `${stats?.subscriptionConversionRate || 0}%`}</p>
+                  <p className="text-2xl font-bold">{isLoadingStats ? "..." : `${stats.subscriptionConversionRate || 0}%`}</p>
                   <p className="text-xs text-muted-foreground">
                     Free to paid conversion
                   </p>
