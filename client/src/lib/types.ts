@@ -69,6 +69,8 @@ export interface SharedFile {
   createdAt: string;
   shareUrl?: string;
   accessCount?: number;
+  isExpired?: boolean; // New property: whether the file has been manually expired
+  isPublic?: boolean;  // New property: whether the file has public direct access
 }
 
 export interface UserSettings {

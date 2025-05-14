@@ -91,9 +91,39 @@ export default function SharedFiles() {
     },
   });
 
+  // Expire shared file mutation
+  const expireShareMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest("PATCH", `/api/shared-files/${id}/expire`);
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "File expired",
+        description: "The shared file has been marked as expired and is no longer accessible",
+      });
+      
+      // Refresh shared files list
+      queryClient.invalidateQueries({ queryKey: ['/api/shared-files'] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Expiration failed",
+        description: error instanceof Error ? error.message : "Failed to expire shared file",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleDeleteShare = (id: number) => {
     if (confirm("Are you sure you want to delete this shared file?")) {
       deleteShareMutation.mutate(id);
+    }
+  };
+  
+  const handleExpireShare = (id: number) => {
+    if (confirm("Are you sure you want to expire this shared file? It will no longer be accessible.")) {
+      expireShareMutation.mutate(id);
     }
   };
 
@@ -194,12 +224,14 @@ export default function SharedFiles() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {file.expiresAt ? (
+                            {file.isExpired ? (
+                              <Badge variant="destructive">Manually Expired</Badge>
+                            ) : file.expiresAt ? (
                               <Badge variant={isExpired ? "destructive" : "secondary"}>
-                                {isExpired ? "Expired" : formatDate(file.expiresAt)}
+                                {isExpired ? "Date Expired" : formatDate(file.expiresAt)}
                               </Badge>
                             ) : (
-                              <Badge variant="outline">Never</Badge>
+                              <Badge variant="outline">Never Expires</Badge>
                             )}
                           </TableCell>
                           <TableCell>
@@ -224,6 +256,13 @@ export default function SharedFiles() {
                                   <i className="ri-clipboard-line mr-2"></i>
                                   Copy Link
                                 </DropdownMenuItem>
+                                {/* Only show expire option for files that aren't already expired */}
+                                {(!file.isExpired && !isExpired) && (
+                                  <DropdownMenuItem onClick={() => handleExpireShare(file.id)}>
+                                    <i className="ri-time-line mr-2"></i>
+                                    Force Expire
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem onClick={() => handleDeleteShare(file.id)}>
                                   <i className="ri-delete-bin-line mr-2"></i>
                                   Delete Share
