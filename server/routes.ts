@@ -29,7 +29,7 @@ declare global {
 
 // Add user ID extraction utility for route handlers
 interface AuthenticatedRequest extends Request {
-  userId?: string;
+  userId?: number;
 }
 
 export function registerRoutes(app: Express): Server {
@@ -49,7 +49,7 @@ export function registerRoutes(app: Express): Server {
   
   // Middleware to log authentication status
   app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.startsWith('/api') && !req.path.includes('/api/auth/me')) {
+    if (req.path.startsWith('/api') && !req.path.includes('/api/user')) {
       console.log(`Auth check for ${req.method} ${req.path}: ${req.isAuthenticated() ? 'Authenticated' : 'Not authenticated'}`);
     }
     next();

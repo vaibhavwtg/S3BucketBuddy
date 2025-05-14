@@ -1,13 +1,24 @@
-import { createContext, ReactNode, useContext } from "react";
+import React, { createContext, ReactNode, useContext } from "react";
 import {
   useQuery,
   useMutation,
   UseMutationResult,
   useQueryClient,
 } from "@tanstack/react-query";
-import { User } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "../lib/queryClient";
+import { useToast } from "./use-toast";
+
+// User type definition for the client side
+type User = {
+  id: number;
+  email: string;
+  username: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  profileImageUrl?: string | null;
+  createdAt: string;
+  updatedAt?: string | null;
+};
 
 type LoginCredentials = {
   email: string;

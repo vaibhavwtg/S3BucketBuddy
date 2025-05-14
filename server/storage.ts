@@ -62,22 +62,7 @@ export class DatabaseStorage implements IStorage {
   }
   
   async createUser(userData: InsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          ...userData,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
-    return user;
-  }
-
-  async createUser(user: InsertUser): Promise<User> {
-    const [newUser] = await db.insert(users).values(user).returning();
+    const [newUser] = await db.insert(users).values(userData).returning();
     return newUser;
   }
 
@@ -186,10 +171,12 @@ export class DatabaseStorage implements IStorage {
     const existingSettings = await this.getUserSettings(settings.userId);
     
     // Ensure lastAccessed is properly typed as string[]
+    const lastAccessedArray: string[] = Array.isArray(settings.lastAccessed) ? 
+      settings.lastAccessed : [];
+    
     const settingsToSave = {
       ...settings,
-      // Set a default empty array if lastAccessed is undefined or not an array
-      lastAccessed: Array.isArray(settings.lastAccessed) ? settings.lastAccessed : []
+      lastAccessed: lastAccessedArray
     };
     
     if (existingSettings) {
@@ -214,23 +201,24 @@ export class DatabaseStorage implements IStorage {
     
     if (settings) {
       // Add the path to the beginning of the array and limit to 10 items
-      let lastAccessed = settings.lastAccessed || [];
+      const currentPaths: string[] = Array.isArray(settings.lastAccessed) ? 
+        settings.lastAccessed : [];
       
       // Remove if already exists
-      lastAccessed = lastAccessed.filter(p => p !== path);
+      const filteredPaths = currentPaths.filter(p => p !== path);
       
       // Add to beginning
-      lastAccessed.unshift(path);
+      filteredPaths.unshift(path);
       
       // Limit to 10
-      if (lastAccessed.length > 10) {
-        lastAccessed = lastAccessed.slice(0, 10);
-      }
+      const finalPaths = filteredPaths.length > 10 ? 
+        filteredPaths.slice(0, 10) : 
+        filteredPaths;
       
       // Update with properly typed lastAccessed array
       await db
         .update(userSettings)
-        .set({ lastAccessed: lastAccessed as string[] })
+        .set({ lastAccessed: finalPaths })
         .where(eq(userSettings.userId, userId));
     }
   }
