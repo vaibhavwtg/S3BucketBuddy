@@ -87,33 +87,29 @@ export class DatabaseStorage implements IStorage {
   
   async upsertUser(userData: UpsertUser): Promise<User> {
     // Ensure we have an ID
-    if (!userData.id) {
-      userData.id = `local_${randomBytes(8).toString('hex')}`;
-    }
+    const userId = userData.id || `local_${randomBytes(8).toString('hex')}`;
     
-    // Create values object with proper types
-    const insertValues = {
-      id: userData.id,
-      email: userData.email,
-      username: userData.username || `user_${Math.random().toString(36).substring(2, 10)}`,
-      firstName: userData.firstName,
-      lastName: userData.lastName,
-      profileImageUrl: userData.profileImageUrl,
-      password: userData.password || null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-    
+    // Insert user with properly typed values (matches SQL schema)
     const [user] = await db
       .insert(users)
-      .values(insertValues)
+      .values({
+        id: userId,
+        email: userData.email || null,
+        username: userData.username || null,
+        firstName: userData.firstName || null,
+        lastName: userData.lastName || null,
+        profileImageUrl: userData.profileImageUrl || null,
+        password: userData.password || null,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
       .onConflictDoUpdate({
         target: users.id,
         set: {
-          email: userData.email,
-          firstName: userData.firstName,
-          lastName: userData.lastName,
-          profileImageUrl: userData.profileImageUrl,
+          email: userData.email || null,
+          firstName: userData.firstName || null,
+          lastName: userData.lastName || null,
+          profileImageUrl: userData.profileImageUrl || null,
           updatedAt: new Date(),
         },
       })

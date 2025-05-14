@@ -11,7 +11,6 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { FcGoogle } from "react-icons/fc";
-import { FaApple, FaMicrosoft } from "react-icons/fa";
 
 // Form validation schemas
 const loginSchema = z.object({
@@ -179,19 +178,13 @@ export default function AuthPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Button variant="outline" className="flex items-center justify-center">
-                        <FcGoogle className="h-4 w-4 mr-2" />
-                        Google
-                      </Button>
-                      <Button variant="outline" className="flex items-center justify-center">
-                        <FaMicrosoft className="h-4 w-4 mr-2" />
-                        Microsoft
-                      </Button>
-                      <Button variant="outline" className="flex items-center justify-center">
-                        <FaApple className="h-4 w-4 mr-2" />
-                        Apple
-                      </Button>
+                    <div className="grid grid-cols-1 gap-2">
+                      <a href="/api/auth/google" className="w-full">
+                        <Button variant="outline" className="w-full flex items-center justify-center">
+                          <FcGoogle className="h-4 w-4 mr-2" />
+                          Sign in with Google
+                        </Button>
+                      </a>
                     </div>
                   </CardFooter>
                 </Card>
@@ -285,19 +278,13 @@ export default function AuthPage() {
                         </span>
                       </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Button variant="outline" className="flex items-center justify-center">
-                        <FcGoogle className="h-4 w-4 mr-2" />
-                        Google
-                      </Button>
-                      <Button variant="outline" className="flex items-center justify-center">
-                        <FaMicrosoft className="h-4 w-4 mr-2" />
-                        Microsoft
-                      </Button>
-                      <Button variant="outline" className="flex items-center justify-center">
-                        <FaApple className="h-4 w-4 mr-2" />
-                        Apple
-                      </Button>
+                    <div className="grid grid-cols-1 gap-2">
+                      <a href="/api/auth/google" className="w-full">
+                        <Button variant="outline" className="w-full flex items-center justify-center">
+                          <FcGoogle className="h-4 w-4 mr-2" />
+                          Sign up with Google
+                        </Button>
+                      </a>
                     </div>
                   </CardFooter>
                 </Card>
