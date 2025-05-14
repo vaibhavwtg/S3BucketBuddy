@@ -5,7 +5,7 @@ import {
   userSettings, type UserSettings, type InsertUserSettings
 } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, isNull, gt, desc, asc } from "drizzle-orm";
+import { eq, and, isNull, gt, desc, asc, or } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
 export interface IStorage {
