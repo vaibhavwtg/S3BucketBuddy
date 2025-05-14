@@ -3,7 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
 import { insertS3AccountSchema, insertSharedFileSchema } from "@shared/schema";
-import { randomBytes } from "crypto";
+import { randomBytes, scrypt, timingSafeEqual } from "crypto";
+import { promisify } from "util";
 import { setupAuth, requireAuth } from "./auth";
 import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, HeadBucketCommand, CopyObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -58,39 +59,16 @@ export function registerRoutes(app: Express): Server {
   // Configure multer for file uploads
   const upload = multer({ storage: multer.memoryStorage() });
   
-  // Authentication routes are handled by Replit Auth in replitAuth.ts
-  // The /api/login and /api/logout routes are already set up there
+  // User routes for traditional authentication
   
-  // User info route
-  app.get("/api/auth/user", async (req: any, res) => {
-    if (!req.isAuthenticated() || !req.user?.claims?.sub) {
+  // Get current user
+  app.get("/api/user", (req, res) => {
+    if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Unauthorized" });
     }
     
-    try {
-      const userId = req.user.claims.sub;
-      console.log("Fetching user with ID:", userId);
-      
-      let user = await storage.getUser(userId);
-      
-      if (!user) {
-        // If user doesn't exist yet in our database, create a basic record
-        // This can happen on first login
-        console.log("Creating new user record for ID:", userId);
-        user = await storage.upsertUser({
-          id: userId,
-          email: req.user.claims.email,
-          firstName: req.user.claims.first_name,
-          lastName: req.user.claims.last_name,
-          profileImageUrl: req.user.claims.profile_image_url,
-        });
-      }
-      
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
+    // User is already attached to the request by passport
+    res.json(req.user);
   });
   
   // S3 Account Routes
@@ -1114,12 +1092,8 @@ export function registerRoutes(app: Express): Server {
       if (password) {
         // Use crypto for password hashing
         const salt = randomBytes(16).toString("hex");
-        const hash = await new Promise<Buffer>((resolve, reject) => {
-          scrypt(password, salt, 64, (err, buf) => {
-            if (err) reject(err);
-            else resolve(buf);
-          });
-        });
+        const scryptAsync = promisify(scrypt);
+        const hash = await scryptAsync(password, salt, 64) as Buffer;
         hashedPassword = `${hash.toString("hex")}.${salt}`;
       }
       
@@ -1260,7 +1234,12 @@ export function registerRoutes(app: Express): Server {
           return res.status(401).json({ passwordRequired: true, message: "Password required" });
         }
         
-        const passwordValid = await bcrypt.compare(password as string, sharedFile.password);
+        // Compare passwords using crypto
+        const [hashed, salt] = sharedFile.password.split(".");
+        const hashedBuf = Buffer.from(hashed, "hex");
+        const scryptAsync = promisify(scrypt);
+        const suppliedBuf = await scryptAsync(password as string, salt, 64) as Buffer;
+        const passwordValid = timingSafeEqual(hashedBuf, suppliedBuf);
         if (!passwordValid) {
           return res.status(401).json({ message: "Invalid password" });
         }
