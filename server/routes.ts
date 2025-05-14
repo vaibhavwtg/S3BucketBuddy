@@ -1373,6 +1373,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // File access logs route - get access history for a shared file
+  app.get("/api/shared-files/:id/access-logs", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Check if file belongs to user
+      const sharedFile = await storage.getSharedFile(id);
+      if (!sharedFile || sharedFile.userId !== req.user!.id) {
+        return res.status(404).json({ message: "Shared file not found" });
+      }
+      
+      // Get access logs
+      const accessLogs = await storage.getFileAccessLogs(id);
+      
+      res.json(accessLogs);
+    } catch (error) {
+      console.error("Error fetching access logs:", error);
+      res.status(500).json({ message: "Failed to fetch access logs" });
+    }
+  });
+  
   // Public shared file access route
   app.get("/api/shared/:token", async (req, res) => {
     try {

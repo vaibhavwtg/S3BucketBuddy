@@ -5,7 +5,7 @@ import {
   userSettings, type UserSettings, type InsertUserSettings,
   fileAccessLogs, type FileAccessLog, type InsertFileAccessLog
 } from "@shared/schema";
-import { db } from "./db";
+import { db, pool } from "./db";
 import { eq, and, isNull, gt, desc, asc, or } from "drizzle-orm";
 import { randomBytes } from "crypto";
 
@@ -232,14 +232,16 @@ export class DatabaseStorage implements IStorage {
   // File access tracking methods
   async incrementAccessCount(fileId: number): Promise<void> {
     try {
-      // Try to use drizzle's update method first
-      await db
-        .update(sharedFiles)
-        .set({ accessCount: sql`COALESCE(${sharedFiles.accessCount}, 0) + 1` })
-        .where(eq(sharedFiles.id, fileId));
+      // Use raw pool query to avoid Drizzle-related issues
+      const query = `
+        UPDATE shared_files 
+        SET access_count = COALESCE(access_count, 0) + 1
+        WHERE id = $1
+      `;
+      
+      await pool.query(query, [fileId]);
     } catch (error) {
       console.error("Error incrementing access count:", error);
-      // Fallback to direct SQL if needed
     }
   }
   
