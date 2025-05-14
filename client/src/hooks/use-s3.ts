@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { listBuckets, listObjects, deleteObject, deleteObjects, getDownloadUrl, getDownloadUrlsForBatch, uploadFile } from "@/lib/s3";
+import { 
+  listBuckets, 
+  listObjects, 
+  deleteObject, 
+  deleteObjects, 
+  getDownloadUrl, 
+  getDownloadUrlsForBatch, 
+  uploadFile,
+  copyObjects,
+  moveObjects,
+  renameObject
+} from "@/lib/s3";
 import { useToast } from "@/hooks/use-toast";
 import { S3Bucket, S3Object, S3CommonPrefix, S3ListObjectsResult, FileUploadProgress, S3Account, EnhancedS3Bucket } from "@/lib/types";
 
@@ -266,13 +277,172 @@ export function useS3FileOperations(accountId: number | undefined) {
     }
   };
 
+  // Batch copy operation
+  const batchCopyMutation = useMutation({
+    mutationFn: async ({ 
+      sourceBucket, 
+      keys, 
+      destinationBucket, 
+      destinationPrefix = "" 
+    }: { 
+      sourceBucket: string; 
+      keys: string[]; 
+      destinationBucket: string;
+      destinationPrefix?: string;
+    }) => {
+      if (!accountId) throw new Error("Account ID is required");
+      return copyObjects(accountId, sourceBucket, keys, destinationBucket, destinationPrefix);
+    },
+    onSuccess: (result, variables) => {
+      const { copied, errors } = result;
+      
+      if (errors.length === 0) {
+        toast({
+          title: "Batch copy successful",
+          description: `Successfully copied ${copied.length} file(s)`,
+        });
+      } else if (copied.length > 0) {
+        toast({
+          title: "Partial batch copy",
+          description: `Copied ${copied.length} file(s), but ${errors.length} file(s) failed`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Batch copy failed",
+          description: "Failed to copy any files",
+          variant: "destructive",
+        });
+      }
+      
+      // Invalidate the objects query to refresh both source and destination
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/s3/${accountId}/objects`, variables.sourceBucket] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/s3/${accountId}/objects`, variables.destinationBucket] 
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Batch copy failed",
+        description: error instanceof Error ? error.message : "Failed to copy files",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Batch move operation
+  const batchMoveMutation = useMutation({
+    mutationFn: async ({ 
+      sourceBucket, 
+      keys, 
+      destinationBucket, 
+      destinationPrefix = "" 
+    }: { 
+      sourceBucket: string; 
+      keys: string[]; 
+      destinationBucket: string;
+      destinationPrefix?: string;
+    }) => {
+      if (!accountId) throw new Error("Account ID is required");
+      return moveObjects(accountId, sourceBucket, keys, destinationBucket, destinationPrefix);
+    },
+    onSuccess: (result, variables) => {
+      const { moved, errors } = result;
+      
+      if (errors.length === 0) {
+        toast({
+          title: "Batch move successful",
+          description: `Successfully moved ${moved.length} file(s)`,
+        });
+      } else if (moved.length > 0) {
+        toast({
+          title: "Partial batch move",
+          description: `Moved ${moved.length} file(s), but ${errors.length} file(s) failed`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Batch move failed",
+          description: "Failed to move any files",
+          variant: "destructive",
+        });
+      }
+      
+      // Invalidate the objects query to refresh both source and destination
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/s3/${accountId}/objects`, variables.sourceBucket] 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/s3/${accountId}/objects`, variables.destinationBucket] 
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Batch move failed",
+        description: error instanceof Error ? error.message : "Failed to move files",
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Single file rename operation
+  const renameFileMutation = useMutation({
+    mutationFn: async ({ 
+      bucket, 
+      sourceKey, 
+      newName 
+    }: { 
+      bucket: string; 
+      sourceKey: string; 
+      newName: string;
+    }) => {
+      if (!accountId) throw new Error("Account ID is required");
+      return renameObject(accountId, bucket, sourceKey, newName);
+    },
+    onSuccess: (_, variables) => {
+      toast({
+        title: "File renamed",
+        description: "File has been renamed successfully",
+      });
+      
+      // Invalidate the objects query to refresh the list
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/s3/${accountId}/objects`, variables.bucket] 
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Rename failed",
+        description: error instanceof Error ? error.message : "Failed to rename file",
+        variant: "destructive",
+      });
+    },
+  });
+
   return {
+    // Single file operations
     deleteFile: (bucket: string, key: string) => deleteFileMutation.mutate({ bucket, key }),
     downloadFile,
-    batchDeleteFiles: (bucket: string, keys: string[]) => batchDeleteMutation.mutate({ bucket, keys }),
+    renameFile: (bucket: string, sourceKey: string, newName: string) => 
+      renameFileMutation.mutate({ bucket, sourceKey, newName }),
+    
+    // Batch operations
+    batchDeleteFiles: (bucket: string, keys: string[]) => 
+      batchDeleteMutation.mutate({ bucket, keys }),
+    batchCopyFiles: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
+      batchCopyMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
+    batchMoveFiles: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
+      batchMoveMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
     downloadFiles,
+    
+    // Mutation states
     isDeleting: deleteFileMutation.isPending,
     isBatchDeleting: batchDeleteMutation.isPending,
+    isBatchCopying: batchCopyMutation.isPending,
+    isBatchMoving: batchMoveMutation.isPending,
+    isRenaming: renameFileMutation.isPending,
   };
 }
 

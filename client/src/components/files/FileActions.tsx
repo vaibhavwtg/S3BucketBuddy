@@ -29,6 +29,8 @@ interface FileActionsProps {
   onToggleSelectionMode: () => void;
   onBatchDownload: () => void;
   onBatchDelete: () => void;
+  onBatchMove?: () => void;
+  onBatchCopy?: () => void;
   onSelectAll: () => void;
   onClearSelection: () => void;
 }
@@ -47,6 +49,8 @@ export function FileActions({
   onToggleSelectionMode,
   onBatchDownload,
   onBatchDelete,
+  onBatchMove,
+  onBatchCopy,
   onSelectAll,
   onClearSelection,
 }: FileActionsProps) {
@@ -95,6 +99,30 @@ export function FileActions({
             <i className="ri-download-line mr-1.5"></i>
             <span>Download</span>
           </Button>
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={selectedCount === 0}
+                className="flex items-center"
+              >
+                <i className="ri-more-2-fill mr-1.5"></i>
+                <span>More Actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem onClick={() => onBatchMove && onBatchMove()}>
+                <i className="ri-file-transfer-line mr-2"></i>
+                Move Files
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onBatchCopy && onBatchCopy()}>
+                <i className="ri-file-copy-line mr-2"></i>
+                Copy Files
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           
           <Button
             variant="destructive"

@@ -13,6 +13,7 @@ import { S3Bucket, S3Object, S3CommonPrefix, S3Account } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { UploadDialog } from "@/components/dialogs/UploadDialog";
+import { BatchOperationDialog } from "@/components/dialogs/BatchOperationDialog";
 
 export default function Browser() {
   const [location, navigate] = useLocation();
@@ -51,6 +52,9 @@ export default function Browser() {
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, S3Object>>({});
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [isBatchMoveOpen, setIsBatchMoveOpen] = useState(false);
+  const [isBatchCopyOpen, setIsBatchCopyOpen] = useState(false);
+  const [currentBatchOperation, setCurrentBatchOperation] = useState<"move" | "copy">("move");
 
   // Parse accountId to number
   const parsedAccountId = accountId ? parseInt(accountId) : undefined;
@@ -67,8 +71,12 @@ export default function Browser() {
   // Initialize S3 file operations
   const { 
     batchDeleteFiles, 
-    downloadFiles, 
-    isBatchDeleting
+    downloadFiles,
+    batchCopyFiles,
+    batchMoveFiles,
+    isBatchDeleting,
+    isBatchCopying,
+    isBatchMoving
   } = useS3FileOperations(parsedAccountId);
 
   // Fetch account information to get the default bucket
@@ -142,6 +150,47 @@ export default function Browser() {
       batchDeleteFiles(bucket, selectedKeys);
       setSelectedFiles({});
     }
+  };
+  
+  // Handle batch move dialog
+  const handleOpenBatchMove = () => {
+    setCurrentBatchOperation("move");
+    setIsBatchMoveOpen(true);
+  };
+  
+  // Handle batch copy dialog
+  const handleOpenBatchCopy = () => {
+    setCurrentBatchOperation("copy");
+    setIsBatchCopyOpen(true);
+  };
+  
+  // Handle batch move confirmation
+  const handleConfirmBatchMove = (destinationBucket: string, destinationPrefix: string) => {
+    const selectedKeys = Object.keys(selectedFiles);
+    if (selectedKeys.length === 0 || !bucket) return;
+    
+    // Execute batch move operation
+    batchMoveFiles(bucket, selectedKeys, destinationBucket, destinationPrefix);
+    
+    // Close dialog after operation is started
+    setIsBatchMoveOpen(false);
+    
+    // Clear selection if moving to a different bucket or folder
+    if (destinationBucket !== bucket || destinationPrefix !== prefix) {
+      setSelectedFiles({});
+    }
+  };
+  
+  // Handle batch copy confirmation
+  const handleConfirmBatchCopy = (destinationBucket: string, destinationPrefix: string) => {
+    const selectedKeys = Object.keys(selectedFiles);
+    if (selectedKeys.length === 0 || !bucket) return;
+    
+    // Execute batch copy operation
+    batchCopyFiles(bucket, selectedKeys, destinationBucket, destinationPrefix);
+    
+    // Close dialog after operation is started
+    setIsBatchCopyOpen(false);
   };
 
   // Find the current account
