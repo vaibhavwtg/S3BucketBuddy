@@ -72,6 +72,9 @@ function Router() {
       <Route path="/account-manager">
         <ProtectedRoute component={AccountManager} />
       </Route>
+      <Route path="/browser/:accountId?/:path*">
+        <ProtectedRoute component={Browser} />
+      </Route>
       
       {/* Public routes */}
       <Route path="/auth" component={AuthPage} />
@@ -87,7 +90,7 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <ThemeProvider defaultTheme="light" storageKey="cloudstore-theme">
+        <ThemeProvider defaultTheme="light" storageKey="wickedfiles-theme">
           <TooltipProvider>
             <Toaster />
             <Router />

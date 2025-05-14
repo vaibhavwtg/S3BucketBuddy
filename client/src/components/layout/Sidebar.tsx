@@ -47,7 +47,7 @@ export function Sidebar() {
       <div className="px-6 pt-6 pb-4 flex items-center justify-between">
         <div className="flex items-center">
           <i className="ri-cloud-line text-primary text-2xl mr-2"></i>
-          <h1 className="text-xl font-semibold">CloudStore</h1>
+          <h1 className="text-xl font-semibold">WickedFiles</h1>
         </div>
       </div>
 
