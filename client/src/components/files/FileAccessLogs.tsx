@@ -44,7 +44,7 @@ interface FileAccessLogProps {
 export function FileAccessLogs({ fileId, filename, accessCount }: FileAccessLogProps) {
   const [open, setOpen] = useState(false);
   
-  const { data: logs, isLoading } = useQuery({
+  const { data: logs = [], isLoading } = useQuery<FileAccessLog[]>({
     queryKey: [`/api/shared-files/${fileId}/access-logs`],
     enabled: open, // Only fetch when dialog is open
   });

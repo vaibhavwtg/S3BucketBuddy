@@ -1387,7 +1387,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get access logs
       const accessLogs = await storage.getFileAccessLogs(id);
       
-      res.json(accessLogs);
+      // Format logs for better client-side rendering
+      const formattedLogs = accessLogs.map(log => ({
+        ...log,
+        // Format dates as ISO strings
+        accessedAt: log.accessedAt instanceof Date ? log.accessedAt.toISOString() : log.accessedAt,
+        // Redact IP addresses slightly for privacy (show only first part)
+        ipAddress: log.ipAddress ? log.ipAddress.replace(/(\d+\.\d+)\.\d+\.\d+/, '$1.xxx.xxx') : 'unknown',
+        // Truncate very long user agents
+        userAgent: log.userAgent && log.userAgent.length > 100 
+          ? log.userAgent.substring(0, 100) + '...' 
+          : log.userAgent,
+      }));
+      
+      res.json(formattedLogs);
     } catch (error) {
       console.error("Error fetching access logs:", error);
       res.status(500).json({ message: "Failed to fetch access logs" });

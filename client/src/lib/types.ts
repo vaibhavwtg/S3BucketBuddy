@@ -68,6 +68,7 @@ export interface SharedFile {
   password?: string;
   createdAt: string;
   shareUrl?: string;
+  accessCount?: number;
 }
 
 export interface UserSettings {

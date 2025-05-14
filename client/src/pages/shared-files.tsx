@@ -30,6 +30,7 @@ import { SharedFile } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { FileAccessLogs } from "@/components/files/FileAccessLogs";
 
 export default function SharedFiles() {
   const { toast } = useToast();
@@ -159,6 +160,7 @@ export default function SharedFiles() {
                       <TableHead>Location</TableHead>
                       <TableHead>Expiration</TableHead>
                       <TableHead>Created</TableHead>
+                      <TableHead>Access</TableHead>
                       <TableHead></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -202,6 +204,13 @@ export default function SharedFiles() {
                           </TableCell>
                           <TableCell>
                             {formatDate(file.createdAt)}
+                          </TableCell>
+                          <TableCell>
+                            <FileAccessLogs 
+                              fileId={file.id} 
+                              filename={file.filename}
+                              accessCount={file.accessCount || 0}
+                            />
                           </TableCell>
                           <TableCell>
                             <DropdownMenu>
