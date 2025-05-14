@@ -72,22 +72,35 @@ export function setupAuth(app: Express) {
       },
       async (accessToken, refreshToken, profile, done) => {
         try {
-          // Check if user exists with this Google ID
-          let user = await storage.getUserByEmail(profile.emails?.[0]?.value || "");
+          // First check if user exists with Google ID
+          const googleId = `google_${profile.id}`;
+          let user = await storage.getUser(googleId);
+          
+          // If not found by ID, check by email
+          if (!user && profile.emails && profile.emails.length > 0) {
+            user = await storage.getUserByEmail(profile.emails[0].value);
+          }
           
           if (!user) {
             // Create a new user with Google profile data
+            const username = profile.displayName || 
+                            (profile.emails && profile.emails.length > 0 ? 
+                             profile.emails[0].value.split('@')[0] : 
+                             `user_${Math.floor(Math.random() * 10000)}`);
+            
             user = await storage.createUser({
               // Use Google ID as user ID with a prefix to indicate the source
-              id: `google_${profile.id}`,
+              id: googleId,
               email: profile.emails?.[0]?.value || null,
-              username: profile.displayName || profile.emails?.[0]?.value?.split('@')[0] || null,
+              username: username,
               firstName: profile.name?.givenName || null,
               lastName: profile.name?.familyName || null,
               profileImageUrl: profile.photos?.[0]?.value || null,
               // No password needed for OAuth users
               password: null
             });
+            
+            console.log("Created new user from Google OAuth:", user);
           } else {
             // Update existing user with latest Google profile data
             user = await storage.upsertUser({
@@ -97,10 +110,13 @@ export function setupAuth(app: Express) {
               lastName: profile.name?.familyName || user.lastName,
               profileImageUrl: profile.photos?.[0]?.value || user.profileImageUrl,
             });
+            
+            console.log("Updated existing user from Google OAuth:", user);
           }
           
           return done(null, user);
         } catch (error) {
+          console.error("Google auth error:", error);
           return done(error as Error);
         }
       }
