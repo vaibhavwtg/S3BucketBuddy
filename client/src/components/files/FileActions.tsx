@@ -33,6 +33,8 @@ interface FileActionsProps {
   onBatchCopy?: () => void;
   onSelectAll: () => void;
   onClearSelection: () => void;
+  onSearch?: (query: string) => void;
+  onUpload?: () => void;
 }
 
 export function FileActions({
@@ -53,8 +55,11 @@ export function FileActions({
   onBatchCopy,
   onSelectAll,
   onClearSelection,
+  onSearch,
+  onUpload,
 }: FileActionsProps) {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  const [searchText, setSearchText] = useState("");
   
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
@@ -147,9 +152,36 @@ export function FileActions({
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
+          {/* Search input */}
+          {onSearch && (
+            <div className="relative mr-2">
+              <input
+                type="text"
+                placeholder="Search files..."
+                className="h-9 w-48 px-3 py-1 rounded-md border bg-background text-sm"
+                value={searchText}
+                onChange={(e) => {
+                  setSearchText(e.target.value);
+                  onSearch(e.target.value);
+                }}
+              />
+              {searchText && (
+                <button 
+                  className="absolute right-2 top-2 text-muted-foreground hover:text-foreground"
+                  onClick={() => {
+                    setSearchText("");
+                    onSearch("");
+                  }}
+                >
+                  <i className="ri-close-line"></i>
+                </button>
+              )}
+            </div>
+          )}
+          
           <Button 
             className="sm:hidden flex items-center" 
-            onClick={() => setIsUploadOpen(true)}
+            onClick={onUpload || (() => setIsUploadOpen(true))}
           >
             <i className="ri-upload-line mr-1.5"></i>
             <span>Upload</span>
@@ -185,7 +217,7 @@ export function FileActions({
               variant="outline" 
               size="icon"
               className="hidden sm:flex"
-              onClick={() => setIsUploadOpen(true)}
+              onClick={onUpload || (() => setIsUploadOpen(true))}
             >
               <i className="ri-upload-line"></i>
               <span className="sr-only">Upload</span>
