@@ -30,7 +30,7 @@ declare global {
 
 // Add user ID extraction utility for route handlers
 interface AuthenticatedRequest extends Request {
-  userId?: number;
+  userId?: string;
 }
 
 export function registerRoutes(app: Express): Server {
