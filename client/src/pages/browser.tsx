@@ -55,14 +55,14 @@ export default function Browser() {
   
   // Use URL parameters as fallback for backward compatibility
   const urlParams = new URLSearchParams(window.location.search);
-  const accountIdParam = accountId || urlParams.get('account');
+  const accountIdParam = params.accountId || urlParams.get('account');
   
   // Handle the bucket and prefix from path or query parameters
   let bucketParam, prefixParam;
   
-  if (pathParamRest) {
+  if (params['*']) {
     // Extract bucket and prefix from the path parameter
-    const pathSegments = pathParamRest.split('/');
+    const pathSegments = params['*'].split('/');
     bucketParam = pathSegments[0];
     prefixParam = pathSegments.slice(1).join('/');
   } else {
