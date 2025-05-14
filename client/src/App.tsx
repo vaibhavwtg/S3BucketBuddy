@@ -10,6 +10,7 @@ import Browser from "@/pages/browser";
 import SharedFiles from "@/pages/shared-files";
 import AccountSettings from "@/pages/account-settings";
 import AccountManager from "@/pages/account-manager";
+import AdminDashboard from "@/pages/admin/dashboard";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import PublicSharedFile from "@/pages/public-shared-file";
 import { useEffect } from "react";
@@ -74,6 +75,11 @@ function Router() {
       </Route>
       <Route path="/browser/:accountId?/:path*">
         <ProtectedRoute component={Browser} />
+      </Route>
+      
+      {/* Admin routes */}
+      <Route path="/admin">
+        <ProtectedRoute component={AdminDashboard} />
       </Route>
       
       {/* Public routes */}
