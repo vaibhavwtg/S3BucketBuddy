@@ -56,6 +56,7 @@ const shareFileSchema = z.object({
   access: z.enum(["view", "download"]).default("view"),
   usePassword: z.boolean().default(false),
   password: z.string().optional(),
+  isPublic: z.boolean().default(false), // New option: Allow public/direct S3 access
 });
 
 type ShareFileFormValues = z.infer<typeof shareFileSchema>;
@@ -75,12 +76,14 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
       allowDownload: true,
       access: "view",
       usePassword: false,
+      isPublic: false,
     },
   });
 
   const expiryOption = form.watch("expiryOption");
   const usePassword = form.watch("usePassword");
   const access = form.watch("access");
+  const isPublic = form.watch("isPublic");
 
   // Handle expiry option changes
   const handleExpiryChange = (value: string) => {
@@ -112,6 +115,7 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
         expiresAt: values.expiryOption === "never" ? null : values.expiresAt,
         allowDownload: values.access === "download" || values.allowDownload,
         password: values.usePassword ? values.password : undefined,
+        isPublic: values.isPublic, // Add the public/direct access option
       };
       
       const res = await apiRequest("POST", "/api/shared-files", shareData);
@@ -346,6 +350,27 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
                   )}
                 />
               )}
+              
+              <FormField
+                control={form.control}
+                name="isPublic"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                    <FormControl>
+                      <Switch
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel>Enable public S3 URL</FormLabel>
+                      <FormDescription>
+                        Creates a direct S3 URL that can be embedded in websites and persists even if the app is unavailable.
+                      </FormDescription>
+                    </div>
+                  </FormItem>
+                )}
+              />
               
               <DialogFooter className="pt-4">
                 <Button 

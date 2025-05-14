@@ -1284,6 +1284,11 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Shared file not found or expired" });
       }
       
+      // Check if the file is manually expired or date expired
+      if (sharedFile.isExpired || (sharedFile.expiresAt && new Date(sharedFile.expiresAt) < new Date())) {
+        return res.status(403).json({ message: "This shared link has expired" });
+      }
+      
       // Check password if required
       if (sharedFile.password) {
         if (!password) {
