@@ -25,6 +25,7 @@ function Router() {
       <Route path="/shared" component={SharedFiles} />
       <Route path="/settings" component={AccountSettings} />
       <Route path="/manage-accounts" component={AccountManager} />
+      <Route path="/account-manager" component={AccountManager} />
       <Route path="/shared/:token" component={PublicSharedFile} />
       {/* Fallback to 404 */}
       <Route component={NotFound} />

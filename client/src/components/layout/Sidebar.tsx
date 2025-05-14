@@ -171,6 +171,12 @@ export function Sidebar() {
                     <span>Settings</span>
                   </DropdownMenuItem>
                 </Link>
+                <Link href="/account-manager">
+                  <DropdownMenuItem className="cursor-pointer">
+                    <i className="ri-shield-keyhole-line mr-2"></i>
+                    <span>Accounts</span>
+                  </DropdownMenuItem>
+                </Link>
               </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={logout} className="cursor-pointer text-destructive">
