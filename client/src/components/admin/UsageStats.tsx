@@ -50,7 +50,7 @@ export function UsageStats() {
   };
 
   // Fetch admin stats - these will be expanded as we add more specific stats endpoints
-  const { data: stats = {}, isLoading: isLoadingStats } = useQuery<AdminStats>({
+  const { data: stats = {} as AdminStats, isLoading: isLoadingStats } = useQuery<AdminStats>({
     queryKey: ['/api/admin/stats'],
   });
 

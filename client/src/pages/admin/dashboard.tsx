@@ -10,6 +10,18 @@ import { AdminLogs } from "../../components/admin/AdminLogs";
 import { Redirect } from "wouter";
 import { Loader2, Users, Wallet, HardDrive, Share2 } from "lucide-react";
 
+// Define the AdminStats type to match the API response
+type AdminStats = {
+  totalUsers: number;
+  newUsersThisWeek: number;
+  activeSubscriptions: number;
+  subscriptionConversionRate: number;
+  totalAccounts: number;
+  totalStorageUsed: string;
+  totalSharedFiles: number;
+  activeSharedFiles: number;
+};
+
 export default function AdminDashboard() {
   const { user, isLoading } = useAuth();
   

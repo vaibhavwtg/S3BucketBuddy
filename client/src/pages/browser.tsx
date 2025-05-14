@@ -188,7 +188,7 @@ export default function Browser() {
   const { 
     data: buckets = [], 
     isLoading: isLoadingBuckets
-  } = useS3Buckets(parsedAccountId, !bucket);
+  } = useS3Buckets(parsedAccountId);
   
   // Hook for listing objects in selected bucket
   const { 
