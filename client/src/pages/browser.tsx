@@ -209,8 +209,6 @@ export default function Browser() {
   
   // Hook for file operations
   const { 
-    deleteFile, 
-    downloadFile, 
     batchDownload,
     batchDelete,
     batchMove,
@@ -220,7 +218,9 @@ export default function Browser() {
     isBatchDownloading,
     isBatchDeleting,
     isBatchMoving,
-    isBatchCopying
+    isBatchCopying,
+    deleteFileMutation,
+    downloadFileMutation
   } = useS3FileOperations(parsedAccountId);
   
   // Fetch account information to check for default bucket
@@ -648,6 +648,9 @@ export default function Browser() {
                 <FolderCard 
                   key={`folder-${index}`}
                   folder={folder} 
+                  accountId={parsedAccountId}
+                  bucket={bucket}
+                  prefix={prefix}
                   onClick={() => handleFolderClick(folder)}
                   viewMode={viewMode}
                 />
@@ -665,8 +668,12 @@ export default function Browser() {
                   selectionMode={selectionMode}
                   isSelected={!!selectedFiles[file.Key!]}
                   onSelect={handleFileSelection}
-                  onDelete={(b, k) => deleteFile({bucket: b, key: k})}
-                  onDownload={(b, k) => downloadFile(b, k)}
+                  onDelete={(bucket, key) => {
+                    return deleteFileMutation.mutateAsync({ bucket, key });
+                  }}
+                  onDownload={(bucket, key) => {
+                    return downloadFileMutation.mutateAsync({ bucket, key });
+                  }}
                   isDeleting={isDeleting}
                   isDownloading={isDownloading}
                   refetchFiles={refetchObjects}
