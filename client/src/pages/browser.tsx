@@ -648,7 +648,7 @@ export default function Browser() {
                 <FolderCard 
                   key={`folder-${index}`}
                   folder={folder} 
-                  onClick={handleFolderClick}
+                  onClick={() => handleFolderClick(folder)}
                   viewMode={viewMode}
                 />
               ))}
@@ -665,8 +665,8 @@ export default function Browser() {
                   selectionMode={selectionMode}
                   isSelected={!!selectedFiles[file.Key!]}
                   onSelect={handleFileSelection}
-                  onDelete={deleteFile}
-                  onDownload={downloadFile}
+                  onDelete={(b, k) => deleteFile({bucket: b, key: k})}
+                  onDownload={(b, k) => downloadFile(b, k)}
                   isDeleting={isDeleting}
                   isDownloading={isDownloading}
                   refetchFiles={refetchObjects}
