@@ -265,6 +265,23 @@ export function registerRoutes(app: Express): Server {
       // Filter out fields that are not in our DB schema
       const { saveCredentials, selectedBucket, ...accountData } = req.body;
       
+      // Check if bucket already exists in another account owned by this user
+      if (selectedBucket) {
+        const existingAccounts = await storage.getS3Accounts(req.user!.id);
+        const duplicateBucket = existingAccounts.find(account => 
+          account.defaultBucket === selectedBucket &&
+          !(account.accessKeyId === accountData.accessKeyId && 
+            account.secretAccessKey === accountData.secretAccessKey)
+        );
+        
+        if (duplicateBucket) {
+          console.error(`Bucket '${selectedBucket}' is already added to account '${duplicateBucket.name}'`);
+          return res.status(400).json({ 
+            message: `This bucket is already added to account '${duplicateBucket.name}'. Each bucket can only be used with one account.` 
+          });
+        }
+      }
+      
       // Prepare account data with user ID and defaultBucket if provided
       const accountInput = {
         ...accountData,

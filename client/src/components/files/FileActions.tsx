@@ -16,26 +16,41 @@ import {
 import { UploadDialog } from "@/components/dialogs/UploadDialog";
 
 export interface FileActionsProps {
+  // Basic props
   title?: string;
   bucket?: string;
   prefix?: string;
   accountId?: number;
+  
+  // Search functionality
   searchQuery?: string;
   onSearch?: (query: string) => void;
+  
+  // Upload functionality
   onUpload?: () => void;
+  
+  // Sorting
   sortBy: string;
   onSortChange: (sort: string) => void;
+  
+  // View mode 
   viewMode: 'grid' | 'list';
   onViewModeChange: (mode: 'grid' | 'list') => void;
+  
+  // Selection mode
   selectionMode: boolean;
   selectedCount: number;
   onSelectionModeToggle: () => void;
   onSelectAll: () => void;
   onClearSelection: () => void;
+  
+  // Batch operations
   onBatchDownload: () => void;
+  onBatchDelete: () => void;
   onBatchMove?: () => void;
   onBatchCopy?: () => void;
-  onBatchDelete: () => void;
+  
+  // Loading states
   isBatchDownloading?: boolean;
   isBatchDeleting?: boolean;
   isBatchMoving?: boolean;
@@ -53,8 +68,8 @@ export function FileActions({
   onViewModeChange,
   sortBy,
   onSortChange,
-  selectionMode = false,
-  selectedCount = 0,
+  selectionMode,
+  selectedCount,
   onSelectionModeToggle,
   onBatchDownload,
   onBatchDelete,
@@ -132,30 +147,34 @@ export function FileActions({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem 
-                onClick={onBatchMove} 
-                disabled={isBatchMoving}
-                className="flex items-center"
-              >
-                {isBatchMoving ? (
-                  <i className="ri-loader-4-line animate-spin mr-2"></i>
-                ) : (
-                  <i className="ri-file-transfer-line mr-2"></i>
-                )}
-                Move Files
-              </DropdownMenuItem>
-              <DropdownMenuItem 
-                onClick={onBatchCopy}
-                disabled={isBatchCopying}
-                className="flex items-center"
-              >
-                {isBatchCopying ? (
-                  <i className="ri-loader-4-line animate-spin mr-2"></i>
-                ) : (
-                  <i className="ri-file-copy-line mr-2"></i>
-                )}
-                Copy Files
-              </DropdownMenuItem>
+              {onBatchMove && (
+                <DropdownMenuItem 
+                  onClick={onBatchMove} 
+                  disabled={isBatchMoving}
+                  className="flex items-center"
+                >
+                  {isBatchMoving ? (
+                    <i className="ri-loader-4-line animate-spin mr-2"></i>
+                  ) : (
+                    <i className="ri-file-transfer-line mr-2"></i>
+                  )}
+                  Move Files
+                </DropdownMenuItem>
+              )}
+              {onBatchCopy && (
+                <DropdownMenuItem 
+                  onClick={onBatchCopy}
+                  disabled={isBatchCopying}
+                  className="flex items-center"
+                >
+                  {isBatchCopying ? (
+                    <i className="ri-loader-4-line animate-spin mr-2"></i>
+                  ) : (
+                    <i className="ri-file-copy-line mr-2"></i>
+                  )}
+                  Copy Files
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
           
@@ -316,7 +335,8 @@ export function FileActions({
         </div>
       )}
       
-      {accountId && bucket && (
+      {/* Only render upload dialog if we have the required props */}
+      {(onUpload === undefined && accountId !== undefined && bucket !== undefined) && (
         <UploadDialog 
           open={isUploadOpen} 
           onOpenChange={setIsUploadOpen} 

@@ -100,6 +100,27 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
 
   const addAccountMutation = useMutation({
     mutationFn: async (values: AddAccountFormValues) => {
+      // Check if we have all existing accounts with their buckets
+      const existingAccountsRes = await apiRequest("GET", "/api/s3-accounts", null);
+      const existingAccounts = await existingAccountsRes.json();
+      
+      // Check if this bucket is already added in another account
+      const isDuplicateBucket = existingAccounts.some((account: any) => {
+        // For the same account (update case), it's not a duplicate
+        if (account.accessKeyId === values.accessKeyId && 
+            account.secretAccessKey === values.secretAccessKey) {
+          return false;
+        }
+        
+        // Check if account has a defaultBucket that matches the selected bucket
+        return account.defaultBucket === values.selectedBucket;
+      });
+      
+      if (isDuplicateBucket) {
+        throw new Error(`The bucket "${values.selectedBucket}" is already added to another account. Please select a different bucket.`);
+      }
+      
+      // If no duplicate, proceed with the account creation
       const res = await apiRequest("POST", "/api/s3-accounts", values);
       return res.json();
     },
@@ -117,6 +138,10 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
       
       // Reset the form
       form.reset();
+      
+      // Clear buckets and validation state
+      setBuckets([]);
+      setCredentialsValidated(false);
     },
     onError: (error) => {
       toast({
@@ -178,19 +203,69 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
       }
       
       if (data.valid && data.buckets && data.buckets.length > 0) {
-        // Store the buckets and mark credentials as validated
-        setBuckets(data.buckets);
-        setCredentialsValidated(true);
-        
-        // Set the first bucket as default selected bucket
-        if (data.buckets[0].Name) {
-          form.setValue("selectedBucket", data.buckets[0].Name);
+        try {
+          // Before setting the buckets, check for duplicates in existing accounts
+          const existingAccountsRes = await fetch('/api/s3-accounts');
+          const existingAccounts = await existingAccountsRes.json();
+          
+          // Check each bucket against existing accounts' default buckets
+          const existingBuckets = new Set<string>();
+          existingAccounts.forEach((account: any) => {
+            if (account.defaultBucket) {
+              existingBuckets.add(account.defaultBucket);
+            }
+          });
+          
+          // Filter out buckets that are already added to another account
+          const availableBuckets = data.buckets.filter((bucket: Bucket) => 
+            !existingBuckets.has(bucket.Name || '')
+          );
+          
+          // If we have any buckets left after filtering
+          if (availableBuckets.length > 0) {
+            // Store the buckets and mark credentials as validated
+            setBuckets(availableBuckets);
+            setCredentialsValidated(true);
+            
+            // Set the first available bucket as default selected bucket
+            if (availableBuckets[0].Name) {
+              form.setValue("selectedBucket", availableBuckets[0].Name);
+            }
+            
+            // If some buckets were filtered out, show a warning
+            if (availableBuckets.length < data.buckets.length) {
+              const filtered = data.buckets.length - availableBuckets.length;
+              toast({
+                title: "Credentials Validated",
+                description: `Found ${availableBuckets.length} buckets in your S3 account. ${filtered} buckets are already added to other accounts and were filtered out.`,
+              });
+            } else {
+              toast({
+                title: "Credentials Validated",
+                description: `Found ${availableBuckets.length} buckets in your S3 account.`,
+              });
+            }
+          } else {
+            // All buckets are already added
+            setValidationError("All buckets in this account are already added to other accounts. Please use a different S3 account.");
+            setCredentialsValidated(false);
+          }
+        } catch (e) {
+          // If there's an error checking existing accounts, just proceed with all buckets
+          console.error("Error checking for duplicate buckets:", e);
+          setBuckets(data.buckets);
+          setCredentialsValidated(true);
+          
+          // Set the first bucket as default selected bucket
+          if (data.buckets[0].Name) {
+            form.setValue("selectedBucket", data.buckets[0].Name);
+          }
+          
+          toast({
+            title: "Credentials Validated",
+            description: `Found ${data.buckets.length} buckets in your S3 account.`,
+          });
         }
-        
-        toast({
-          title: "Credentials Validated",
-          description: `Found ${data.buckets.length} buckets in your S3 account.`,
-        });
       } else {
         // Handle case where validation succeeded but no buckets were found
         setBuckets([]);
