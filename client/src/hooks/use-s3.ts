@@ -191,6 +191,7 @@ export function useS3Objects(
 export function useS3FileOperations(accountId: number | undefined) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [uploadProgress, setUploadProgress] = useState<Record<string, FileUploadProgress>>({});
 
   // Single file deletion
   const deleteFileMutation = useMutation({
@@ -218,49 +219,7 @@ export function useS3FileOperations(accountId: number | undefined) {
     },
   });
   
-  // Batch file deletion
-  const batchDeleteMutation = useMutation({
-    mutationFn: async ({ bucket, keys }: { bucket: string; keys: string[] }) => {
-      if (!accountId) throw new Error("Account ID is required");
-      return deleteObjects(accountId, bucket, keys);
-    },
-    onSuccess: (result, variables) => {
-      const { deleted, errors } = result;
-      
-      if (errors.length === 0) {
-        toast({
-          title: "Batch delete successful",
-          description: `Successfully deleted ${deleted.length} file(s)`,
-        });
-      } else if (deleted.length > 0) {
-        toast({
-          title: "Partial batch delete",
-          description: `Deleted ${deleted.length} file(s), but ${errors.length} file(s) failed`,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Batch delete failed",
-          description: "Failed to delete any files",
-          variant: "destructive",
-        });
-      }
-      
-      // Invalidate the objects query to refresh the list
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/s3/${accountId}/objects`, variables.bucket] 
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Batch delete failed",
-        description: error instanceof Error ? error.message : "Failed to delete files",
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Single file download mutation
+  // Single file download 
   const downloadFileMutation = useMutation({
     mutationFn: async ({ bucket, key }: { bucket: string; key: string }) => {
       if (!accountId) throw new Error("Account ID is required");
@@ -275,7 +234,7 @@ export function useS3FileOperations(accountId: number | undefined) {
       link.click();
       document.body.removeChild(link);
       
-      return signedUrl;
+      return { success: true };
     },
     onSuccess: () => {
       toast({
@@ -291,9 +250,19 @@ export function useS3FileOperations(accountId: number | undefined) {
       });
     },
   });
+  
+  // Create a wrapper function for downloadFileMutation
+  const downloadFile = async (bucket: string, key: string): Promise<void> => {
+    try {
+      await downloadFileMutation.mutateAsync({ bucket, key });
+      return Promise.resolve();
+    } catch (error) {
+      return Promise.reject(error);
+    }
+  };
 
   // Batch file download
-  const downloadFiles = async (bucket: string, keys: string[]) => {
+  const downloadFiles = async (bucket: string, keys: string[]): Promise<void> => {
     if (!accountId) {
       toast({
         title: "Download failed",
@@ -349,6 +318,48 @@ export function useS3FileOperations(accountId: number | undefined) {
       });
     }
   };
+  
+  // Batch file deletion
+  const batchDeleteMutation = useMutation({
+    mutationFn: async ({ bucket, keys }: { bucket: string; keys: string[] }) => {
+      if (!accountId) throw new Error("Account ID is required");
+      return deleteObjects(accountId, bucket, keys);
+    },
+    onSuccess: (result, variables) => {
+      const { deleted, errors } = result;
+      
+      if (errors.length === 0) {
+        toast({
+          title: "Batch delete successful",
+          description: `Successfully deleted ${deleted.length} file(s)`,
+        });
+      } else if (deleted.length > 0) {
+        toast({
+          title: "Partial batch delete",
+          description: `Deleted ${deleted.length} file(s), but ${errors.length} file(s) failed`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Batch delete failed",
+          description: "Failed to delete any files",
+          variant: "destructive",
+        });
+      }
+      
+      // Invalidate the objects query to refresh the list
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/s3/${accountId}/objects`, variables.bucket] 
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Batch delete failed",
+        description: error instanceof Error ? error.message : "Failed to delete files",
+        variant: "destructive",
+      });
+    },
+  });
 
   // Batch copy operation
   const batchCopyMutation = useMutation({
@@ -493,115 +504,74 @@ export function useS3FileOperations(accountId: number | undefined) {
       });
     },
   });
-
-  // Create downloadFile function
-  const downloadFile = async (bucket: string, key: string): Promise<void> => {
-    return downloadFileMutation.mutateAsync({ bucket, key });
-  };
   
-  return {
-    // Single file operations
-    deleteFile: (bucket: string, key: string) => deleteFileMutation.mutate({ bucket, key }),
-    downloadFile,
-    renameFile: (bucket: string, sourceKey: string, newName: string) => 
-      renameFileMutation.mutate({ bucket, sourceKey, newName }),
-    
-    // Batch operations
-    batchDeleteFiles: (bucket: string, keys: string[]) => 
-      batchDeleteMutation.mutate({ bucket, keys }),
-    batchCopyFiles: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
-      batchCopyMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
-    batchMoveFiles: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
-      batchMoveMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
-    downloadFiles,
-    
-    // Aliases for backward compatibility
-    batchDownload: downloadFiles,
-    batchDelete: (bucket: string, keys: string[]) => batchDeleteMutation.mutate({ bucket, keys }),
-    batchMove: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
-      batchMoveMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
-    batchCopy: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
-      batchCopyMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
-    
-    // Mutation states
-    isDeleting: deleteFileMutation.isPending,
-    isBatchDeleting: batchDeleteMutation.isPending,
-    isBatchCopying: batchCopyMutation.isPending,
-    isBatchMoving: batchMoveMutation.isPending,
-    isRenaming: renameFileMutation.isPending,
-    
-    // Additional states for backward compatibility
-    isDownloading: false, // Not implemented yet
-    isBatchDownloading: batchDeleteMutation.isPending, // Use as a placeholder
-  };
-}
-
-/**
- * Hook for uploading files to S3
- */
-export function useS3Upload(accountId: number | undefined) {
-  const [uploadProgress, setUploadProgress] = useState<Record<string, FileUploadProgress>>({});
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
+  // Upload file operation
   const uploadFileMutation = useMutation({
-    mutationFn: async ({ 
-      bucket, 
-      file, 
-      prefix = "" 
-    }: { 
-      bucket: string; 
-      file: File; 
-      prefix?: string; 
-    }) => {
+    mutationFn: async ({ bucket, file, prefix = "" }: { bucket: string; file: File; prefix?: string }) => {
       if (!accountId) throw new Error("Account ID is required");
       
-      // Track progress for this file
-      const onProgress = (progress: FileUploadProgress) => {
-        setUploadProgress(prev => ({
-          ...prev,
-          [file.name]: progress
-        }));
-      };
-      
-      return uploadFile(accountId, bucket, file, prefix, onProgress);
-    },
-    onSuccess: (_, variables) => {
-      // Set completed status
+      // Update progress
       setUploadProgress(prev => ({
         ...prev,
-        [variables.file.name]: {
-          filename: variables.file.name,
-          progress: 100,
-          status: "completed",
+        [file.name]: {
+          filename: file.name,
+          progress: 0,
+          status: "uploading"
         }
       }));
       
-      // Invalidate the objects query to refresh the list
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/s3/${accountId}/objects`, variables.bucket] 
-      });
+      // Define progress callback
+      const onProgress = (progress: FileUploadProgress) => {
+        setUploadProgress(prev => ({
+          ...prev,
+          [progress.filename]: progress
+        }));
+      };
+      
+      // Upload with progress tracking
+      return uploadFile(accountId, bucket, file, prefix, onProgress);
     },
-    onError: (error, variables) => {
-      // Set error status
+    onSuccess: (_, variables) => {
+      const { file } = variables;
+      
+      // Mark as completed
       setUploadProgress(prev => ({
         ...prev,
-        [variables.file.name]: {
-          filename: variables.file.name,
+        [file.name]: {
+          filename: file.name,
+          progress: 100,
+          status: "completed"
+        }
+      }));
+      
+      // Success toast is handled in the batch uploader to avoid multiple toasts
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/s3/${accountId}/objects`] 
+      });
+    },
+    onError: (error: Error, variables) => {
+      const { file } = variables;
+      
+      // Mark as error
+      setUploadProgress(prev => ({
+        ...prev,
+        [file.name]: {
+          filename: file.name,
           progress: 0,
           status: "error",
-          error: error instanceof Error ? error.message : "Upload failed",
+          error: error instanceof Error ? error.message : "Upload failed"
         }
       }));
       
       toast({
         title: "Upload failed",
-        description: error instanceof Error ? error.message : "Failed to upload file",
+        description: `Failed to upload ${file.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
         variant: "destructive",
       });
     },
   });
-
+  
+  // Batch upload function
   const uploadBatch = async (bucket: string, files: File[], prefix = "") => {
     if (!accountId) {
       toast({
@@ -612,24 +582,33 @@ export function useS3Upload(accountId: number | undefined) {
       return;
     }
     
-    // Initialize progress for all files
+    if (files.length === 0) {
+      toast({
+        title: "No files selected",
+        description: "Please select at least one file to upload",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Initialize progress tracking
     const initialProgress: Record<string, FileUploadProgress> = {};
     files.forEach(file => {
       initialProgress[file.name] = {
         filename: file.name,
         progress: 0,
-        status: "pending",
+        status: "pending"
       };
     });
+    
     setUploadProgress(initialProgress);
     
-    // Upload files sequentially to avoid overwhelming the network
+    // Upload files sequentially
     for (const file of files) {
       try {
         await uploadFileMutation.mutateAsync({ bucket, file, prefix });
       } catch (error) {
-        // Error is already handled in the mutation
-        continue;
+        console.error(`Error uploading file ${file.name}:`, error);
       }
     }
     
@@ -642,110 +621,27 @@ export function useS3Upload(accountId: number | undefined) {
       });
     }
   };
-
+  
+  // Reset upload progress
   const resetProgress = () => {
     setUploadProgress({});
   };
-
+  
   return {
     // Single file operations
     deleteFile: (bucket: string, key: string) => deleteFileMutation.mutate({ bucket, key }),
-    downloadFile: (bucket: string, key: string) => {
-      if (!accountId) {
-        toast({
-          title: "Download failed",
-          description: "Account ID is required",
-          variant: "destructive",
-        });
-        return Promise.resolve();
-      }
-      
-      // Use new Promise to wrap the async operation
-      return new Promise<void>(async (resolve, reject) => {
-        try {
-          const signedUrl = await getDownloadUrl(accountId, bucket, key);
-          
-          // Create a temporary link and click it to start the download
-          const link = document.createElement("a");
-          link.href = signedUrl;
-          link.setAttribute("download", key.split("/").pop() || "download");
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          toast({
-            title: "Download started",
-            description: "Your file will download shortly",
-          });
-          resolve();
-        } catch (error) {
-          toast({
-            title: "Download failed",
-            description: error instanceof Error ? error.message : "Failed to generate download link",
-            variant: "destructive",
-          });
-          reject(error);
-        }
-      });
-    },
+    downloadFile,
     renameFile: (bucket: string, sourceKey: string, newName: string) => 
       renameFileMutation.mutate({ bucket, sourceKey, newName }),
     
     // Batch operations
-    batchDeleteFiles: (bucket: string, keys: string[]) => 
-      batchDeleteMutation.mutate({ bucket, keys }),
-    batchCopyFiles: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
-      batchCopyMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
-    batchMoveFiles: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
-      batchMoveMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
-    
-    // Aliases for backward compatibility
-    batchDownload: (bucket: string, keys: string[]) => {
-      if (!accountId) {
-        toast({
-          title: "Download failed",
-          description: "Account ID is required",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      if (keys.length === 0) {
-        toast({
-          title: "No files selected",
-          description: "Please select at least one file to download",
-          variant: "destructive",
-        });
-        return;
-      }
-      
-      toast({
-        title: "Preparing files",
-        description: `Generating download links for ${keys.length} file(s)...`,
-      });
-      
-      // Download files sequentially
-      keys.forEach(async (key) => {
-        try {
-          await getDownloadUrl(accountId, bucket, key).then(signedUrl => {
-            const link = document.createElement("a");
-            link.href = signedUrl;
-            link.setAttribute("download", key.split("/").pop() || "download");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-          });
-        } catch (error) {
-          console.error(`Error downloading file ${key}:`, error);
-        }
-      });
-    },
     batchDelete: (bucket: string, keys: string[]) => 
       batchDeleteMutation.mutate({ bucket, keys }),
     batchMove: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
       batchMoveMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
     batchCopy: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
       batchCopyMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
+    batchDownload: (bucket: string, keys: string[]) => downloadFiles(bucket, keys),
     
     // Upload operations
     uploadFile: (bucket: string, file: File, prefix = "") => 
@@ -756,7 +652,7 @@ export function useS3Upload(accountId: number | undefined) {
     
     // Loading states
     isDeleting: deleteFileMutation.isPending,
-    isDownloading: false,
+    isDownloading: downloadFileMutation.isPending,
     isBatchDeleting: batchDeleteMutation.isPending,
     isBatchDownloading: false, // We don't have a proper mutation for batch downloads
     isBatchMoving: batchMoveMutation.isPending,

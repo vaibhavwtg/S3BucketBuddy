@@ -215,7 +215,7 @@ export default function Browser() {
     batchCopy,
     deleteFile,
     downloadFile,
-    isDeleting, 
+    isDeleting,
     isDownloading, 
     isBatchDownloading,
     isBatchDeleting,
