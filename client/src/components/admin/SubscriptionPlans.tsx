@@ -322,7 +322,7 @@ export function SubscriptionPlans() {
             </div>
             <p className="mb-2 text-lg font-medium">
               {searchQuery 
-                ? `No plans found matching "${searchQuery}"`
+                ? `No plans found matching "${searchQuery}"` 
                 : "No subscription plans found"}
             </p>
             <p className="text-sm text-muted-foreground">

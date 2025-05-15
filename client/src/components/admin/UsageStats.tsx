@@ -9,7 +9,8 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, RefreshCw, BarChart2, PieChart } from "lucide-react";
+import { Loader2, RefreshCw, BarChart2, PieChart, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
 import {
   BarChart,
   Bar,
@@ -142,6 +143,49 @@ export function UsageStats() {
 
   const queryClient = useQueryClient();
   const [activeChartTab, setActiveChartTab] = useState("usage");
+  const [searchQuery, setSearchQuery] = useState("");
+  
+  // Filter tabs based on search - helpful for users to know which tab contains their search term
+  const matchingTabs = () => {
+    if (!searchQuery) return null;
+    
+    const query = searchQuery.toLowerCase();
+    const matches = [];
+    
+    if ('usage overview'.includes(query) || 
+        'subscription distribution'.includes(query) || 
+        'feature usage'.includes(query) ||
+        'system usage'.includes(query)) {
+      matches.push('usage');
+    }
+    
+    if ('user growth'.includes(query) || 
+        'weekly new users'.includes(query) || 
+        'plan growth'.includes(query)) {
+      matches.push('users');
+    }
+    
+    if ('subscription plans'.includes(query) || 
+        'plan comparison'.includes(query) ||
+        'features'.includes(query)) {
+      matches.push('plans');
+    }
+    
+    if ('revenue'.includes(query) || 
+        'monthly revenue'.includes(query) ||
+        'money'.includes(query) ||
+        'income'.includes(query)) {
+      matches.push('revenue');
+    }
+    
+    if ('feature usage'.includes(query) || 
+        'metrics'.includes(query) ||
+        'activity'.includes(query)) {
+      matches.push('features');
+    }
+    
+    return matches.length > 0 ? matches : null;
+  };
 
   return (
     <div className="space-y-6">
@@ -153,23 +197,66 @@ export function UsageStats() {
           </p>
         </div>
 
-        <Button 
-          variant="outline" 
-          onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] })}
-          disabled={isLoadingStats}
-        >
-          {isLoadingStats ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
-          Refresh Data
-        </Button>
+        <div className="flex items-center gap-3">
+          <div className="relative w-64">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search statistics..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button 
+            variant="outline" 
+            onClick={() => queryClient.invalidateQueries({ queryKey: ['/api/admin/stats'] })}
+            disabled={isLoadingStats}
+          >
+            {isLoadingStats ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RefreshCw className="h-4 w-4 mr-2" />}
+            Refresh Data
+          </Button>
+        </div>
       </div>
 
+      {searchQuery && (
+        matchingTabs() ? (
+          <div className="bg-muted/50 border rounded-md p-2 text-sm text-muted-foreground">
+            Search results found in: {matchingTabs()?.map((tab, index) => (
+              <span key={tab}>
+                <button 
+                  className="text-primary hover:underline font-medium" 
+                  onClick={() => setActiveChartTab(tab)}
+                >
+                  {tab.charAt(0).toUpperCase() + tab.slice(1)}
+                </button>
+                {index < (matchingTabs()?.length || 0) - 1 ? ', ' : ''}
+              </span>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-muted/50 border rounded-md p-2 text-sm text-muted-foreground">
+            No results found for "{searchQuery}". Try different search terms.
+          </div>
+        )
+      )}
+      
       <Tabs defaultValue="usage" value={activeChartTab} onValueChange={setActiveChartTab}>
         <TabsList className="grid grid-cols-5 mb-4">
-          <TabsTrigger value="usage">Usage Overview</TabsTrigger>
-          <TabsTrigger value="users">User Growth</TabsTrigger>
-          <TabsTrigger value="plans">Subscription Plans</TabsTrigger>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="features">Feature Usage</TabsTrigger>
+          <TabsTrigger value="usage" className={matchingTabs()?.includes('usage') ? 'border-2 border-primary' : ''}>
+            Usage Overview
+          </TabsTrigger>
+          <TabsTrigger value="users" className={matchingTabs()?.includes('users') ? 'border-2 border-primary' : ''}>
+            User Growth
+          </TabsTrigger>
+          <TabsTrigger value="plans" className={matchingTabs()?.includes('plans') ? 'border-2 border-primary' : ''}>
+            Subscription Plans
+          </TabsTrigger>
+          <TabsTrigger value="revenue" className={matchingTabs()?.includes('revenue') ? 'border-2 border-primary' : ''}>
+            Revenue
+          </TabsTrigger>
+          <TabsTrigger value="features" className={matchingTabs()?.includes('features') ? 'border-2 border-primary' : ''}>
+            Feature Usage
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="usage" className="space-y-6">
