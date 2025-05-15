@@ -105,18 +105,33 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
   const form = useForm<ShareFileFormValues>({
     resolver: zodResolver(shareFileSchema),
     defaultValues: {
+      // Basic sharing options
       expiryOption: "never",
       allowDownload: true,
-      access: "view",
+      
+      // Advanced permission options
+      permissionLevel: "view",
+      accessType: "public",
+      
+      // Protection options
       usePassword: false,
+      
+      // Embedding options
       isPublic: false,
+      
+      // Advanced settings
+      notifyOnAccess: false,
+      watermarkEnabled: false,
     },
   });
 
+  // Watch form values
   const expiryOption = form.watch("expiryOption");
   const usePassword = form.watch("usePassword");
-  const access = form.watch("access");
+  const permissionLevel = form.watch("permissionLevel");
+  const accessType = form.watch("accessType");
   const isPublic = form.watch("isPublic");
+  const watermarkEnabled = form.watch("watermarkEnabled");
 
   // Handle expiry option changes
   const handleExpiryChange = (value: string) => {
@@ -139,16 +154,48 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
 
   const shareFileMutation = useMutation({
     mutationFn: async (values: ShareFileFormValues) => {
-      // Prepare the data for the API
+      // Process recipient emails if provided
+      const recipients = values.recipientEmails 
+        ? values.recipientEmails.split(',').map(email => email.trim()).filter(email => email.length > 0)
+        : [];
+        
+      // Process allowed domains if provided
+      const domains = values.allowedDomains
+        ? values.allowedDomains.split(',').map(domain => domain.trim()).filter(domain => domain.length > 0)
+        : [];
+      
+      // Prepare the data for the API with advanced permission settings
       const shareData = {
+        // Basic file info
         accountId: file.accountId,
         bucket: file.bucket,
         path: file.path,
         filename: file.filename,
+        filesize: file.size,
+        contentType: file.contentType,
+        
+        // Expiration settings
         expiresAt: values.expiryOption === "never" ? null : values.expiresAt,
-        allowDownload: values.access === "download" || values.allowDownload,
+        
+        // Permission settings
+        permissionLevel: values.permissionLevel,
+        accessType: values.accessType,
+        allowDownload: values.permissionLevel === "download" || values.allowDownload,
+        
+        // Security settings
         password: values.usePassword ? values.password : undefined,
-        isPublic: values.isPublic, // Add the public/direct access option
+        
+        // Public access settings
+        isPublic: values.isPublic,
+        
+        // Advanced settings
+        allowedDomains: domains.length > 0 ? domains : undefined,
+        maxDownloads: values.maxDownloads,
+        notifyOnAccess: values.notifyOnAccess,
+        watermarkEnabled: values.watermarkEnabled,
+        
+        // Recipient information
+        recipients: recipients.length > 0 ? recipients : undefined,
       };
       
       const res = await apiRequest("POST", "/api/shared-files", shareData);
@@ -314,10 +361,10 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
               
               <FormField
                 control={form.control}
-                name="access"
+                name="permissionLevel"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Access Settings</FormLabel>
+                    <FormLabel>Permission Level</FormLabel>
                     <FormControl>
                       <RadioGroup
                         value={field.value}
@@ -325,15 +372,33 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
                         className="flex flex-col space-y-1"
                       >
                         <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="view" id="view" />
-                          <label htmlFor="view" className="text-sm font-medium">
+                          <RadioGroupItem value="view" id="view-perm" />
+                          <label htmlFor="view-perm" className="text-sm font-medium">
                             View only
                           </label>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="download" id="download" />
-                          <label htmlFor="download" className="text-sm font-medium">
-                            Allow download
+                          <RadioGroupItem value="download" id="download-perm" />
+                          <label htmlFor="download-perm" className="text-sm font-medium">
+                            Download files
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="edit" id="edit-perm" />
+                          <label htmlFor="edit-perm" className="text-sm font-medium">
+                            Edit metadata
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="comment" id="comment-perm" />
+                          <label htmlFor="comment-perm" className="text-sm font-medium">
+                            Add comments
+                          </label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="full" id="full-perm" />
+                          <label htmlFor="full-perm" className="text-sm font-medium">
+                            Full access
                           </label>
                         </div>
                       </RadioGroup>
@@ -342,6 +407,81 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
                   </FormItem>
                 )}
               />
+              
+              <FormField
+                control={form.control}
+                name="accessType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Access Control</FormLabel>
+                    <Select
+                      value={field.value}
+                      onValueChange={field.onChange}
+                    >
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select access control" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="public">Anyone with the link</SelectItem>
+                        <SelectItem value="domain">Specific email domains</SelectItem>
+                        <SelectItem value="email">Specific email addresses</SelectItem>
+                        <SelectItem value="password">Password protected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              
+              {/* Show domain input field when domain access type is selected */}
+              {accessType === "domain" && (
+                <FormField
+                  control={form.control}
+                  name="allowedDomains"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Allowed Domains</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="example.com, company.org" 
+                          {...field} 
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Enter comma-separated email domains
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              
+              {/* Show recipient emails input when email access type is selected */}
+              {accessType === "email" && (
+                <FormField
+                  control={form.control}
+                  name="recipientEmails"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Recipient Emails</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="user@example.com, person@company.org" 
+                          {...field} 
+                          value={field.value || ""}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Enter comma-separated email addresses
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
               
               <FormField
                 control={form.control}
