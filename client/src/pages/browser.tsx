@@ -45,7 +45,7 @@ export default function Browser() {
         description: "Please log in to access your S3 buckets",
         variant: "destructive",
       });
-      navigate('/login');
+      navigate('/auth');
       return;
     }
   }, [authLoading, isAuthenticated, navigate, notify]);
@@ -178,11 +178,21 @@ export default function Browser() {
     // Use the accountId from the bucket if available, otherwise use the current one
     const accountIdToUse = selectedBucket.accountId || parsedAccountId;
     
+    if (!accountIdToUse) {
+      console.error('No account ID available for navigation');
+      notify({
+        title: "Navigation Error",
+        description: "Unable to determine which account to use",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     navigateTo({
       account: accountIdToUse,
       bucket: selectedBucket.Name
     });
-  }, [navigateTo, parsedAccountId]);
+  }, [navigateTo, parsedAccountId, notify]);
   
   // Hook for fetching buckets in selected account (if any)
   const { 
@@ -459,13 +469,13 @@ export default function Browser() {
         console.log(`Account ${parsedAccountId} has default bucket ${account.defaultBucket}, redirecting...`);
       }
       
-      // Use setTimeout to avoid rendering issues
-      setTimeout(() => {
+      // Use useEffect for navigation to avoid React warnings about updating during render
+      useEffect(() => {
         navigateTo({
           account: parsedAccountId,
           bucket: account.defaultBucket
         });
-      }, 0);
+      }, [parsedAccountId, account.defaultBucket, navigateTo]);
       
       // Show loading while redirecting
       return (
