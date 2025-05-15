@@ -214,6 +214,20 @@ export function SubscriptionPlans() {
     // Invalidate the plans query to refetch data
     queryClient.invalidateQueries({ queryKey: ['/api/admin/subscription-plans'] });
   };
+  
+  // Filter plans based on search query
+  const filteredPlans = plans.filter(plan => {
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      plan.name.toLowerCase().includes(query) ||
+      plan.description.toLowerCase().includes(query) ||
+      plan.id.toLowerCase().includes(query) ||
+      (plan.features && plan.features.some(feature => feature.toLowerCase().includes(query))) ||
+      (plan.price === 0 && "free".includes(query))
+    );
+  });
 
   return (
     <Card>
@@ -224,21 +238,32 @@ export function SubscriptionPlans() {
             Manage subscription plans for users
           </CardDescription>
         </div>
-        <Button onClick={() => {
-          resetForm();
-          setIsEditing(false);
-          setIsDialogOpen(true);
-        }}>
-          <Plus className="mr-2 h-4 w-4" />
-          Add New Plan
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="relative w-64">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search plans..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button onClick={() => {
+            resetForm();
+            setIsEditing(false);
+            setIsDialogOpen(true);
+          }}>
+            <Plus className="mr-2 h-4 w-4" />
+            Add New Plan
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : (
+        ) : filteredPlans.length > 0 ? (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -252,7 +277,7 @@ export function SubscriptionPlans() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {plans.map((plan: SubscriptionPlanType) => (
+                {filteredPlans.map((plan: SubscriptionPlanType) => (
                   <TableRow key={plan.id}>
                     <TableCell>
                       <div className="font-medium">{plan.name}</div>
@@ -287,15 +312,24 @@ export function SubscriptionPlans() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {plans.length === 0 && (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-4">
-                      No subscription plans found
-                    </TableCell>
-                  </TableRow>
-                )}
               </TableBody>
             </Table>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-10 text-center">
+            <div className="h-10 w-10 text-muted-foreground mb-4">
+              <Edit className="h-full w-full" />
+            </div>
+            <p className="mb-2 text-lg font-medium">
+              {searchQuery 
+                ? `No plans found matching "${searchQuery}"`
+                : "No subscription plans found"}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {searchQuery 
+                ? "Try a different search term"
+                : "Create your first plan by clicking 'Add New Plan'"}
+            </p>
           </div>
         )}
       </CardContent>
