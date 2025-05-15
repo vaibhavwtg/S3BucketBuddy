@@ -279,6 +279,9 @@ export type S3Account = typeof s3Accounts.$inferSelect;
 export type InsertSharedFile = z.infer<typeof insertSharedFileSchema>;
 export type SharedFile = typeof sharedFiles.$inferSelect;
 
+export type InsertFileRecipient = z.infer<typeof insertFileRecipientSchema>;
+export type FileRecipient = typeof fileRecipients.$inferSelect;
+
 export type InsertUserSettings = z.infer<typeof insertUserSettingsSchema>;
 export type UserSettings = typeof userSettings.$inferSelect;
 

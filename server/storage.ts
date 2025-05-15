@@ -2,6 +2,7 @@ import {
   users, type User, type InsertUser, type UpsertUser,
   s3Accounts, type S3Account, type InsertS3Account,
   sharedFiles, type SharedFile, type InsertSharedFile,
+  fileRecipients, type FileRecipient, type InsertFileRecipient,
   userSettings, type UserSettings, type InsertUserSettings,
   fileAccessLogs, type FileAccessLog, type InsertFileAccessLog
 } from "@shared/schema";
@@ -311,6 +312,104 @@ export class DatabaseStorage implements IStorage {
       .from(fileAccessLogs)
       .where(eq(fileAccessLogs.fileId, fileId))
       .orderBy(desc(fileAccessLogs.accessedAt));
+  }
+  
+  // File recipient methods
+  async getFileRecipients(fileId: number): Promise<FileRecipient[]> {
+    try {
+      return await db
+        .select()
+        .from(fileRecipients)
+        .where(eq(fileRecipients.fileId, fileId));
+    } catch (error) {
+      console.error("Error getting file recipients:", error);
+      return [];
+    }
+  }
+
+  async getFileRecipient(id: number): Promise<FileRecipient | undefined> {
+    try {
+      const [recipient] = await db
+        .select()
+        .from(fileRecipients)
+        .where(eq(fileRecipients.id, id));
+      return recipient;
+    } catch (error) {
+      console.error("Error getting file recipient:", error);
+      return undefined;
+    }
+  }
+
+  async getFileRecipientByEmail(fileId: number, email: string): Promise<FileRecipient | undefined> {
+    try {
+      const [recipient] = await db
+        .select()
+        .from(fileRecipients)
+        .where(
+          and(
+            eq(fileRecipients.fileId, fileId),
+            eq(fileRecipients.email, email.toLowerCase())
+          )
+        );
+      return recipient;
+    } catch (error) {
+      console.error("Error getting file recipient by email:", error);
+      return undefined;
+    }
+  }
+
+  async createFileRecipient(recipient: InsertFileRecipient): Promise<FileRecipient> {
+    try {
+      // Ensure email is lowercase for consistency
+      const normalizedRecipient = {
+        ...recipient,
+        email: recipient.email.toLowerCase(),
+      };
+
+      const [newRecipient] = await db
+        .insert(fileRecipients)
+        .values(normalizedRecipient)
+        .returning();
+      return newRecipient;
+    } catch (error) {
+      console.error("Error creating file recipient:", error);
+      throw error;
+    }
+  }
+
+  async updateFileRecipient(id: number, recipient: Partial<FileRecipient>): Promise<FileRecipient | undefined> {
+    try {
+      // Normalize email if it's being updated
+      const normalizedRecipient = recipient.email 
+        ? { ...recipient, email: recipient.email.toLowerCase() }
+        : recipient;
+
+      const [updatedRecipient] = await db
+        .update(fileRecipients)
+        .set({
+          ...normalizedRecipient,
+          // If recipient accessed the file, update the last accessed timestamp
+          ...(recipient.accessCount !== undefined ? { lastAccessed: new Date() } : {})
+        })
+        .where(eq(fileRecipients.id, id))
+        .returning();
+      return updatedRecipient;
+    } catch (error) {
+      console.error("Error updating file recipient:", error);
+      return undefined;
+    }
+  }
+
+  async deleteFileRecipient(id: number): Promise<boolean> {
+    try {
+      const result = await db
+        .delete(fileRecipients)
+        .where(eq(fileRecipients.id, id));
+      return result.rowCount > 0;
+    } catch (error) {
+      console.error("Error deleting file recipient:", error);
+      return false;
+    }
   }
   
   /**
