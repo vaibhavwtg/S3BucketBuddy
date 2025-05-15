@@ -1,24 +1,28 @@
 import { Link } from "wouter";
 
-interface BreadcrumbsProps {
-  accountId: number;
+export interface BreadcrumbsProps {
+  accountId?: number;
   bucket: string;
   prefix: string;
+  onNavigate?: () => void;
 }
 
-export function Breadcrumbs({ accountId, bucket, prefix }: BreadcrumbsProps) {
+export function Breadcrumbs({ accountId, bucket, prefix, onNavigate }: BreadcrumbsProps) {
   // Split the prefix into path segments
   const segments = prefix.split("/").filter(Boolean);
   
-  // Helper function to build URL with query parameters
+  // Helper function to build URL using path parameters
   const createUrl = (prefixPath = "") => {
-    const params = new URLSearchParams();
-    params.set('account', accountId.toString());
-    params.set('bucket', bucket);
-    if (prefixPath) {
-      params.set('prefix', prefixPath);
+    if (!accountId) {
+      return '/';
     }
-    return `/browser?${params.toString()}`;
+    
+    let url = `/browser/${accountId}/${bucket}`;
+    if (prefixPath) {
+      // Remove trailing slash for URL (but keep it for the actual prefix)
+      url += `/${prefixPath.replace(/\/$/, '')}`;
+    }
+    return url;
   };
   
   // Define item type

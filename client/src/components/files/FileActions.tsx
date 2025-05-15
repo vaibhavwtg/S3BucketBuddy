@@ -15,26 +15,31 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { UploadDialog } from "@/components/dialogs/UploadDialog";
 
-interface FileActionsProps {
-  title: string;
-  bucket: string;
-  prefix: string;
-  accountId: number;
-  viewMode: 'grid' | 'list';
-  onViewModeChange: (mode: 'grid' | 'list') => void;
-  sortBy: string;
-  onSortChange: (sort: string) => void;
-  selectionMode: boolean;
-  selectedCount: number;
-  onToggleSelectionMode: () => void;
-  onBatchDownload: () => void;
-  onBatchDelete: () => void;
-  onBatchMove?: () => void;
-  onBatchCopy?: () => void;
-  onSelectAll: () => void;
-  onClearSelection: () => void;
+export interface FileActionsProps {
+  title?: string;
+  bucket?: string;
+  prefix?: string;
+  accountId?: number;
+  searchQuery?: string;
   onSearch?: (query: string) => void;
   onUpload?: () => void;
+  sortBy: string;
+  onSortChange: (sort: string) => void;
+  viewMode: 'grid' | 'list';
+  onViewModeChange: (mode: 'grid' | 'list') => void;
+  selectionMode: boolean;
+  selectedCount: number;
+  onSelectionModeToggle: () => void;
+  onSelectAll: () => void;
+  onClearSelection: () => void;
+  onBatchDownload: () => void;
+  onBatchMove?: () => void;
+  onBatchCopy?: () => void;
+  onBatchDelete: () => void;
+  isBatchDownloading?: boolean;
+  isBatchDeleting?: boolean;
+  isBatchMoving?: boolean;
+  isBatchCopying?: boolean;
 }
 
 export function FileActions({
@@ -42,29 +47,34 @@ export function FileActions({
   bucket,
   prefix,
   accountId,
+  searchQuery = "",
+  onSearch,
   viewMode,
   onViewModeChange,
   sortBy,
   onSortChange,
   selectionMode = false,
   selectedCount = 0,
-  onToggleSelectionMode,
+  onSelectionModeToggle,
   onBatchDownload,
   onBatchDelete,
   onBatchMove,
   onBatchCopy,
   onSelectAll,
   onClearSelection,
-  onSearch,
   onUpload,
+  isBatchDownloading = false,
+  isBatchDeleting = false,
+  isBatchMoving = false,
+  isBatchCopying = false
 }: FileActionsProps) {
   const [isUploadOpen, setIsUploadOpen] = useState(false);
-  const [searchText, setSearchText] = useState("");
+  const [searchText, setSearchText] = useState(searchQuery);
   
   return (
     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
       <div className="flex items-center">
-        <h1 className="text-xl font-semibold">{title}</h1>
+        <h1 className="text-xl font-semibold">{title || "Files"}</h1>
         {selectionMode && selectedCount > 0 && (
           <span className="ml-3 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
             {selectedCount} selected
@@ -98,10 +108,14 @@ export function FileActions({
             variant="outline"
             size="sm"
             onClick={onBatchDownload}
-            disabled={selectedCount === 0}
+            disabled={selectedCount === 0 || isBatchDownloading}
             className="flex items-center"
           >
-            <i className="ri-download-line mr-1.5"></i>
+            {isBatchDownloading ? (
+              <i className="ri-loader-4-line animate-spin mr-1.5"></i>
+            ) : (
+              <i className="ri-download-line mr-1.5"></i>
+            )}
             <span>Download</span>
           </Button>
           
@@ -110,7 +124,7 @@ export function FileActions({
               <Button
                 variant="outline"
                 size="sm"
-                disabled={selectedCount === 0}
+                disabled={selectedCount === 0 || isBatchMoving || isBatchCopying}
                 className="flex items-center"
               >
                 <i className="ri-more-2-fill mr-1.5"></i>
@@ -118,12 +132,28 @@ export function FileActions({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem onClick={() => onBatchMove && onBatchMove()}>
-                <i className="ri-file-transfer-line mr-2"></i>
+              <DropdownMenuItem 
+                onClick={onBatchMove} 
+                disabled={isBatchMoving}
+                className="flex items-center"
+              >
+                {isBatchMoving ? (
+                  <i className="ri-loader-4-line animate-spin mr-2"></i>
+                ) : (
+                  <i className="ri-file-transfer-line mr-2"></i>
+                )}
                 Move Files
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onBatchCopy && onBatchCopy()}>
-                <i className="ri-file-copy-line mr-2"></i>
+              <DropdownMenuItem 
+                onClick={onBatchCopy}
+                disabled={isBatchCopying}
+                className="flex items-center"
+              >
+                {isBatchCopying ? (
+                  <i className="ri-loader-4-line animate-spin mr-2"></i>
+                ) : (
+                  <i className="ri-file-copy-line mr-2"></i>
+                )}
                 Copy Files
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -133,17 +163,21 @@ export function FileActions({
             variant="destructive"
             size="sm"
             onClick={onBatchDelete}
-            disabled={selectedCount === 0}
+            disabled={selectedCount === 0 || isBatchDeleting}
             className="flex items-center"
           >
-            <i className="ri-delete-bin-line mr-1.5"></i>
+            {isBatchDeleting ? (
+              <i className="ri-loader-4-line animate-spin mr-1.5"></i>
+            ) : (
+              <i className="ri-delete-bin-line mr-1.5"></i>
+            )}
             <span>Delete</span>
           </Button>
           
           <Button
             variant="secondary"
             size="sm"
-            onClick={onToggleSelectionMode}
+            onClick={onSelectionModeToggle}
             className="flex items-center"
           >
             <i className="ri-checkbox-indeterminate-line mr-1.5"></i>
@@ -191,7 +225,7 @@ export function FileActions({
             <Button
               variant="outline"
               size="icon"
-              onClick={onToggleSelectionMode}
+              onClick={onSelectionModeToggle}
               title="Select multiple files"
             >
               <i className="ri-checkbox-multiple-line"></i>
@@ -254,7 +288,7 @@ export function FileActions({
             <SelectContent>
               <SelectItem value="name">Sort by: Name</SelectItem>
               <SelectItem value="size">Sort by: Size</SelectItem>
-              <SelectItem value="date">Sort by: Date</SelectItem>
+              <SelectItem value="modified">Sort by: Date</SelectItem>
               <SelectItem value="type">Sort by: Type</SelectItem>
             </SelectContent>
           </Select>
@@ -282,13 +316,15 @@ export function FileActions({
         </div>
       )}
       
-      <UploadDialog 
-        open={isUploadOpen} 
-        onOpenChange={setIsUploadOpen} 
-        bucket={bucket}
-        prefix={prefix}
-        accountId={accountId}
-      />
+      {accountId && bucket && (
+        <UploadDialog 
+          open={isUploadOpen} 
+          onOpenChange={setIsUploadOpen} 
+          bucket={bucket}
+          prefix={prefix || ""}
+          accountId={accountId}
+        />
+      )}
     </div>
   );
 }
