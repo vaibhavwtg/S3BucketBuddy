@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index, primaryKey, pgEnum } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, jsonb, varchar, index, primaryKey, pgEnum, unique } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -50,6 +50,24 @@ export const s3Accounts = pgTable("s3_accounts", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+// Permission level enum for shared files
+export const permissionLevelEnum = pgEnum('permission_level', [
+  'view', // View-only access
+  'download', // Can download
+  'edit', // Can edit metadata
+  'comment', // Can add comments
+  'full', // Full access except delete
+  'owner' // Owner access with delete permissions
+]);
+
+// Create access type enum for shared files
+export const accessTypeEnum = pgEnum('access_type', [
+  'public', // Anyone with the link
+  'domain', // Anyone with specific email domain
+  'email', // Specific email addresses only
+  'password' // Password protected
+]);
+
 export const sharedFiles = pgTable("shared_files", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull().references(() => users.id),
@@ -64,11 +82,37 @@ export const sharedFiles = pgTable("shared_files", {
   allowDownload: boolean("allow_download").default(true),
   // New field: For manually expiring links regardless of expiration date
   isExpired: boolean("is_expired").default(false),
-  // New field: Whether to allow public/direct S3 access
+  // New field: Whether to allow public/direct S3 access for embedding
   isPublic: boolean("is_public").default(false),
+  // New advanced permission fields
+  permissionLevel: permissionLevelEnum("permission_level").default('view'),
+  accessType: accessTypeEnum("access_type").default('public'),
+  allowedDomains: text("allowed_domains").array(), // For domain-restricted access
+  maxDownloads: integer("max_downloads"), // Limit number of downloads
+  notifyOnAccess: boolean("notify_on_access").default(false), // Notify owner when accessed
+  watermarkEnabled: boolean("watermark_enabled").default(false), // Apply watermark to previews
   password: text("password"),
   accessCount: integer("access_count").default(0).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Table for specific recipients of shared files
+export const fileRecipients = pgTable("file_recipients", {
+  id: serial("id").primaryKey(),
+  fileId: integer("file_id").notNull().references(() => sharedFiles.id, { onDelete: 'cascade' }),
+  email: text("email").notNull(),
+  permissionLevel: permissionLevelEnum("permission_level").default('view'),
+  notified: boolean("notified").default(false),
+  accessCount: integer("access_count").default(0),
+  lastAccessed: timestamp("last_accessed"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => {
+  return {
+    // Unique constraint to prevent duplicate recipients for the same file
+    uniqueEmailPerFile: unique("unique_email_per_file").on(table.fileId, table.email),
+    emailIdx: index("file_recipients_email_idx").on(table.email),
+  };
 });
 
 // Table to track access/audit history for shared files
@@ -162,7 +206,15 @@ export const insertS3AccountSchema = baseS3AccountSchema.extend({
 export const insertSharedFileSchema = createInsertSchema(sharedFiles).omit({
   id: true,
   createdAt: true,
+  updatedAt: true,
   accessCount: true,
+});
+
+export const insertFileRecipientSchema = createInsertSchema(fileRecipients).omit({
+  id: true,
+  accessCount: true,
+  lastAccessed: true,
+  createdAt: true,
 });
 
 export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
