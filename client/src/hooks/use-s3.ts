@@ -494,6 +494,11 @@ export function useS3FileOperations(accountId: number | undefined) {
     },
   });
 
+  // Create downloadFile function
+  const downloadFile = async (bucket: string, key: string): Promise<void> => {
+    return downloadFileMutation.mutateAsync({ bucket, key });
+  };
+  
   return {
     // Single file operations
     deleteFile: (bucket: string, key: string) => deleteFileMutation.mutate({ bucket, key }),

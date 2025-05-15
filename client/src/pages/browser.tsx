@@ -680,15 +680,25 @@ export default function Browser() {
                     });
                   }}
                   onDownload={(bucket, key) => {
-                    return new Promise<void>((resolve, reject) => {
-                      try {
-                        // Call the downloadFile function without awaiting
-                        downloadFile(bucket, key);
-                        resolve();
-                      } catch (error) {
-                        reject(error);
-                      }
-                    });
+                    if (!downloadFile) {
+                      notify({
+                        title: "Download Failed",
+                        description: "Download functionality is not available",
+                        variant: "destructive"
+                      });
+                      return Promise.resolve();
+                    }
+                    
+                    // Wrap the downloadFile call to ensure it returns a promise
+                    return downloadFile(bucket, key)
+                      .catch(error => {
+                        console.error("Error downloading file:", error);
+                        notify({
+                          title: "Download Failed",
+                          description: error instanceof Error ? error.message : "Unknown error",
+                          variant: "destructive"
+                        });
+                      });
                   }}
                   isDeleting={isDeleting}
                   isDownloading={isDownloading}
