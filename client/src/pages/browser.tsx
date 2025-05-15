@@ -553,154 +553,126 @@ export default function Browser() {
   }
   
   // If there's no account selected at all, redirect to the dashboard
-  if (!parsedAccountId && !bucket) {
-    navigate('/dashboard');
-    return null;
+  if (!parsedAccountId) {
+    useEffect(() => {
+      navigate('/');
+    }, [navigate]);
+    
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-[70vh]">
+          <div className="flex flex-col items-center">
+            <div className="animate-spin text-primary mb-4">
+              <svg className="h-12 w-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+            <p>Redirecting to dashboard...</p>
+          </div>
+        </div>
+      </Layout>
+    );
   }
   
-  // Return file browser if bucket is selected
+  // Main view for browsing files and folders in a bucket
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Breadcrumbs for navigation */}
-        <div className="flex items-center justify-between">
-          <Breadcrumbs 
-            accountId={parsedAccountId!} 
-            bucket={bucket} 
-            prefix={prefix} 
-          />
-          <StorageStats account={accounts.find(a => a.id === parsedAccountId)} />
-        </div>
-        
-        {/* File actions toolbar */}
-        <FileActions
-          title={`Browsing ${bucket}`}
-          bucket={bucket}
-          prefix={prefix}
-          accountId={parsedAccountId!}
-          viewMode={viewMode}
-          onViewModeChange={setViewMode}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
-          selectionMode={selectionMode}
-          selectedCount={Object.keys(selectedFiles).length}
-          onToggleSelectionMode={toggleSelectionMode}
-          onBatchDownload={handleBatchDownload}
-          onBatchDelete={handleBatchDelete}
-          onBatchMove={handleBatchMove}
-          onBatchCopy={handleBatchCopy}
-          onSelectAll={selectAllFiles}
-          onClearSelection={clearSelection}
-          onSearch={handleSearch}
-          onUpload={() => setIsUploadOpen(true)}
+        {/* Breadcrumb navigation */}
+        <Breadcrumbs 
+          bucket={bucket} 
+          prefix={prefix} 
+          onNavigate={handleNavigateUp} 
         />
         
-        {/* Content area for files and folders */}
-        <div className="relative min-h-[300px]">
-          {/* Loading indicator */}
-          {isLoadingObjects && (
-            <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
-              <div className="animate-spin text-primary">
-                <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-              </div>
-            </div>
-          )}
-          
-          {/* Parent directory button */}
-          {prefix && (
-            <div className={viewMode === 'grid' ? 'mb-6' : 'mb-2'}>
-              <Button
-                variant="outline"
-                className="w-full md:w-auto flex items-center gap-2"
-                onClick={handleNavigateUp}
-              >
-                <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-                <span>Parent Directory</span>
-              </Button>
-            </div>
-          )}
-          
-          {/* Grid or list of folders and files */}
-          <div className={viewMode === 'grid' 
-            ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4' 
-            : 'space-y-2'
-          }>
-            {/* Folders */}
-            {filteredFolders.map((folder, index) => (
-              <FolderCard
-                key={index}
-                folder={folder}
-                accountId={parsedAccountId!}
-                bucket={bucket}
-                prefix={prefix}
-                viewMode={viewMode}
-                onClick={() => handleFolderClick(folder)}
-              />
-            ))}
-            
-            {/* Files */}
-            {filteredFiles.map((file, index) => (
-              <FileCard
-                key={index}
-                file={file}
-                bucket={bucket}
-                accountId={parsedAccountId!}
-                prefix={prefix}
-                selectable={selectionMode}
-                selected={!!selectedFiles[file.Key || '']}
-                onSelect={(file, selected) => handleFileSelection(file, selected)}
-                viewMode={viewMode}
-                onDelete={async () => {
-                  if (!file.Key) return;
-                  if (confirm('Are you sure you want to delete this file?')) {
-                    try {
-                      await deleteFile(bucket, file.Key);
-                      notify({ 
-                        title: "File deleted", 
-                        description: `Successfully deleted ${file.Key}` 
-                      });
-                      refetchObjects();
-                    } catch (error) {
-                      notify({ 
-                        title: "Delete failed", 
-                        description: "Failed to delete file",
-                        variant: "destructive"
-                      });
-                    }
-                  }
-                }}
-                onDownload={async () => {
-                  if (!file.Key) return;
-                  try {
-                    await downloadFile(bucket, file.Key);
-                  } catch (error) {
-                    notify({ 
-                      title: "Download failed", 
-                      description: "Failed to download file",
-                      variant: "destructive"
-                    });
-                  }
-                }}
-              />
-            ))}
-            
-            {/* Empty state */}
-            {filteredFiles.length === 0 && filteredFolders.length === 0 && !isLoadingObjects && (
-              <div className="col-span-full text-center py-12">
-                <p className="text-muted-foreground">This folder is empty</p>
-                <Button 
-                  className="mt-4"
-                  onClick={() => setIsUploadOpen(true)}
-                >
-                  Upload Files
-                </Button>
+        {/* File actions toolbar */}
+        <FileActions 
+          searchQuery={searchQuery}
+          onSearch={handleSearch}
+          onUpload={() => setIsUploadOpen(true)}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
+          viewMode={viewMode}
+          onViewModeChange={setViewMode}
+          selectionMode={selectionMode}
+          selectedCount={Object.keys(selectedFiles).length}
+          onSelectionModeToggle={toggleSelectionMode}
+          onSelectAll={selectAllFiles}
+          onClearSelection={clearSelection}
+          onBatchDownload={handleBatchDownload}
+          onBatchMove={handleBatchMove}
+          onBatchCopy={handleBatchCopy}
+          onBatchDelete={handleBatchDelete}
+          isBatchDownloading={isBatchDownloading}
+          isBatchDeleting={isBatchDeleting}
+          isBatchMoving={isBatchMoving}
+          isBatchCopying={isBatchCopying}
+        />
+        
+        {/* Scrollable container for files and folders */}
+        <div className="bg-white dark:bg-black border rounded-md min-h-[calc(100vh-32rem)] max-h-[calc(100vh-20rem)] overflow-y-auto">
+          <div className="p-4">
+            {/* Loading state */}
+            {isLoadingObjects && (
+              <div className="flex justify-center items-center py-12">
+                <div className="animate-spin text-primary">
+                  <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                </div>
               </div>
             )}
+            
+            {/* Grid or list view for folders and files */}
+            <div className={`grid ${viewMode === 'grid' 
+              ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
+              : 'grid-cols-1'} gap-4`}
+            >
+              {/* Folders */}
+              {filteredFolders.map((folder, index) => (
+                <FolderCard 
+                  key={`folder-${index}`}
+                  folder={folder} 
+                  onClick={handleFolderClick}
+                  viewMode={viewMode}
+                />
+              ))}
+              
+              {/* Files */}
+              {filteredFiles.map((file, index) => (
+                <FileCard 
+                  key={`file-${index}`}
+                  file={file}
+                  bucket={bucket}
+                  accountId={parsedAccountId}
+                  parentPrefix={prefix}
+                  viewMode={viewMode}
+                  selectionMode={selectionMode}
+                  isSelected={!!selectedFiles[file.Key!]}
+                  onSelect={handleFileSelection}
+                  onDelete={deleteFile}
+                  onDownload={downloadFile}
+                  isDeleting={isDeleting}
+                  isDownloading={isDownloading}
+                  refetchFiles={refetchObjects}
+                />
+              ))}
+              
+              {/* Empty state */}
+              {filteredFiles.length === 0 && filteredFolders.length === 0 && !isLoadingObjects && (
+                <div className="col-span-full text-center py-12">
+                  <p className="text-muted-foreground">This folder is empty</p>
+                  <Button 
+                    className="mt-4"
+                    onClick={() => setIsUploadOpen(true)}
+                  >
+                    Upload Files
+                  </Button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -711,7 +683,7 @@ export default function Browser() {
         onOpenChange={setIsUploadOpen}
         bucket={bucket}
         prefix={prefix}
-        accountId={parsedAccountId!}
+        accountId={parsedAccountId}
       />
       
       {/* Batch move dialog */}

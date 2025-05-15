@@ -20,11 +20,34 @@ import { S3Bucket, S3Object, S3CommonPrefix, S3ListObjectsResult, FileUploadProg
  */
 export function useS3Buckets(accountId: number | undefined) {
   const enabled = typeof accountId === 'number';
+  const { toast } = useToast();
   
   return useQuery({
     queryKey: [`/api/s3/${accountId}/buckets`],
-    queryFn: () => listBuckets(accountId as number),
+    queryFn: async () => {
+      if (!accountId) {
+        console.error("Invalid accountId for bucket listing:", accountId);
+        return [];
+      }
+      
+      try {
+        console.log(`Fetching buckets for account ${accountId}`);
+        const buckets = await listBuckets(accountId);
+        console.log(`Successfully fetched ${buckets.length} buckets for account ${accountId}`);
+        return buckets;
+      } catch (error) {
+        console.error(`Error fetching buckets for account ${accountId}:`, error);
+        toast({
+          title: "Failed to load buckets",
+          description: error instanceof Error ? error.message : "Could not load buckets for this account",
+          variant: "destructive",
+        });
+        throw error;
+      }
+    },
     enabled,
+    retry: 2,
+    refetchOnWindowFocus: false
   });
 }
 
@@ -38,6 +61,7 @@ export function useAllS3Buckets() {
   });
   
   // Fetch buckets for all accounts
+  const { toast } = useToast();
   const results = useQuery<EnhancedS3Bucket[]>({
     queryKey: ['all-buckets'],
     queryFn: async () => {
@@ -61,6 +85,10 @@ export function useAllS3Buckets() {
           const buckets = await listBuckets(account.id);
           console.log(`Retrieved ${buckets.length} buckets for account ${account.id}`);
           
+          if (!buckets || buckets.length === 0) {
+            console.log(`No buckets found for account ${account.id} (${account.name})`);
+          }
+          
           // Attach account info to each bucket and filter out invalid buckets
           return buckets
             .filter(bucket => bucket && bucket.Name) // Filter out invalid buckets
@@ -72,18 +100,40 @@ export function useAllS3Buckets() {
             } as EnhancedS3Bucket));
         } catch (error) {
           console.error(`Error fetching buckets for account ${account.id}:`, error);
+          toast({
+            title: "Bucket Loading Issue",
+            description: `Failed to load buckets for account ${account.name}`,
+            variant: "destructive"
+          });
           return [];
         }
       });
       
-      const results = await Promise.all(bucketsPromises);
-      
-      // Flatten the results and log
-      const flattenedResults = results.flat();
-      console.log('All buckets data:', flattenedResults);
-      return flattenedResults;
+      try {
+        const results = await Promise.all(bucketsPromises);
+        
+        // Flatten the results and log
+        const flattenedResults = results.flat();
+        console.log('All buckets data:', flattenedResults);
+        
+        if (flattenedResults.length === 0) {
+          console.log('No buckets found across all accounts');
+        }
+        
+        return flattenedResults;
+      } catch (error) {
+        console.error('Error loading buckets from accounts:', error);
+        toast({
+          title: "Failed to Load Buckets",
+          description: "Could not retrieve your S3 buckets. Please try again.",
+          variant: "destructive"
+        });
+        return [];
+      }
     },
     enabled: accounts.length > 0,
+    retry: 2,
+    refetchOnWindowFocus: false
   });
   
   return {
@@ -103,14 +153,35 @@ export function useS3Objects(
   prefix: string = "",
   enabled = true
 ) {
-  const isEnabled = enabled && typeof accountId === 'number' && typeof bucket === 'string';
+  const isEnabled = enabled && typeof accountId === 'number' && !!bucket && bucket.trim() !== '';
   const { toast } = useToast();
   
   return useQuery<S3ListObjectsResult>({
     queryKey: [`/api/s3/${accountId}/objects`, bucket, prefix],
-    queryFn: () => listObjects(accountId as number, bucket as string, prefix),
+    queryFn: async () => {
+      if (!accountId || !bucket) {
+        console.error("Invalid accountId or bucket:", { accountId, bucket });
+        return { objects: [], folders: [], prefix: prefix || '', delimiter: '/' };
+      }
+      
+      try {
+        console.log(`Fetching objects for account ${accountId}, bucket ${bucket}, prefix ${prefix}`);
+        const result = await listObjects(accountId, bucket, prefix);
+        console.log(`Fetched objects successfully: ${result.objects.length} files, ${result.folders.length} folders`);
+        return result;
+      } catch (error) {
+        console.error("Error fetching objects:", error);
+        toast({
+          title: "Failed to load files",
+          description: error instanceof Error ? error.message : "Could not load files from this bucket",
+          variant: "destructive",
+        });
+        throw error;
+      }
+    },
     enabled: isEnabled,
-    retry: 1 // Only retry once for S3 failures
+    retry: 2, // Retry twice for S3 failures
+    refetchOnWindowFocus: false // Avoid excessive requests
   });
 }
 
