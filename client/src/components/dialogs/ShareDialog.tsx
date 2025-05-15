@@ -545,6 +545,89 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
                 )}
               />
               
+              {/* Advanced settings section */}
+              <div className="mt-6 border-t pt-4">
+                <h3 className="text-sm font-medium mb-3">Advanced Settings</h3>
+                
+                {/* Download limit field */}
+                <FormField
+                  control={form.control}
+                  name="maxDownloads"
+                  render={({ field }) => (
+                    <FormItem className="mb-4">
+                      <FormLabel>Download Limit</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          min="1"
+                          placeholder="No limit" 
+                          {...field}
+                          value={field.value || ""}
+                          onChange={e => {
+                            const value = e.target.value;
+                            field.onChange(value === "" ? undefined : parseInt(value));
+                          }}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Maximum number of downloads allowed (leave empty for unlimited)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Access notification setting */}
+                <FormField
+                  control={form.control}
+                  name="notifyOnAccess"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 mb-4">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Notify on access
+                        </FormLabel>
+                        <FormDescription>
+                          Send email notifications when someone accesses this file
+                        </FormDescription>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                {/* Watermark setting */}
+                <FormField
+                  control={form.control}
+                  name="watermarkEnabled"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>
+                          Apply watermark
+                        </FormLabel>
+                        <FormDescription>
+                          Add a watermark to image and document previews
+                        </FormDescription>
+                      </div>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
               <DialogFooter className="pt-4">
                 <Button 
                   type="button" 

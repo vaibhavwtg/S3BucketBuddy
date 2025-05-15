@@ -1241,7 +1241,27 @@ export function registerRoutes(app: Express): Server {
   // Shared Files Routes
   app.post("/api/shared-files", requireAuth, async (req, res) => {
     try {
-      const { accountId, bucket, path, filename, expiresAt, allowDownload, password } = req.body;
+      const { 
+        accountId, 
+        bucket, 
+        path, 
+        filename, 
+        filesize,
+        contentType,
+        expiresAt, 
+        allowDownload,
+        password,
+        isPublic,
+        // Advanced permission settings
+        permissionLevel, 
+        accessType,
+        allowedDomains,
+        maxDownloads,
+        notifyOnAccess,
+        watermarkEnabled,
+        // Recipients for specific sharing 
+        recipients
+      } = req.body;
       
       if (!accountId || !bucket || !path || !filename) {
         return res.status(400).json({ message: "Missing required fields" });
@@ -1253,7 +1273,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Account not found" });
       }
       
-      // Get file size and content type
+      // Create S3 client
       const s3Client = new S3Client({
         region: account.region,
         credentials: {
@@ -1262,13 +1282,24 @@ export function registerRoutes(app: Express): Server {
         },
       });
       
-      // Check if file exists and get metadata
-      const headCommand = new HeadObjectCommand({
-        Bucket: bucket,
-        Key: path,
-      });
+      // Check if file exists and get metadata if not provided
+      let fileMetadata = {
+        ContentLength: filesize,
+        ContentType: contentType
+      };
       
-      const headResponse = await s3Client.send(headCommand);
+      if (!fileMetadata.ContentLength || !fileMetadata.ContentType) {
+        const headCommand = new HeadObjectCommand({
+          Bucket: bucket,
+          Key: path,
+        });
+        
+        const headResponse = await s3Client.send(headCommand);
+        fileMetadata = {
+          ContentLength: headResponse.ContentLength,
+          ContentType: headResponse.ContentType
+        };
+      }
       
       // Generate share token
       const shareToken = randomBytes(16).toString("hex");
@@ -1283,20 +1314,49 @@ export function registerRoutes(app: Express): Server {
         hashedPassword = `${hash.toString("hex")}.${salt}`;
       }
       
-      // Create shared file record
+      // Create shared file record with advanced permissions
       const sharedFile = await storage.createSharedFile({
         userId: req.user!.id,
         accountId: parseInt(accountId),
         bucket,
         path,
         filename,
-        filesize: headResponse.ContentLength || 0,
-        contentType: headResponse.ContentType,
+        filesize: fileMetadata.ContentLength || 0,
+        contentType: fileMetadata.ContentType,
         shareToken,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
+        // Permission settings
         allowDownload: allowDownload !== false,
+        permissionLevel: permissionLevel || 'view',
+        accessType: accessType || 'public',
+        // Security settings
         password: hashedPassword,
+        isPublic: isPublic === true,
+        allowedDomains: Array.isArray(allowedDomains) ? allowedDomains : undefined,
+        // Advanced settings
+        maxDownloads: typeof maxDownloads === 'number' ? maxDownloads : null,
+        notifyOnAccess: notifyOnAccess === true,
+        watermarkEnabled: watermarkEnabled === true,
       });
+      
+      // Process recipient emails if provided
+      if (Array.isArray(recipients) && recipients.length > 0) {
+        // Create recipient records for each email
+        await Promise.all(recipients.map(async (email: string) => {
+          if (typeof email === 'string' && email.trim().length > 0) {
+            try {
+              await storage.createFileRecipient({
+                fileId: sharedFile.id,
+                email: email.trim().toLowerCase(),
+                permissionLevel: permissionLevel || 'view',
+              });
+            } catch (error) {
+              console.error(`Failed to add recipient ${email}:`, error);
+              // Continue with other recipients if one fails
+            }
+          }
+        }));
+      }
       
       // Generate a direct S3 link that will work regardless of app state
       const s3Url = new URL(`https://${bucket}.s3.${account.region}.amazonaws.com/${path}`);

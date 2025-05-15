@@ -35,6 +35,14 @@ export interface IStorage {
   deleteSharedFile(id: number): Promise<boolean>;
   incrementAccessCount(fileId: number): Promise<void>;
   
+  // File recipients operations
+  getFileRecipients(fileId: number): Promise<FileRecipient[]>; 
+  getFileRecipient(id: number): Promise<FileRecipient | undefined>;
+  getFileRecipientByEmail(fileId: number, email: string): Promise<FileRecipient | undefined>;
+  createFileRecipient(recipient: InsertFileRecipient): Promise<FileRecipient>;
+  updateFileRecipient(id: number, recipient: Partial<FileRecipient>): Promise<FileRecipient | undefined>;
+  deleteFileRecipient(id: number): Promise<boolean>;
+  
   // File access logs operations
   getFileAccessLogs(fileId: number): Promise<FileAccessLog[]>;
   logFileAccess(log: InsertFileAccessLog): Promise<FileAccessLog>;
