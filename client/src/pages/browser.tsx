@@ -502,9 +502,14 @@ export default function Browser() {
           <h1 className="text-2xl font-bold tracking-tight">Your S3 Buckets</h1>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Only show buckets for the selected account */}
+            {/* Show buckets for the selected account with better fallback handling */}
             {allBuckets
-              .filter(bucket => bucket.accountId === parsedAccountId)
+              .filter(bucket => 
+                // Make sure we have a valid account ID and bucket has a Name property
+                parsedAccountId && 
+                bucket.accountId === parsedAccountId && 
+                bucket.Name
+              )
               .map((bucket, index) => (
                 <Button
                   key={index}
@@ -523,15 +528,23 @@ export default function Browser() {
               ))}
           </div>
           
-          {allBuckets.filter(b => b.accountId === parsedAccountId).length === 0 && (
+          {(allBuckets.filter(b => 
+              b.accountId === parsedAccountId && b.Name
+            ).length === 0) && (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">No buckets found for this account.</p>
-              <Button 
-                className="mt-4"
-                onClick={() => navigate('/account-manager')}
-              >
-                Manage Accounts
-              </Button>
+              <p className="text-muted-foreground">
+                {isLoadingAllBuckets 
+                  ? "Loading buckets..." 
+                  : "No buckets found for this account."}
+              </p>
+              {!isLoadingAllBuckets && (
+                <Button 
+                  className="mt-4"
+                  onClick={() => navigate('/account-manager')}
+                >
+                  Manage Accounts
+                </Button>
+              )}
             </div>
           )}
         </div>
