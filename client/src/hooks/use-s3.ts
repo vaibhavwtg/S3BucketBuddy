@@ -260,18 +260,11 @@ export function useS3FileOperations(accountId: number | undefined) {
     },
   });
 
-  // Single file download  
-  const downloadFile = async (bucket: string, key: string) => {
-    if (!accountId) {
-      toast({
-        title: "Download failed",
-        description: "Account ID is required",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    try {
+  // Single file download mutation
+  const downloadFileMutation = useMutation({
+    mutationFn: async ({ bucket, key }: { bucket: string; key: string }) => {
+      if (!accountId) throw new Error("Account ID is required");
+      
       const signedUrl = await getDownloadUrl(accountId, bucket, key);
       
       // Create a temporary link and click it to start the download
@@ -282,18 +275,22 @@ export function useS3FileOperations(accountId: number | undefined) {
       link.click();
       document.body.removeChild(link);
       
+      return signedUrl;
+    },
+    onSuccess: () => {
       toast({
         title: "Download started",
         description: "Your file will download shortly",
       });
-    } catch (error) {
+    },
+    onError: (error) => {
       toast({
         title: "Download failed",
         description: error instanceof Error ? error.message : "Failed to generate download link",
         variant: "destructive",
       });
-    }
-  };
+    },
+  });
 
   // Batch file download
   const downloadFiles = async (bucket: string, keys: string[]) => {
@@ -646,11 +643,34 @@ export function useS3Upload(accountId: number | undefined) {
   };
 
   return {
+    // File operations
+    deleteFileMutation,
+    downloadFileMutation,
+    
+    // Batch operations
+    batchDelete: (bucket: string, keys: string[]) => 
+      batchDeleteMutation.mutate({ bucket, keys }),
+    batchDownload: (bucket: string, keys: string[]) => 
+      downloadFiles(bucket, keys),
+    batchMove: (bucket: string, keys: string[], destinationBucket: string, destinationPrefix: string) => 
+      batchMoveMutation.mutate({ sourceBucket: bucket, keys, destinationBucket, destinationPrefix }),
+    batchCopy: (bucket: string, keys: string[], destinationBucket: string, destinationPrefix: string) => 
+      batchCopyMutation.mutate({ sourceBucket: bucket, keys, destinationBucket, destinationPrefix }),
+    
+    // Upload operations
     uploadFile: (bucket: string, file: File, prefix = "") => 
       uploadFileMutation.mutate({ bucket, file, prefix }),
     uploadBatch,
     uploadProgress,
     resetProgress,
+    
+    // Loading states
+    isDeleting: deleteFileMutation.isPending,
+    isDownloading: downloadFileMutation.isPending,
+    isBatchDeleting: batchDeleteMutation.isPending,
+    isBatchDownloading: false, // We don't have a proper mutation for batch downloads
+    isBatchMoving: batchMoveMutation.isPending,
+    isBatchCopying: batchCopyMutation.isPending,
     isUploading: uploadFileMutation.isPending,
   };
 }

@@ -213,14 +213,14 @@ export default function Browser() {
     batchDelete,
     batchMove,
     batchCopy,
+    deleteFile,
+    downloadFile,
     isDeleting, 
     isDownloading, 
     isBatchDownloading,
     isBatchDeleting,
     isBatchMoving,
-    isBatchCopying,
-    deleteFileMutation,
-    downloadFileMutation
+    isBatchCopying
   } = useS3FileOperations(parsedAccountId);
   
   // Fetch account information to check for default bucket
@@ -669,10 +669,26 @@ export default function Browser() {
                   isSelected={!!selectedFiles[file.Key!]}
                   onSelect={handleFileSelection}
                   onDelete={(bucket, key) => {
-                    return deleteFileMutation.mutateAsync({ bucket, key });
+                    return new Promise<void>((resolve, reject) => {
+                      try {
+                        // Call the deleteFile function without awaiting
+                        deleteFile(bucket, key);
+                        resolve();
+                      } catch (error) {
+                        reject(error);
+                      }
+                    });
                   }}
                   onDownload={(bucket, key) => {
-                    return downloadFileMutation.mutateAsync({ bucket, key });
+                    return new Promise<void>((resolve, reject) => {
+                      try {
+                        // Call the downloadFile function without awaiting
+                        downloadFile(bucket, key);
+                        resolve();
+                      } catch (error) {
+                        reject(error);
+                      }
+                    });
                   }}
                   isDeleting={isDeleting}
                   isDownloading={isDownloading}

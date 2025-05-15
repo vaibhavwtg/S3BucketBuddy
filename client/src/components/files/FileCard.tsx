@@ -239,9 +239,9 @@ export function FileCard({
       ) : (
         // List View
         <div className="p-2 flex items-center gap-3">
-          {selectable && (
+          {selectionMode && (
             <Checkbox 
-              checked={selected} 
+              checked={isSelected} 
               onCheckedChange={handleSelectionChange}
               className="h-4 w-4 border-2 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
             />
