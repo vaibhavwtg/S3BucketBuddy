@@ -40,7 +40,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Plus, Edit } from "lucide-react";
+import { Loader2, Plus, Edit, Search } from "lucide-react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -123,6 +123,7 @@ export function SubscriptionPlans() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [feature, setFeature] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   
   // Initialize form
   const form = useForm<PlanFormValues>({

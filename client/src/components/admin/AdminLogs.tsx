@@ -23,10 +23,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Loader2, ClipboardList, RefreshCw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Loader2, ClipboardList, RefreshCw, Search } from "lucide-react";
 import { format } from "date-fns";
 
 export function AdminLogs() {
+  // Search functionality
+  const [searchQuery, setSearchQuery] = useState("");
+  
   // Define AdminLog type
   type AdminLogEntry = {
     id: number;
@@ -107,6 +111,19 @@ export function AdminLogs() {
       return 'Could not format details';
     }
   };
+  
+  // Filter logs based on search query
+  const filteredLogs = logs.filter(log => {
+    if (!searchQuery) return true;
+    
+    const query = searchQuery.toLowerCase();
+    return (
+      log.adminUsername.toLowerCase().includes(query) ||
+      (log.targetUsername && log.targetUsername.toLowerCase().includes(query)) ||
+      formatAction(log.action).toLowerCase().includes(query) ||
+      formatDetails(log.details).toLowerCase().includes(query)
+    );
+  });
 
   return (
     <Card>
@@ -117,25 +134,36 @@ export function AdminLogs() {
             Track all administrative actions in the system
           </CardDescription>
         </div>
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => refetch()}
-          disabled={isRefetching}
-        >
-          {isRefetching ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <RefreshCw className="h-4 w-4" />
-          )}
-        </Button>
+        <div className="flex items-center gap-2">
+          <div className="relative w-64">
+            <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search logs..."
+              className="pl-8"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => refetch()}
+            disabled={isRefetching}
+          >
+            {isRefetching ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <RefreshCw className="h-4 w-4" />
+            )}
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {isLoading ? (
           <div className="flex justify-center p-8">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
           </div>
-        ) : logs.length > 0 ? (
+        ) : filteredLogs.length > 0 ? (
           <div className="rounded-md border">
             <Table>
               <TableHeader>
@@ -187,9 +215,15 @@ export function AdminLogs() {
         ) : (
           <div className="flex flex-col items-center justify-center py-10 text-center">
             <ClipboardList className="h-10 w-10 text-muted-foreground mb-4" />
-            <p className="mb-2 text-lg font-medium">No logs found</p>
+            <p className="mb-2 text-lg font-medium">
+              {searchQuery 
+                ? `No logs found matching "${searchQuery}"`
+                : "No logs found"}
+            </p>
             <p className="text-sm text-muted-foreground">
-              Admin activities will be shown here when performed
+              {searchQuery 
+                ? "Try a different search term"
+                : "Admin activities will be shown here when performed"}
             </p>
           </div>
         )}
