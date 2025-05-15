@@ -153,19 +153,47 @@ export function useS3Objects(
   prefix: string = "",
   enabled = true
 ) {
-  const isEnabled = enabled && typeof accountId === 'number' && !!bucket && bucket.trim() !== '';
+  // Enhance type checking to ensure accountId is a number
+  const validAccountId = typeof accountId === 'number' && !isNaN(accountId);
+  
+  // Enhanced validation for bucket - must be non-empty string
+  const validBucket = typeof bucket === 'string' && bucket.trim() !== '';
+  
+  // Only enable the query if all conditions are met
+  const isEnabled = enabled && validAccountId && validBucket;
+  
   const { toast } = useToast();
+  
+  // Add detailed logging to help debug issues
+  if (enabled && !isEnabled) {
+    console.warn("S3Objects query disabled due to invalid params:", { 
+      accountId, 
+      validAccountId, 
+      bucket, 
+      validBucket 
+    });
+  }
   
   return useQuery<S3ListObjectsResult>({
     queryKey: [`/api/s3/${accountId}/objects`, bucket, prefix],
     queryFn: async () => {
-      if (!accountId || !bucket) {
-        console.error("Invalid accountId or bucket:", { accountId, bucket });
-        return { objects: [], folders: [], prefix: prefix || '', delimiter: '/' };
+      // Double-check parameters to prevent runtime errors
+      if (!validAccountId || !validBucket) {
+        console.error("Invalid parameters for S3 objects query:", { 
+          accountId, 
+          bucket, 
+          prefix 
+        });
+        return { 
+          objects: [], 
+          folders: [], 
+          prefix: prefix || '', 
+          delimiter: '/' 
+        };
       }
       
       try {
-        console.log(`Fetching objects for account ${accountId}, bucket ${bucket}, prefix ${prefix}`);
+        console.log(`Fetching objects for account ${accountId}, bucket ${bucket}, prefix ${prefix || "(root)"}`);
         const result = await listObjects(accountId, bucket, prefix);
         console.log(`Fetched objects successfully: ${result.objects.length} files, ${result.folders.length} folders`);
         return result;
@@ -176,7 +204,14 @@ export function useS3Objects(
           description: error instanceof Error ? error.message : "Could not load files from this bucket",
           variant: "destructive",
         });
-        throw error;
+        // Return empty result instead of throwing to prevent UI crashes
+        return { 
+          objects: [], 
+          folders: [], 
+          prefix: prefix || '', 
+          delimiter: '/', 
+          error: error instanceof Error ? error.message : "Unknown error"
+        };
       }
     },
     enabled: isEnabled,

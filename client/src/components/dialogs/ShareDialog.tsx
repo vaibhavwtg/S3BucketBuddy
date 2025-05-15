@@ -50,13 +50,46 @@ interface ShareDialogProps {
 }
 
 const shareFileSchema = z.object({
+  // Basic sharing options
   expiryOption: z.string().default("never"),
   expiresAt: z.string().optional(),
   allowDownload: z.boolean().default(true),
-  access: z.enum(["view", "download"]).default("view"),
+  
+  // Advanced permission options
+  permissionLevel: z.enum([
+    "view", 
+    "download", 
+    "edit", 
+    "comment", 
+    "full", 
+    "owner"
+  ]).default("view"),
+  
+  // Access control options
+  accessType: z.enum([
+    "public", 
+    "domain", 
+    "email", 
+    "password"
+  ]).default("public"),
+  
+  // Password protection
   usePassword: z.boolean().default(false),
   password: z.string().optional(),
-  isPublic: z.boolean().default(false), // New option: Allow public/direct S3 access
+  
+  // Embedding options
+  isPublic: z.boolean().default(false), // Allow public/direct S3 access for embedding
+  
+  // Domain restriction options
+  allowedDomains: z.string().optional(),
+  
+  // Recipient emails for specific sharing
+  recipientEmails: z.string().optional(),
+  
+  // Advanced settings
+  maxDownloads: z.number().optional(),
+  notifyOnAccess: z.boolean().default(false),
+  watermarkEnabled: z.boolean().default(false),
 });
 
 type ShareFileFormValues = z.infer<typeof shareFileSchema>;
