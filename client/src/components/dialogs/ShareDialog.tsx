@@ -40,7 +40,7 @@ interface ShareDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   file: {
-    accountId: number;
+    accountId: number | null | undefined;
     bucket: string;
     path: string;
     filename: string;
