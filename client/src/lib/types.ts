@@ -1,4 +1,13 @@
-// AWS S3 Types
+export interface User {
+  id: number;
+  username: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  profileImageUrl?: string;
+  createdAt: string;
+}
+
 export interface S3Bucket {
   Name?: string;
   CreationDate?: Date;
@@ -31,14 +40,6 @@ export interface S3ListObjectsResult {
   folders: S3CommonPrefix[];
   prefix: string;
   delimiter: string;
-}
-
-// App Types
-export interface User {
-  id: number;
-  username: string;
-  email: string;
-  avatarUrl?: string;
 }
 
 export interface S3Account {
@@ -85,7 +86,7 @@ export interface SharedFileAccess {
   contentType?: string;
   filesize: number;
   signedUrl: string;
-  directS3Url?: string; // Add direct S3 URL 
+  directS3Url?: string;
   allowDownload: boolean;
   expiresAt?: string;
 }
@@ -95,4 +96,14 @@ export interface FileUploadProgress {
   progress: number;
   status: 'pending' | 'uploading' | 'completed' | 'error';
   error?: string;
+}
+
+export interface FileAccessLog {
+  id: number;
+  fileId: number;
+  accessedAt: string;
+  ipAddress: string;
+  userAgent: string;
+  country?: string;
+  city?: string;
 }
