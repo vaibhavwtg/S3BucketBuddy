@@ -99,8 +99,10 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
   const [directS3Url, setDirectS3Url] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const fileIcon = getFileIcon(file.contentType);
-  const fileColor = getFileColor(file.contentType);
+  
+  // Check if file is null or undefined before accessing properties
+  const fileIcon = file ? getFileIcon(file.contentType) : null;
+  const fileColor = file ? getFileColor(file.contentType) : null;
 
   const form = useForm<ShareFileFormValues>({
     resolver: zodResolver(shareFileSchema),
