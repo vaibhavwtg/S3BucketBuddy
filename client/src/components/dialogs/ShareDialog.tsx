@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -100,6 +100,13 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
+  // Debug log to see what file data we're getting
+  useEffect(() => {
+    if (open && file) {
+      console.log("ShareDialog file:", file);
+    }
+  }, [open, file]);
+  
   // Use safe defaults if file is null or contentType is missing
   const fileIcon = file?.contentType ? getFileIcon(file.contentType) : 'file-line';
   const fileColor = file?.contentType ? getFileColor(file.contentType) : 'text-blue-500';
@@ -156,8 +163,10 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
 
   const shareFileMutation = useMutation({
     mutationFn: async (values: ShareFileFormValues) => {
+      console.log("Submitting with file:", file);
+      
       // Validate that we have a file to share
-      if (!file || !file.bucket) {
+      if (!file) {
         throw new Error('Missing file information required for sharing');
       }
       
@@ -175,10 +184,10 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
       const shareData = {
         // Basic file info
         accountId: file.accountId,
-        bucket: file.bucket,
+        bucket: file.bucket || '',
         path: file.path || '',
-        filename: file.filename,
-        filesize: file.size,
+        filename: file.filename || 'Unknown file',
+        filesize: file.size || 0,
         contentType: file.contentType || 'application/octet-stream',
         
         // Expiration settings
