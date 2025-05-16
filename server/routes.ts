@@ -207,6 +207,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error updating user settings" });
     }
   });
+  
+  // PATCH endpoint for partial user settings updates (like viewMode)
+  app.patch("/api/user-settings", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session?.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Get existing settings first
+      let currentSettings = await storage.getUserSettings(req.session.userId);
+      
+      // If no settings exist, create default settings with the update
+      if (!currentSettings) {
+        const newSettings = await storage.createOrUpdateUserSettings({
+          userId: req.session.userId,
+          theme: 'light',
+          notifications: true,
+          lastAccessed: [],
+          ...req.body
+        });
+        return res.json(newSettings);
+      }
+      
+      // Update existing settings with the changes
+      const updatedSettings = await storage.createOrUpdateUserSettings({
+        ...currentSettings,
+        ...req.body,
+        userId: req.session.userId // Ensure userId stays the same
+      });
+      
+      res.json(updatedSettings);
+    } catch (error) {
+      console.error("Error updating user settings:", error);
+      res.status(500).json({ message: "Error updating user settings" });
+    }
+  });
 
   // Shared files routes
   app.get("/api/shared-files", isAuthenticated, async (req: Request, res: Response) => {
