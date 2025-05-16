@@ -91,6 +91,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error creating account" });
     }
   });
+  
+  // Delete S3 account
+  app.delete("/api/s3-accounts/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session?.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const accountId = parseInt(req.params.id);
+      if (isNaN(accountId)) {
+        return res.status(400).json({ message: "Invalid account ID" });
+      }
+      
+      // Get the account first to verify it belongs to this user
+      const account = await storage.getS3Account(accountId);
+      if (!account) {
+        return res.status(404).json({ message: "S3 account not found" });
+      }
+      
+      // Make sure the account belongs to the authenticated user
+      if (account.userId !== req.session.userId) {
+        return res.status(403).json({ message: "Not authorized to delete this account" });
+      }
+      
+      const deleted = await storage.deleteS3Account(accountId);
+      res.status(200).json({ success: deleted });
+    } catch (error) {
+      console.error("Error deleting account:", error);
+      res.status(500).json({ message: "Error deleting account" });
+    }
+  });
 
   // User settings routes
   app.get("/api/user-settings", isAuthenticated, async (req: Request, res: Response) => {
@@ -155,12 +186,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // S3 Bucket Operations
   app.get("/api/s3/:accountId/buckets", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      // Convert the accountId to a number
       const accountId = parseInt(req.params.accountId);
+      
+      // Validate the account ID is a valid number
       if (isNaN(accountId)) {
         return res.status(400).json({ message: "Invalid account ID" });
       }
       
+      // Get the account from the database
       const account = await storage.getS3Account(accountId);
+      
+      // If account not found, return 404
       if (!account) {
         return res.status(404).json({ message: "S3 account not found" });
       }
@@ -175,32 +212,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // List buckets
-      const command = new ListBucketsCommand({});
-      const response = await s3Client.send(command);
-      
-      res.json(response.Buckets || []);
-    } catch (error) {
-      console.error("Error listing buckets:", error);
-      res.status(500).json({ message: "Error listing buckets" });
+      try {
+        const command = new ListBucketsCommand({});
+        const response = await s3Client.send(command);
+        
+        // Return buckets as JSON array
+        return res.json(response.Buckets || []);
+      } catch (s3Error) {
+        console.error("S3 error listing buckets:", s3Error);
+        return res.status(400).json({ 
+          message: "Error accessing S3 buckets", 
+          error: s3Error.message || "Unknown S3 error" 
+        });
+      }
+    } catch (error: any) {
+      console.error("Server error listing buckets:", error);
+      return res.status(500).json({ 
+        message: "Server error listing buckets",
+        error: error.message || "Unknown error" 
+      });
     }
   });
   
   app.get("/api/s3/:accountId/objects", isAuthenticated, async (req: Request, res: Response) => {
     try {
+      // Convert the accountId to a number
       const accountId = parseInt(req.params.accountId);
+      
+      // Validate the account ID is a valid number
       if (isNaN(accountId)) {
         return res.status(400).json({ message: "Invalid account ID" });
       }
       
+      // Get the bucket name from query parameters
       const bucket = req.query.bucket as string;
       if (!bucket) {
         return res.status(400).json({ message: "Bucket name is required" });
       }
       
+      // Get optional prefix and delimiter from query parameters
       const prefix = (req.query.prefix as string) || '';
       const delimiter = (req.query.delimiter as string) || '/';
       
+      // Get the account from the database
       const account = await storage.getS3Account(accountId);
+      
+      // If account not found, return 404
       if (!account) {
         return res.status(404).json({ message: "S3 account not found" });
       }
@@ -215,23 +272,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // List objects
-      const command = new ListObjectsV2Command({
-        Bucket: bucket,
-        Prefix: prefix,
-        Delimiter: delimiter
+      try {
+        const command = new ListObjectsV2Command({
+          Bucket: bucket,
+          Prefix: prefix,
+          Delimiter: delimiter
+        });
+        
+        const response = await s3Client.send(command);
+        
+        // Return objects and folders as JSON
+        return res.json({
+          objects: response.Contents || [],
+          folders: response.CommonPrefixes || [],
+          prefix: prefix,
+          delimiter: delimiter
+        });
+      } catch (s3Error: any) {
+        console.error("S3 error listing objects:", s3Error);
+        return res.status(400).json({ 
+          message: "Error accessing S3 objects", 
+          error: s3Error.message || "Unknown S3 error" 
+        });
+      }
+    } catch (error: any) {
+      console.error("Server error listing objects:", error);
+      return res.status(500).json({ 
+        message: "Server error listing objects",
+        error: error.message || "Unknown error" 
       });
-      
-      const response = await s3Client.send(command);
-      
-      res.json({
-        objects: response.Contents || [],
-        folders: response.CommonPrefixes || [],
-        prefix: prefix,
-        delimiter: delimiter
-      });
-    } catch (error) {
-      console.error("Error listing objects:", error);
-      res.status(500).json({ message: "Error listing objects" });
     }
   });
   
