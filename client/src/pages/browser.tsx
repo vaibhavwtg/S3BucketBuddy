@@ -82,8 +82,11 @@ export default function Browser() {
   }
   
   // Use empty string for bucket and prefix if not provided
-  const bucket = bucketParam || "";
-  const prefix = prefixParam;
+  // For /browser/6 routes, don't set bucket initially, let the redirect logic work
+  const bucket = location.startsWith(`/browser/${parsedAccountId}`) && !bucketParam 
+    ? "" // Don't set bucket yet for account-only URL to trigger auto-bucket selection
+    : (bucketParam || "");
+  const prefix = prefixParam || "";
   
   // Debug log current parameters
   if (DEBUG) {
@@ -239,19 +242,44 @@ export default function Browser() {
     enabled: isAuthenticated
   });
   
-  // Add effect to redirect to default bucket when account is selected but no bucket is specified
+  // Add effect to select a bucket automatically when only account is specified
   useEffect(() => {
+    // Only proceed if we have an account ID but no bucket, and accounts data is loaded
     if (parsedAccountId && !bucket && accounts && accounts.length > 0) {
+      console.log("Auto-selecting bucket for account", parsedAccountId);
+      
+      // Find the selected account in our accounts list
       const currentAccount = accounts.find(acc => acc.id === parsedAccountId);
-      if (currentAccount && currentAccount.defaultBucket) {
-        console.log(`Account ${parsedAccountId} has default bucket ${currentAccount.defaultBucket}, redirecting...`);
-        navigateTo({
-          account: parsedAccountId,
-          bucket: currentAccount.defaultBucket
-        });
+      
+      if (currentAccount) {
+        // First choice: Use the buckets API result if available
+        if (buckets && buckets.length > 0) {
+          const firstBucket = buckets[0].Name;
+          console.log(`Using first bucket from API: ${firstBucket}`);
+          
+          // Navigate to the selected bucket
+          navigateTo({
+            account: parsedAccountId,
+            bucket: firstBucket
+          });
+        }
+        // Second choice: Use the default bucket from account settings
+        else if (currentAccount.defaultBucket) {
+          console.log(`Using default bucket: ${currentAccount.defaultBucket}`);
+          
+          // Navigate to the default bucket
+          navigateTo({
+            account: parsedAccountId,
+            bucket: currentAccount.defaultBucket
+          });
+        }
+        // Last resort: Show a message that no buckets are available
+        else {
+          console.log("No buckets available for this account");
+        }
       }
     }
-  }, [parsedAccountId, bucket, accounts, navigateTo]);
+  }, [parsedAccountId, bucket, accounts, buckets, navigateTo]);
   
   // Handle toggling selection mode
   const toggleSelectionMode = useCallback(() => {
