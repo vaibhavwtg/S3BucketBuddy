@@ -3,6 +3,8 @@ import { type Toast } from "@/components/ui/toast";
 
 const TOAST_LIMIT = 5;
 const TOAST_REMOVE_DELAY = 1000;
+// Auto-dismiss regular toasts after 5 seconds, but keep error toasts until manually dismissed
+const AUTO_DISMISS_DELAY = 5000;
 
 type ToastActionElement = React.ReactElement;
 
