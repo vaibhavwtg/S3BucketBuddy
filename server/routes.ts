@@ -88,13 +88,16 @@ export function registerRoutes(app: Express): Server {
   
   // User routes for traditional authentication
   
-  // Get current user
+  // Get current user with enhanced logging
   app.get("/api/user", (req, res) => {
+    console.log("GET /api/user - Auth status:", req.isAuthenticated());
+    
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: "Unauthorized" });
+      return res.status(401).json({ message: "Not authenticated" });
     }
     
     // User is already attached to the request by passport
+    console.log("Authenticated user:", req.user?.id, req.user?.email);
     res.json(req.user);
   });
   

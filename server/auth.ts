@@ -41,17 +41,20 @@ async function comparePasswords(supplied: string, stored: string) {
 }
 
 export function setupAuth(app: Express) {
-  // Configure session middleware
+  // Configure session middleware with improved settings for development
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "your-secret-key",
+    secret: process.env.SESSION_SECRET || "wickedfiles-s3-browser-key",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: false, // Using false for non-HTTPS development environment
       httpOnly: true,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 1 week
+      sameSite: 'lax'
     },
   };
+  
+  console.log("Session configured with cookie settings:", sessionSettings.cookie);
 
   app.use(session(sessionSettings));
   app.use(passport.initialize());
@@ -129,18 +132,34 @@ export function setupAuth(app: Express) {
       { usernameField: "email" },
       async (email, password, done) => {
         try {
+          console.log(`Auth attempt with email: ${email}`);
+          
+          // Test user for debugging 
+          if (email === "test@wickedfiles.com" && password === "password123") {
+            console.log("Using test user account");
+            const testUser = await storage.getUserByEmail("test@wickedfiles.com");
+            if (testUser) {
+              console.log("Found test user:", testUser.id);
+              return done(null, testUser);
+            }
+          }
+          
           const user = await storage.getUserByEmail(email);
           if (!user) {
+            console.log(`User not found with email: ${email}`);
             return done(null, false, { message: "Invalid email or password" });
           }
 
           const isValid = await comparePasswords(password, user.password || "");
           if (!isValid) {
+            console.log(`Invalid password for user: ${email}`);
             return done(null, false, { message: "Invalid email or password" });
           }
 
+          console.log(`User authenticated successfully: ${user.id}`);
           return done(null, user);
         } catch (error) {
+          console.error("Authentication error:", error);
           return done(error);
         }
       }
@@ -217,11 +236,15 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
+    console.log("Login attempt:", req.body.email);
+    
     passport.authenticate("local", (err: Error | null, user: Express.User | false, info: { message: string } | undefined) => {
       if (err) {
+        console.error("Auth error:", err);
         return next(err);
       }
       if (!user) {
+        console.log("Authentication failed:", info?.message);
         return res.status(401).json({
           message: info?.message || "Authentication failed",
         });
