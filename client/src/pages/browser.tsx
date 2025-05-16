@@ -23,11 +23,20 @@ export default function Browser() {
   const { toast: notify } = useToast();
 
   // State for UI controls and selections
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [sortBy, setSortBy] = useState<string>("name");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [filteredFiles, setFilteredFiles] = useState<S3Object[]>([]);
   const [filteredFolders, setFilteredFolders] = useState<S3CommonPrefix[]>([]);
+  
+  // Get user settings for view mode preference
+  const { data: userSettings } = useQuery({
+    queryKey: ['/api/user-settings'],
+  });
+  
+  // Set viewMode based on user settings or default to grid
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>(
+    userSettings?.viewMode || 'grid'
+  );
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, S3Object>>({});
   

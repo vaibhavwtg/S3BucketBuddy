@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { UploadDialog } from "@/components/dialogs/UploadDialog";
+import { ViewModeToggle } from "@/components/files/ViewModeToggle";
 
 interface FileActionsProps {
   title: string;
@@ -259,26 +260,7 @@ export function FileActions({
             </SelectContent>
           </Select>
 
-          <div className="flex border border-border rounded-md overflow-hidden shadow-sm">
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`px-3 h-9 rounded-none ${viewMode === 'list' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-card hover:bg-muted'}`}
-              onClick={() => onViewModeChange('list')}
-            >
-              <i className="ri-list-check-2 mr-1.5"></i>
-              <span>List</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className={`px-3 h-9 rounded-none ${viewMode === 'grid' ? 'bg-primary text-primary-foreground hover:bg-primary/90' : 'bg-card hover:bg-muted'}`}
-              onClick={() => onViewModeChange('grid')}
-            >
-              <i className="ri-grid-line mr-1.5"></i>
-              <span>Grid</span>
-            </Button>
-          </div>
+          <ViewModeToggle viewMode={viewMode} onChange={onViewModeChange} />
         </div>
       )}
       
