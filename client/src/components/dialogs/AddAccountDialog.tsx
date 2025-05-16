@@ -182,6 +182,19 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
         throw new Error("Secret Access Key appears to be too short. AWS Secret Access Keys are typically at least 40 characters long.");
       }
       
+      // Validate region code to prevent adding accounts with invalid regions
+      const validRegions = [
+        "us-east-1", "us-east-2", "us-west-1", "us-west-2",
+        "ca-central-1", "eu-west-1", "eu-west-2", "eu-west-3",
+        "eu-central-1", "eu-north-1", "ap-northeast-1", "ap-northeast-2",
+        "ap-northeast-3", "ap-southeast-1", "ap-southeast-2", "ap-south-1",
+        "sa-east-1", "af-south-1", "eu-south-1", "me-south-1"
+      ];
+      
+      if (!validRegions.includes(region)) {
+        throw new Error(`Invalid region: '${region}'. Please select a valid AWS region.`);
+      }
+      
       // Use the server-side validation endpoint instead of direct AWS connection
       const response = await fetch('/api/validate-s3-credentials', {
         method: 'POST',

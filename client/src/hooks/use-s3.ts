@@ -159,7 +159,8 @@ export function useS3Objects(
   // Enhanced validation for bucket - must be non-empty string
   const validBucket = typeof bucket === 'string' && bucket.trim() !== '';
   
-  // Only enable the query if all conditions are met
+  // Only enable the query if we have a valid account ID and bucket
+  // This is a critical fix for file browsing functionality
   const isEnabled = enabled && validAccountId && validBucket;
   
   const { toast } = useToast();
