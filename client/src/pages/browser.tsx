@@ -71,11 +71,15 @@ export default function Browser() {
     prefixParam = urlParams.get('prefix') || "";
   }
   
-  // Parse account ID to number or undefined
-  // Added validation to ensure we have a valid number
-  const parsedAccountId = accountIdParam ? 
-    (isNaN(parseInt(accountIdParam)) ? undefined : parseInt(accountIdParam)) 
-    : undefined;
+  // CRITICAL FIX: Parse account ID to number or undefined
+  // Using a more robust parsing that guarantees a number or undefined
+  let parsedAccountId: number | undefined = undefined;
+  if (accountIdParam) {
+    const parsed = parseInt(accountIdParam);
+    if (!isNaN(parsed)) {
+      parsedAccountId = parsed;
+    }
+  }
   
   // Use empty string for bucket and prefix if not provided
   const bucket = bucketParam || "";
