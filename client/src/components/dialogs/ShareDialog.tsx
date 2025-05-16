@@ -169,12 +169,12 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
       // Prepare the data for the API with advanced permission settings
       const shareData = {
         // Basic file info
-        accountId: file.accountId,
-        bucket: file.bucket,
-        path: file.path,
-        filename: file.filename,
-        filesize: file.size,
-        contentType: file.contentType,
+        accountId: file?.accountId || null,
+        bucket: file?.bucket || '',
+        path: file?.path || '',
+        filename: file?.filename || 'Unknown file',
+        filesize: file?.size || 0,
+        contentType: file?.contentType || 'application/octet-stream',
         
         // Expiration settings
         expiresAt: values.expiryOption === "never" ? null : values.expiresAt,
@@ -261,8 +261,11 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
         <div className="flex items-center mb-4">
           <i className={`ri-${fileIcon} text-2xl ${fileColor} mr-3`}></i>
           <div>
-            <p className="font-medium text-foreground">{file.filename}</p>
-            <p className="text-sm text-muted-foreground">{formatBytes(file.size)} • {file.contentType}</p>
+            <p className="font-medium text-foreground">{file?.filename || "Selected file"}</p>
+            <p className="text-sm text-muted-foreground">
+              {file?.size ? formatBytes(file.size) : "Unknown size"}
+              {file?.contentType ? ` • ${file.contentType}` : ""}
+            </p>
           </div>
         </div>
         
