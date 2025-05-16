@@ -591,8 +591,25 @@ export default function S3FileViewer() {
     console.log("Bucket:", defaultBucket);
     
     // Create a proper file object with all required properties
+    // Make sure accountId is properly handled as a number
+    let parsedAccountId;
+    try {
+      parsedAccountId = accountId ? Number(accountId) : null;
+      if (isNaN(parsedAccountId)) {
+        throw new Error('Invalid account ID');
+      }
+    } catch (e) {
+      console.error('Error parsing account ID:', e);
+      toast({
+        title: "Error",
+        description: "Invalid account ID format",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     const fileObj = {
-      accountId: Number(accountId),
+      accountId: parsedAccountId,
       bucket: defaultBucket,
       path: prefix || '',
       filename: file.Key.split('/').pop() || 'file',
