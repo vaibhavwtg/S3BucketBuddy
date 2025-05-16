@@ -11,6 +11,7 @@ import SharedFiles from "@/pages/shared-files";
 import AccountSettings from "@/pages/account-settings";
 import AccountManager from "@/pages/account-manager";
 import AdminDashboard from "@/pages/admin/dashboard";
+import DebugLogin from "@/pages/debug-login";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import PublicSharedFile from "@/pages/public-shared-file";
 import { useEffect } from "react";
@@ -85,6 +86,7 @@ function Router() {
       
       {/* Public routes */}
       <Route path="/auth" component={AuthPage} />
+      <Route path="/debug-login" component={DebugLogin} />
       <Route path="/shared/:token" component={PublicSharedFile} />
       
       {/* Fallback to 404 */}
