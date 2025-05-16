@@ -86,6 +86,28 @@ export function Sidebar() {
             <span>Settings</span>
           </a>
         </Link>
+        
+        {/* Admin Links - Only show for admin users */}
+        {user?.isAdmin && (
+          <>
+            <div className="pt-4 mt-4 border-t border-border">
+              <h2 className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Admin</h2>
+              <div className="mt-2 space-y-1">
+                <Link href="/admin/users">
+                  <a className={cn(
+                    "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
+                    isActive("/admin/users") ? 
+                      "text-white bg-primary" : 
+                      "text-foreground hover:bg-muted"
+                  )}>
+                    <i className="ri-user-settings-line mr-3 text-lg"></i>
+                    <span>User Management</span>
+                  </a>
+                </Link>
+              </div>
+            </div>
+          </>
+        )}
 
         {/* My Files Section - Buckets as Folders */}
         <div className="pt-4 mt-4 border-t border-border">

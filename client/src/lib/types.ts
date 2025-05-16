@@ -5,7 +5,10 @@ export interface User {
   firstName?: string;
   lastName?: string;
   profileImageUrl?: string;
+  isAdmin?: boolean;
+  isActive?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface S3Bucket {
