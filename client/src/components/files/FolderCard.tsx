@@ -1,93 +1,90 @@
-import { S3CommonPrefix } from "@/lib/types";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { useLocation } from "wouter";
-import { getFileIcon, getFileColor } from "@/lib/utils";
+import React from 'react';
+import { S3CommonPrefix } from '@/lib/types';
+import { FileIcon } from './FileIcon';
+import { Button } from '@/components/ui/button';
+import { MoreHorizontal } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface FolderCardProps {
   folder: S3CommonPrefix;
-  accountId: number;
   bucket: string;
+  accountId: number;
   prefix: string;
-  viewMode?: 'grid' | 'list';
-  onClick?: () => void;
+  viewMode: 'grid' | 'list';
+  onClick: () => void;
 }
 
-export function FolderCard({ folder, accountId, bucket, prefix, viewMode = 'grid', onClick }: FolderCardProps) {
-  const [_, navigate] = useLocation();
-
-  // Extract folder name from the prefix
-  const folderKey = folder.Prefix || "";
-  const folderName = folderKey.split("/").filter(Boolean).pop() || "Unknown folder";
-
-  const handleClick = () => {
-    if (onClick) {
-      // Use the provided onClick handler if available
-      onClick();
-    } else {
-      // Default navigation behavior if no onClick provided
-      const params = new URLSearchParams();
-      params.set('account', accountId.toString());
-      params.set('bucket', bucket);
-      params.set('prefix', folderKey);
-      
-      navigate(`/browser?${params.toString()}`);
-    }
-  };
-
-  return (
-    <Card className="group hover:shadow-md transition-all duration-200 h-full overflow-hidden cursor-pointer" onClick={handleClick}>
-      {viewMode === 'grid' ? (
-        <>
-          {/* Grid View */}
-          <div className="aspect-square bg-muted relative overflow-hidden flex items-center justify-center">
-            <i className={`ri-${getFileIcon(undefined, true)} text-5xl ${getFileColor(undefined, true)}`}></i>
-            
-            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                className="bg-white/20 text-white hover:bg-white/30 rounded-full h-8 w-8"
-              >
-                <i className="ri-folder-open-line"></i>
-                <span className="sr-only">Open</span>
-              </Button>
-            </div>
-          </div>
-          
-          <CardContent className="p-3">
-            <div>
-              <h3 className="font-medium text-card-foreground truncate text-sm" title={folderName}>
-                {folderName}
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Folder
-              </p>
-            </div>
-          </CardContent>
-        </>
-      ) : (
-        // List View
-        <div className="p-2 flex items-center gap-3">
-          <div className="flex items-center justify-center h-10 w-10 bg-muted rounded">
-            <i className={`ri-${getFileIcon(undefined, true)} text-xl ${getFileColor(undefined, true)}`}></i>
-          </div>
-          
-          <div className="flex-1 min-w-0">
-            <h3 className="font-medium text-card-foreground truncate text-sm" title={folderName}>
-              {folderName}
-            </h3>
-            <p className="text-xs text-muted-foreground">
-              Folder
+export function FolderCard({
+  folder,
+  bucket,
+  accountId,
+  prefix,
+  viewMode,
+  onClick,
+}: FolderCardProps) {
+  const folderPath = folder.Prefix || '';
+  const folderName = folderPath.split('/').filter(Boolean).pop() || '';
+  
+  // For grid view
+  if (viewMode === 'grid') {
+    return (
+      <div className="relative flex flex-col overflow-hidden rounded-lg border bg-card p-2 shadow-sm transition-all hover:shadow cursor-pointer" onClick={onClick}>
+        <div className="flex flex-col items-center justify-center p-6">
+          <FileIcon 
+            filename={folderName} 
+            isFolder={true}
+            size="lg" 
+            showBackground
+            className="mb-4"
+          />
+          <div className="w-full mt-2 text-center">
+            <p className="text-sm font-medium truncate max-w-full" title={folderName}>
+              {folderName}/
             </p>
           </div>
-          
-          <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground">
-            <i className="ri-folder-open-line"></i>
-            <span className="sr-only">Open</span>
-          </Button>
         </div>
-      )}
-    </Card>
+        
+        <div className="flex items-center justify-end mt-auto pt-2 border-t">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => e.stopPropagation()}>
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={(e) => {
+                e.stopPropagation();
+                onClick();
+              }} className="cursor-pointer">
+                <span>Open folder</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    );
+  }
+  
+  // For list view
+  return (
+    <div className="flex items-center justify-between p-2 rounded-md transition-colors hover:bg-muted/40 cursor-pointer" onClick={onClick}>
+      <div className="flex items-center space-x-3 flex-1 min-w-0">
+        <FileIcon filename={folderName} isFolder={true} size="md" />
+        
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium truncate" title={folderName}>
+            {folderName}/
+          </p>
+          <p className="text-xs text-muted-foreground">
+            Folder
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
