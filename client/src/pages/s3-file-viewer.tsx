@@ -564,7 +564,7 @@ export default function S3FileViewer() {
     setIsBatchOperationOpen(true);
   };
 
-  // Handle share file
+  // Handle share file with improved error handling
   const handleShareFile = (file: any) => {
     if (!file || !file.Key) {
       toast({
@@ -574,15 +574,35 @@ export default function S3FileViewer() {
       });
       return;
     }
+    
+    // Make sure we have a valid account ID and bucket
+    if (!accountId || !defaultBucket) {
+      toast({
+        title: "Error",
+        description: "Missing account information. Please select a valid account.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    // Log debug info
+    console.log("Sharing file:", file);
+    console.log("Account ID:", accountId);
+    console.log("Bucket:", defaultBucket);
+    
     // Create a proper file object with all required properties
     const fileObj = {
-      accountId: accountId,
-      bucket: defaultBucket || '',
+      accountId: Number(accountId),
+      bucket: defaultBucket,
       path: prefix || '',
       filename: file.Key.split('/').pop() || 'file',
       contentType: file.ContentType || 'application/octet-stream',
       size: file.Size || 0
     };
+    
+    // Log the file object we're passing
+    console.log("File object for sharing:", fileObj);
+    
     setShareFile(fileObj);
     setIsShareOpen(true);
   };
