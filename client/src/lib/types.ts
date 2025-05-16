@@ -78,6 +78,7 @@ export interface UserSettings {
   theme: string;
   defaultAccountId?: number;
   notifications: boolean;
+  viewMode?: 'grid' | 'list';
   lastAccessed: string[];
 }
 

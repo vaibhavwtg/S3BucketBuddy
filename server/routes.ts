@@ -23,6 +23,46 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Set up authentication routes (/api/auth/register, /api/auth/login, etc.)
   setupAuthRoutes(app);
   
+  // Admin routes
+  app.get("/api/admin/users", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+      
+      const users = await storage.getAllUsers();
+      res.json(users);
+    } catch (error) {
+      console.error("Error fetching users:", error);
+      res.status(500).json({ message: "Error fetching users" });
+    }
+  });
+  
+  app.patch("/api/admin/users/:id/toggle-status", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.user?.isAdmin) {
+        return res.status(403).json({ message: "Unauthorized: Admin access required" });
+      }
+      
+      const userId = parseInt(req.params.id);
+      const user = await storage.getUser(userId);
+      
+      if (!user) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Toggle the user's active status
+      const updatedUser = await storage.updateUser(userId, { 
+        isActive: !user.isActive 
+      });
+      
+      res.json(updatedUser);
+    } catch (error) {
+      console.error("Error toggling user status:", error);
+      res.status(500).json({ message: "Error toggling user status" });
+    }
+  });
+  
   // Configure multer for file uploads
   const upload = multer({ storage: multer.memoryStorage() });
   
