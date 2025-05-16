@@ -100,9 +100,9 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
-  // Check if file is null or undefined before accessing properties
-  const fileIcon = file && file.contentType ? getFileIcon(file.contentType) : 'file-line';
-  const fileColor = file && file.contentType ? getFileColor(file.contentType) : 'text-blue-500';
+  // Use safe defaults if file is null or contentType is missing
+  const fileIcon = file?.contentType ? getFileIcon(file.contentType) : 'file-line';
+  const fileColor = file?.contentType ? getFileColor(file.contentType) : 'text-blue-500';
 
   const form = useForm<ShareFileFormValues>({
     resolver: zodResolver(shareFileSchema),
@@ -263,8 +263,8 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
           <div>
             <p className="font-medium text-foreground">{file?.filename || "Selected file"}</p>
             <p className="text-sm text-muted-foreground">
-              {file && typeof file.size !== 'undefined' ? formatBytes(file.size) : "Unknown size"}
-              {file && file.contentType ? ` • ${file.contentType}` : ""}
+              {file?.size ? formatBytes(file.size) : "Unknown size"}
+              {file?.contentType ? ` • ${file.contentType}` : ""}
             </p>
           </div>
         </div>
