@@ -152,6 +152,89 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // S3 Bucket Operations
+  app.get("/api/s3/:accountId/buckets", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      if (isNaN(accountId)) {
+        return res.status(400).json({ message: "Invalid account ID" });
+      }
+      
+      const account = await storage.getS3Account(accountId);
+      if (!account) {
+        return res.status(404).json({ message: "S3 account not found" });
+      }
+      
+      // Create an S3 client with the account credentials
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey
+        }
+      });
+      
+      // List buckets
+      const command = new ListBucketsCommand({});
+      const response = await s3Client.send(command);
+      
+      res.json(response.Buckets || []);
+    } catch (error) {
+      console.error("Error listing buckets:", error);
+      res.status(500).json({ message: "Error listing buckets" });
+    }
+  });
+  
+  app.get("/api/s3/:accountId/objects", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      if (isNaN(accountId)) {
+        return res.status(400).json({ message: "Invalid account ID" });
+      }
+      
+      const bucket = req.query.bucket as string;
+      if (!bucket) {
+        return res.status(400).json({ message: "Bucket name is required" });
+      }
+      
+      const prefix = (req.query.prefix as string) || '';
+      const delimiter = (req.query.delimiter as string) || '/';
+      
+      const account = await storage.getS3Account(accountId);
+      if (!account) {
+        return res.status(404).json({ message: "S3 account not found" });
+      }
+      
+      // Create an S3 client with the account credentials
+      const s3Client = new S3Client({
+        region: account.region,
+        credentials: {
+          accessKeyId: account.accessKeyId,
+          secretAccessKey: account.secretAccessKey
+        }
+      });
+      
+      // List objects
+      const command = new ListObjectsV2Command({
+        Bucket: bucket,
+        Prefix: prefix,
+        Delimiter: delimiter
+      });
+      
+      const response = await s3Client.send(command);
+      
+      res.json({
+        objects: response.Contents || [],
+        folders: response.CommonPrefixes || [],
+        prefix: prefix,
+        delimiter: delimiter
+      });
+    } catch (error) {
+      console.error("Error listing objects:", error);
+      res.status(500).json({ message: "Error listing objects" });
+    }
+  });
+  
   // Create HTTP server
   const httpServer = createServer(app);
   
