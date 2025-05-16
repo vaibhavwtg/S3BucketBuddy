@@ -163,7 +163,7 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
 
   const shareFileMutation = useMutation({
     mutationFn: async (values: ShareFileFormValues) => {
-      console.log("Submitting with file:", file);
+      console.log("Submitting with file:", JSON.stringify(file, null, 2));
       
       // Validate that we have a file to share
       if (!file) {
@@ -183,7 +183,7 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
       // Prepare the data for the API with advanced permission settings
       const shareData = {
         // Basic file info
-        accountId: file.accountId,
+        accountId: typeof file.accountId === 'string' ? parseInt(file.accountId) : file.accountId,
         bucket: file.bucket || '',
         path: file.path || '',
         filename: file.filename || 'Unknown file',
