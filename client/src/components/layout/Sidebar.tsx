@@ -27,7 +27,7 @@ import { AddAccountDialog } from "@/components/dialogs/AddAccountDialog";
 import { S3Account } from "@/lib/types";
 
 export function Sidebar() {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const { user, logout } = useAuth();
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
 
@@ -109,16 +109,17 @@ export function Sidebar() {
             {accounts
               .filter(account => account.defaultBucket)
               .map((account) => (
-                <Link 
-                  key={`bucket-${account.id}`} 
-                  href={`/s3-files/${account.id}`}
-                >
-                  <a className={cn(
-                    "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
-                    isActive(`/s3-files/${account.id}`) ? 
-                      "bg-muted text-primary" : 
-                      "text-foreground hover:bg-muted"
-                  )}>
+                <div key={`bucket-${account.id}`} className="w-full">
+                  <div
+                    onClick={() => window.location.href = `/s3-files/${account.id}`}
+                    style={{cursor: 'pointer'}}
+                    className={cn(
+                      "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
+                      isActive(`/s3-files/${account.id}`) ? 
+                        "bg-muted text-primary" : 
+                        "text-foreground hover:bg-muted"
+                    )}
+                  >
                     <div className={cn(
                       "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
                       isActive(`/s3-files/${account.id}`) ? 
@@ -133,8 +134,8 @@ export function Sidebar() {
                       )}></i>
                     </div>
                     <span>{account.defaultBucket}</span>
-                  </a>
-                </Link>
+                  </div>
+                </div>
               ))}
           </div>
         </div>
