@@ -101,8 +101,8 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
   const queryClient = useQueryClient();
   
   // Check if file is null or undefined before accessing properties
-  const fileIcon = file ? getFileIcon(file.contentType) : null;
-  const fileColor = file ? getFileColor(file.contentType) : null;
+  const fileIcon = file && file.contentType ? getFileIcon(file.contentType) : 'file-line';
+  const fileColor = file && file.contentType ? getFileColor(file.contentType) : 'text-blue-500';
 
   const form = useForm<ShareFileFormValues>({
     resolver: zodResolver(shareFileSchema),

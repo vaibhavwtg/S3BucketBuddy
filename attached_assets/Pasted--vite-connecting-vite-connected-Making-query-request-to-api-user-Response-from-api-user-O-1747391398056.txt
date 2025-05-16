@@ -1,0 +1,73 @@
+[vite] connecting...
+[vite] connected.
+Making query request to /api/user
+Response from /api/user: 
+Object {status: 200, statusText: "OK"}
+Warning: validateDOMNesting(...): <a> cannot appear as a descendant of &lt;a&gt;.
+    at a
+    at a
+    at https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c54392d9:337:18
+    at nav
+    at aside
+    at Sidebar (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/layout/Sidebar.tsx:38:32)
+    at div
+    at Layout (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/layout/Layout.tsx:21:3)
+    at Dashboard (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/pages/dashboard.tsx:35:20)
+    at ProtectedRoute (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/App.tsx?v=9Ui-LigrlFT61RE_Ose8U:41:38)
+    at Route (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c54392d9:323:16)
+    at Switch (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c54392d9:379:17)
+    at Router
+    at Provider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OXZDJRWN.js?v=c54392d9:38:15)
+    at TooltipProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=c54392d9:62:5)
+    at ThemeProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/theme-provider.tsx:25:3)
+    at AuthProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/hooks/use-auth.tsx:27:32)
+    at QueryClientProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=c54392d9:2805:3)
+    at App
+Making query request to /api/s3-accounts
+Making query request to /api/user-settings
+Response from /api/s3-accounts: 
+Object {status: 200, statusText: "OK"}
+Response from /api/user-settings: 
+Object {status: 200, statusText: "OK"}
+Warning: Internal React error: Expected static flag was missing. Please notify the React team.
+    at StorageStats (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/files/StorageStats.tsx:23:32)
+    at div
+    at main
+    at div
+    at div
+    at Layout (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/layout/Layout.tsx:21:3)
+    at Dashboard (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/pages/dashboard.tsx:35:20)
+    at ProtectedRoute (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/App.tsx?v=9Ui-LigrlFT61RE_Ose8U:41:38)
+    at Route (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c54392d9:323:16)
+    at Switch (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c54392d9:379:17)
+    at Router
+    at Provider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OXZDJRWN.js?v=c54392d9:38:15)
+    at TooltipProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=c54392d9:62:5)
+    at ThemeProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/theme-provider.tsx:25:3)
+    at AuthProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/hooks/use-auth.tsx:27:32)
+    at QueryClientProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=c54392d9:2805:3)
+    at App
+at StorageStats (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/files/StorageStats.tsx:23:32)
+at div
+at main
+at div
+at div
+at Layout (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/layout/Layout.tsx:21:3)
+at Dashboard (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/pages/dashboard.tsx:35:20)
+at ProtectedRoute (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/App.tsx?v=9Ui-LigrlFT61RE_Ose8U:41:38)
+at Route (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c54392d9:323:16)
+at Switch (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=c54392d9:379:17)
+at Router
+at Provider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-OXZDJRWN.js?v=c54392d9:38:15)
+at TooltipProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=c54392d9:62:5)
+at ThemeProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/theme-provider.tsx:25:3)
+at AuthProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/hooks/use-auth.tsx:27:32)
+at QueryClientProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=c54392d9:2805:3)
+at App
+at t.value (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Making GET request to /api/s3/8/buckets
+Request options: 
+Object {method: "GET", url: "/api/s3/8/buckets", withCredentials: true}

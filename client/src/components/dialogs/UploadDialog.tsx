@@ -44,7 +44,7 @@ export function UploadDialog({ open, onOpenChange, bucket, prefix = "", accountI
     if (open) {
       console.log("UploadDialog opened, checking authentication. Current cookies:", document.cookie);
       
-      fetch('/api/auth/me', { 
+      fetch('/api/user', { 
         credentials: 'include',
         headers: { 'Cache-Control': 'no-cache' }
       })

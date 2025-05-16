@@ -53,53 +53,53 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-        <Link href="/">
-          <a className={cn(
-            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
+        <div
+          onClick={() => window.location.href = '/'}
+          className={cn(
+            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg cursor-pointer",
             isActive("/") ? 
               "text-white bg-primary" : 
               "text-foreground hover:bg-muted"
           )}>
             <i className="ri-dashboard-line mr-3 text-lg"></i>
             <span>Dashboard</span>
-          </a>
-        </Link>
-        <Link href="/shared">
-          <a className={cn(
-            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
+        </div>
+        <div
+          onClick={() => window.location.href = '/shared'} 
+          className={cn(
+            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg cursor-pointer",
             isActive("/shared") ? 
               "text-white bg-primary" : 
               "text-foreground hover:bg-muted"
           )}>
             <i className="ri-share-line mr-3 text-lg"></i>
             <span>Shared Files</span>
-          </a>
-        </Link>
-        <Link href="/settings">
-          <a className={cn(
-            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
+        </div>
+        <div
+          onClick={() => window.location.href = '/settings'}
+          className={cn(
+            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg cursor-pointer",
             isActive("/settings") ? 
               "text-white bg-primary" : 
               "text-foreground hover:bg-muted"
           )}>
             <i className="ri-settings-3-line mr-3 text-lg"></i>
             <span>Settings</span>
-          </a>
-        </Link>
+        </div>
         
         {/* Admin link - only visible for admins */}
         {user?.role === 'admin' && (
-          <Link href="/admin">
-            <a className={cn(
-              "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
+          <div
+            onClick={() => window.location.href = '/admin'}
+            className={cn(
+              "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg cursor-pointer",
               isActive("/admin") ? 
                 "text-white bg-primary" : 
                 "text-foreground hover:bg-muted"
             )}>
               <i className="ri-admin-line mr-3 text-lg"></i>
               <span>Admin</span>
-            </a>
-          </Link>
+          </div>
         )}
 
         {/* My Files Section - Buckets as Folders */}
@@ -145,29 +145,31 @@ export function Sidebar() {
           <h2 className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">My Accounts</h2>
           <div className="mt-2 space-y-1">
             {accounts.map((account) => (
-              <Link key={account.id} href={`/s3-files/${account.id}`}>
-                <a className={cn(
-                  "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
+              <div 
+                key={account.id} 
+                className={cn(
+                  "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg cursor-pointer",
                   isActive(`/s3-files/${account.id}`) ? 
                     "bg-muted text-foreground" : 
                     "text-foreground hover:bg-muted"
+                )}
+                onClick={() => window.location.href = `/s3-files/${account.id}`}
+              >
+                <div className={cn(
+                  "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
+                  isActive(`/s3-files/${account.id}`) ? 
+                    "bg-primary/10" : 
+                    "bg-slate-200 dark:bg-slate-700"
                 )}>
-                  <div className={cn(
-                    "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
+                  <i className={cn(
+                    "ri-amazon-line",
                     isActive(`/s3-files/${account.id}`) ? 
-                      "bg-primary/10" : 
-                      "bg-slate-200 dark:bg-slate-700"
-                  )}>
-                    <i className={cn(
-                      "ri-amazon-line",
-                      isActive(`/s3-files/${account.id}`) ? 
-                        "text-primary" : 
-                        "text-slate-600 dark:text-slate-300"
-                    )}></i>
-                  </div>
-                  <span>{account.name}</span>
-                </a>
-              </Link>
+                      "text-primary" : 
+                      "text-slate-600 dark:text-slate-300"
+                  )}></i>
+                </div>
+                <span>{account.name}</span>
+              </div>
             ))}
             
             <Button 
@@ -179,17 +181,17 @@ export function Sidebar() {
               <span>Add Account</span>
             </Button>
             
-            <Link href="/manage-accounts">
-              <a className={cn(
-                "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
+            <div
+              onClick={() => window.location.href = '/manage-accounts'}
+              className={cn(
+                "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg cursor-pointer",
                 isActive("/manage-accounts") ? 
                   "bg-muted text-foreground" : 
                   "text-foreground hover:bg-muted"
               )}>
                 <i className="ri-settings-line mr-3 text-lg"></i>
                 <span>Manage Accounts</span>
-              </a>
-            </Link>
+            </div>
           </div>
         </div>
       </nav>
