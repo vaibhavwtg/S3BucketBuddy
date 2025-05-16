@@ -72,7 +72,10 @@ export default function Browser() {
   }
   
   // Parse account ID to number or undefined
-  const parsedAccountId = accountIdParam ? parseInt(accountIdParam) : undefined;
+  // Added validation to ensure we have a valid number
+  const parsedAccountId = accountIdParam ? 
+    (isNaN(parseInt(accountIdParam)) ? undefined : parseInt(accountIdParam)) 
+    : undefined;
   
   // Use empty string for bucket and prefix if not provided
   const bucket = bucketParam || "";
