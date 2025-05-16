@@ -232,7 +232,7 @@ export default function Browser() {
     isLoading: isLoadingAccounts
   } = useQuery<S3Account[]>({
     queryKey: ['/api/s3-accounts'],
-    enabled: parsedAccountId !== undefined && !bucket
+    enabled: isAuthenticated
   });
   
   // Handle toggling selection mode

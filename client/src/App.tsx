@@ -58,6 +58,10 @@ function Router() {
       <Route path="/">
         <ProtectedRoute component={Dashboard} />
       </Route>
+      {/* Put more specific routes before the catch-all route */}
+      <Route path="/browser/:accountId/:path*">
+        <ProtectedRoute component={Browser} />
+      </Route>
       <Route path="/browser">
         <ProtectedRoute component={Browser} />
       </Route>
@@ -72,9 +76,6 @@ function Router() {
       </Route>
       <Route path="/account-manager">
         <ProtectedRoute component={AccountManager} />
-      </Route>
-      <Route path="/browser/:accountId?/:path*">
-        <ProtectedRoute component={Browser} />
       </Route>
       
       {/* Admin routes */}
