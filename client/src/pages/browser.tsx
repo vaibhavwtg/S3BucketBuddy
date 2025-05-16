@@ -239,6 +239,20 @@ export default function Browser() {
     enabled: isAuthenticated
   });
   
+  // Add effect to redirect to default bucket when account is selected but no bucket is specified
+  useEffect(() => {
+    if (parsedAccountId && !bucket && accounts && accounts.length > 0) {
+      const currentAccount = accounts.find(acc => acc.id === parsedAccountId);
+      if (currentAccount && currentAccount.defaultBucket) {
+        console.log(`Account ${parsedAccountId} has default bucket ${currentAccount.defaultBucket}, redirecting...`);
+        navigateTo({
+          account: parsedAccountId,
+          bucket: currentAccount.defaultBucket
+        });
+      }
+    }
+  }, [parsedAccountId, bucket, accounts, navigateTo]);
+  
   // Handle toggling selection mode
   const toggleSelectionMode = useCallback(() => {
     setSelectionMode(!selectionMode);
