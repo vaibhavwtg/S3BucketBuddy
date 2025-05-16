@@ -31,12 +31,12 @@ export default function Login() {
         <CardFooter className="flex justify-center border-t p-6">
           <p className="text-sm text-muted-foreground">
             By continuing, you agree to our{" "}
-            <Link href="/terms">
-              <a className="underline underline-offset-4 hover:text-primary">Terms of Service</a>
+            <Link href="/terms" className="underline underline-offset-4 hover:text-primary">
+              Terms of Service
             </Link>{" "}
             and{" "}
-            <Link href="/privacy">
-              <a className="underline underline-offset-4 hover:text-primary">Privacy Policy</a>
+            <Link href="/privacy" className="underline underline-offset-4 hover:text-primary">
+              Privacy Policy
             </Link>
             .
           </p>
