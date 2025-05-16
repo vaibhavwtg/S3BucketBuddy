@@ -161,7 +161,7 @@ export function useS3Objects(
   
   // Make sure the query is properly enabled with valid parameters
   // Fix for file browsing: simplify the enabled condition to avoid edge cases
-  const isEnabled = enabled && accountId && bucket;
+  const isEnabled = enabled && typeof accountId === 'number' && typeof bucket === 'string' && bucket !== '';
   
   const { toast } = useToast();
   

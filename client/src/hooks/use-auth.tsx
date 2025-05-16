@@ -57,7 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  // Fetch the current user
+  // Fetch the current user with improved error handling
   const {
     data: user,
     isLoading,
@@ -65,7 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery<User>({
     queryKey: ["/api/user"],
     retry: false,
-    refetchOnWindowFocus: true,
+    refetchOnWindowFocus: false,
+    staleTime: 60000, // Don't refetch for 1 minute
+    gcTime: 300000, // Keep data for 5 minutes
+    throwOnError: false,
   });
 
   // Login mutation
