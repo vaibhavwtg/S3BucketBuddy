@@ -15,7 +15,6 @@ export interface IStorage {
   getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  getUserByProviderAuth(provider: string, providerId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   
   // S3 Account operations
@@ -61,15 +60,7 @@ export class DatabaseStorage implements IStorage {
     return user;
   }
 
-  async getUserByProviderAuth(provider: string, providerId: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(
-      and(
-        eq(users.authProvider, provider),
-        eq(users.authProviderId, providerId)
-      )
-    );
-    return user;
-  }
+
 
   async createUser(user: InsertUser): Promise<User> {
     const [newUser] = await db.insert(users).values(user).returning();

@@ -65,8 +65,8 @@ export default function Login() {
     <div className="flex h-screen w-full items-center justify-center bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-3xl font-bold tracking-tight">Welcome</CardTitle>
-          <CardDescription>Sign in to access your S3 files</CardDescription>
+          <CardTitle className="text-3xl font-bold tracking-tight">S3 Browser</CardTitle>
+          <CardDescription>Sign in to manage your Amazon S3 files</CardDescription>
         </CardHeader>
         <CardContent className="p-6">
           <div className="space-y-4">
@@ -83,12 +83,7 @@ export default function Login() {
                     <Input id="login-email" name="email" type="email" placeholder="your.email@example.com" required />
                   </div>
                   <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="login-password">Password</Label>
-                      <Link href="/forgot-password" className="text-xs text-slate-500 hover:text-slate-800">
-                        Forgot password?
-                      </Link>
-                    </div>
+                    <Label htmlFor="login-password">Password</Label>
                     <Input id="login-password" name="password" type="password" required />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
