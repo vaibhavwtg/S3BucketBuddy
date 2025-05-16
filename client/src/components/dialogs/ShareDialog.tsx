@@ -156,6 +156,11 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
 
   const shareFileMutation = useMutation({
     mutationFn: async (values: ShareFileFormValues) => {
+      // Validate that we have a file to share
+      if (!file || !file.bucket) {
+        throw new Error('Missing file information required for sharing');
+      }
+      
       // Process recipient emails if provided
       const recipients = values.recipientEmails 
         ? values.recipientEmails.split(',').map(email => email.trim()).filter(email => email.length > 0)
@@ -169,12 +174,12 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
       // Prepare the data for the API with advanced permission settings
       const shareData = {
         // Basic file info
-        accountId: file?.accountId || null,
-        bucket: file?.bucket || '',
-        path: file?.path || '',
-        filename: file?.filename || 'Unknown file',
-        filesize: file?.size || 0,
-        contentType: file?.contentType || 'application/octet-stream',
+        accountId: file.accountId,
+        bucket: file.bucket,
+        path: file.path || '',
+        filename: file.filename,
+        filesize: file.size,
+        contentType: file.contentType || 'application/octet-stream',
         
         // Expiration settings
         expiresAt: values.expiryOption === "never" ? null : values.expiresAt,

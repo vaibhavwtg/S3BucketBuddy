@@ -15,7 +15,7 @@ export default function DebugLogin() {
       
       // Direct login with test credentials
       const response = await apiRequest("POST", "/api/login", {
-        email: "test@wickedfiles.com",
+        email: "admin@wickedfiles.com", // Use the admin credentials
         password: "password123"
       });
       
