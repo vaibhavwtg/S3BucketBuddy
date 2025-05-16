@@ -610,12 +610,16 @@ export default function Browser() {
     );
   }
   
-  // If there's no account selected at all, redirect to the dashboard
-  if (!parsedAccountId) {
-    useEffect(() => {
+  // Handle navigation for when no account is selected
+  // This needs to be a top-level hook call outside of any conditional
+  useEffect(() => {
+    if (!parsedAccountId) {
       navigate('/');
-    }, [navigate]);
-    
+    }
+  }, [parsedAccountId, navigate]);
+  
+  // Show loading state when redirecting
+  if (!parsedAccountId) {
     return (
       <Layout>
         <div className="flex items-center justify-center h-[70vh]">
