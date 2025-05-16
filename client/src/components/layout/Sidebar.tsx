@@ -47,7 +47,7 @@ export function Sidebar() {
       <div className="px-6 pt-6 pb-4 flex items-center justify-between">
         <div className="flex items-center">
           <i className="ri-cloud-line text-primary text-2xl mr-2"></i>
-          <h1 className="text-xl font-semibold">WickedFiles</h1>
+          <h1 className="text-xl font-semibold">CloudStore</h1>
         </div>
       </div>
 
@@ -86,21 +86,6 @@ export function Sidebar() {
             <span>Settings</span>
           </a>
         </Link>
-        
-        {/* Admin link - only visible for admins */}
-        {user?.role === 'admin' && (
-          <Link href="/admin">
-            <a className={cn(
-              "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
-              isActive("/admin") ? 
-                "text-white bg-primary" : 
-                "text-foreground hover:bg-muted"
-            )}>
-              <i className="ri-admin-line mr-3 text-lg"></i>
-              <span>Admin</span>
-            </a>
-          </Link>
-        )}
 
         {/* My Files Section - Buckets as Folders */}
         <div className="pt-4 mt-4 border-t border-border">
@@ -109,31 +94,32 @@ export function Sidebar() {
             {accounts
               .filter(account => account.defaultBucket)
               .map((account) => (
-                <div key={`bucket-${account.id}`} className="w-full">
-                  <Link href={`/s3-files/${account.id}`}>
-                    <a className={cn(
-                      "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
-                      isActive(`/s3-files/${account.id}`) ? 
-                        "bg-muted text-primary" : 
-                        "text-foreground hover:bg-muted"
+                <Link 
+                  key={`bucket-${account.id}`} 
+                  href={`/browser?account=${account.id}&bucket=${account.defaultBucket}`}
+                >
+                  <a className={cn(
+                    "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
+                    isActive(`/browser?account=${account.id}&bucket=${account.defaultBucket}`) ? 
+                      "bg-muted text-primary" : 
+                      "text-foreground hover:bg-muted"
+                  )}>
+                    <div className={cn(
+                      "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
+                      isActive(`/browser?account=${account.id}&bucket=${account.defaultBucket}`) ? 
+                        "bg-primary/10" : 
+                        "bg-primary/5"
                     )}>
-                      <div className={cn(
-                        "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
-                        isActive(`/s3-files/${account.id}`) ? 
-                          "bg-primary/10" : 
-                          "bg-primary/5"
-                      )}>
-                        <i className={cn(
-                          "ri-folder-fill",
-                          isActive(`/s3-files/${account.id}`) ? 
-                            "text-primary" : 
-                            "text-primary/70"
-                        )}></i>
-                      </div>
-                      <span>{account.defaultBucket}</span>
-                    </a>
-                  </Link>
-                </div>
+                      <i className={cn(
+                        "ri-folder-fill",
+                        isActive(`/browser?account=${account.id}&bucket=${account.defaultBucket}`) ? 
+                          "text-primary" : 
+                          "text-primary/70"
+                      )}></i>
+                    </div>
+                    <span>{account.defaultBucket}</span>
+                  </a>
+                </Link>
               ))}
           </div>
         </div>
@@ -143,22 +129,22 @@ export function Sidebar() {
           <h2 className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">My Accounts</h2>
           <div className="mt-2 space-y-1">
             {accounts.map((account) => (
-              <Link key={account.id} href={`/s3-files/${account.id}`}>
+              <Link key={account.id} href={`/browser?account=${account.id}`}>
                 <a className={cn(
                   "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
-                  isActive(`/s3-files/${account.id}`) ? 
+                  isActive(`/browser?account=${account.id}`) ? 
                     "bg-muted text-foreground" : 
                     "text-foreground hover:bg-muted"
                 )}>
                   <div className={cn(
                     "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
-                    isActive(`/s3-files/${account.id}`) ? 
+                    isActive(`/browser?account=${account.id}`) ? 
                       "bg-primary/10" : 
                       "bg-slate-200 dark:bg-slate-700"
                   )}>
                     <i className={cn(
                       "ri-amazon-line",
-                      isActive(`/s3-files/${account.id}`) ? 
+                      isActive(`/browser?account=${account.id}`) ? 
                         "text-primary" : 
                         "text-slate-600 dark:text-slate-300"
                     )}></i>
@@ -202,7 +188,7 @@ export function Sidebar() {
                 className="w-full justify-start px-4 py-2 font-medium hover:bg-muted rounded-lg"
               >
                 <Avatar className="w-8 h-8 mr-3">
-                  <AvatarImage src={user.profileImageUrl as string | undefined} alt={user.username || ""} />
+                  <AvatarImage src={user.avatarUrl} alt={user.username} />
                   <AvatarFallback>{generateInitials(user.username)}</AvatarFallback>
                 </Avatar>
                 <div className="text-left">

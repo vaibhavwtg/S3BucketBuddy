@@ -1,8 +1,7 @@
 import { 
-  users, type User, type InsertUser, type UpsertUser,
+  users, type User, type InsertUser,
   s3Accounts, type S3Account, type InsertS3Account,
   sharedFiles, type SharedFile, type InsertSharedFile,
-  fileRecipients, type FileRecipient, type InsertFileRecipient,
   userSettings, type UserSettings, type InsertUserSettings,
   fileAccessLogs, type FileAccessLog, type InsertFileAccessLog
 } from "@shared/schema";
@@ -12,23 +11,21 @@ import { randomBytes } from "crypto";
 
 export interface IStorage {
   // User operations
-  getUser(id: string): Promise<User | undefined>;
+  getUser(id: number): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
-  
-  // Authentication methods
+  getUserByProviderAuth(provider: string, providerId: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
-  upsertUser(user: UpsertUser): Promise<User>;
   
   // S3 Account operations
-  getS3Accounts(userId: string): Promise<S3Account[]>;
+  getS3Accounts(userId: number): Promise<S3Account[]>;
   getS3Account(id: number): Promise<S3Account | undefined>;
   createS3Account(account: InsertS3Account): Promise<S3Account>;
   updateS3Account(id: number, account: Partial<S3Account>): Promise<S3Account | undefined>;
   deleteS3Account(id: number): Promise<boolean>;
   
   // Shared files operations
-  getSharedFiles(userId: string): Promise<SharedFile[]>;
+  getSharedFiles(userId: number): Promise<SharedFile[]>;
   getSharedFile(id: number): Promise<SharedFile | undefined>;
   getSharedFileByToken(token: string): Promise<SharedFile | undefined>;
   createSharedFile(file: InsertSharedFile): Promise<SharedFile>;
@@ -36,27 +33,19 @@ export interface IStorage {
   deleteSharedFile(id: number): Promise<boolean>;
   incrementAccessCount(fileId: number): Promise<void>;
   
-  // File recipients operations
-  getFileRecipients(fileId: number): Promise<FileRecipient[]>; 
-  getFileRecipient(id: number): Promise<FileRecipient | undefined>;
-  getFileRecipientByEmail(fileId: number, email: string): Promise<FileRecipient | undefined>;
-  createFileRecipient(recipient: InsertFileRecipient): Promise<FileRecipient>;
-  updateFileRecipient(id: number, recipient: Partial<FileRecipient>): Promise<FileRecipient | undefined>;
-  deleteFileRecipient(id: number): Promise<boolean>;
-  
   // File access logs operations
   getFileAccessLogs(fileId: number): Promise<FileAccessLog[]>;
   logFileAccess(log: InsertFileAccessLog): Promise<FileAccessLog>;
   
   // User settings operations
-  getUserSettings(userId: string): Promise<UserSettings | undefined>;
+  getUserSettings(userId: number): Promise<UserSettings | undefined>;
   createOrUpdateUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
-  updateLastAccessed(userId: string, path: string): Promise<void>;
+  updateLastAccessed(userId: number, path: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
   // User operations
-  async getUser(id: string): Promise<User | undefined> {
+  async getUser(id: number): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
     return user;
   }
@@ -65,69 +54,29 @@ export class DatabaseStorage implements IStorage {
     const [user] = await db.select().from(users).where(eq(users.email, email));
     return user;
   }
-  
+
   async getUserByUsername(username: string): Promise<User | undefined> {
-    if (!username) {
-      return undefined;
-    }
     const [user] = await db.select().from(users).where(eq(users.username, username));
     return user;
   }
-  
-  async createUser(userData: InsertUser): Promise<User> {
-    // Generate a unique ID if not provided
-    const userId = userData.id || `local_${randomBytes(8).toString('hex')}`;
-    
-    // Insert user with properly typed values (matches SQL schema)
-    const [newUser] = await db.insert(users).values({
-      id: userId,
-      email: userData.email || null,
-      username: userData.username || null,
-      firstName: userData.firstName || null,
-      lastName: userData.lastName || null,
-      profileImageUrl: userData.profileImageUrl || null,
-      password: userData.password || null,
-      createdAt: new Date(),
-      updatedAt: new Date()
-    }).returning();
-    
-    return newUser;
-  }
-  
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    // Ensure we have an ID
-    const userId = userData.id || `local_${randomBytes(8).toString('hex')}`;
-    
-    // Insert user with properly typed values (matches SQL schema)
-    const [user] = await db
-      .insert(users)
-      .values({
-        id: userId,
-        email: userData.email || null,
-        username: userData.username || null,
-        firstName: userData.firstName || null,
-        lastName: userData.lastName || null,
-        profileImageUrl: userData.profileImageUrl || null,
-        password: userData.password || null,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
-          email: userData.email || null,
-          firstName: userData.firstName || null,
-          lastName: userData.lastName || null,
-          profileImageUrl: userData.profileImageUrl || null,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
+
+  async getUserByProviderAuth(provider: string, providerId: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(
+      and(
+        eq(users.authProvider, provider),
+        eq(users.authProviderId, providerId)
+      )
+    );
     return user;
   }
 
+  async createUser(user: InsertUser): Promise<User> {
+    const [newUser] = await db.insert(users).values(user).returning();
+    return newUser;
+  }
+
   // S3 Account operations
-  async getS3Accounts(userId: string): Promise<S3Account[]> {
+  async getS3Accounts(userId: number): Promise<S3Account[]> {
     return db.select().from(s3Accounts).where(eq(s3Accounts.userId, userId));
   }
 
@@ -159,7 +108,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Shared files operations
-  async getSharedFiles(userId: string): Promise<SharedFile[]> {
+  async getSharedFiles(userId: number): Promise<SharedFile[]> {
     return db
       .select()
       .from(sharedFiles)
@@ -218,7 +167,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User settings operations
-  async getUserSettings(userId: string): Promise<UserSettings | undefined> {
+  async getUserSettings(userId: number): Promise<UserSettings | undefined> {
     const [settings] = await db
       .select()
       .from(userSettings)
@@ -227,66 +176,56 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createOrUpdateUserSettings(settings: InsertUserSettings): Promise<UserSettings> {
-    try {
-      // Check if settings already exist
-      const existingSettings = await this.getUserSettings(settings.userId);
-      
-      // We'll omit lastAccessed to avoid array handling issues in PostgreSQL
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const { lastAccessed, ...otherSettings } = settings;
-      
-      if (existingSettings) {
-        const [updated] = await db
-          .update(userSettings)
-          .set({
-            userId: otherSettings.userId,
-            theme: otherSettings.theme || 'light',
-            defaultAccountId: otherSettings.defaultAccountId,
-            notifications: otherSettings.notifications !== undefined ? otherSettings.notifications : true
-          })
-          .where(eq(userSettings.userId, settings.userId))
-          .returning();
-        return updated;
-      } else {
-        const [created] = await db
-          .insert(userSettings)
-          .values({
-            userId: otherSettings.userId,
-            theme: otherSettings.theme || 'light',
-            defaultAccountId: otherSettings.defaultAccountId,
-            notifications: otherSettings.notifications !== undefined ? otherSettings.notifications : true,
-            // Explicitly set an empty array in database-compatible format
-            lastAccessed: []
-          })
-          .returning();
-        return created;
-      }
-    } catch (error) {
-      console.error("Error in createOrUpdateUserSettings:", error);
-      throw error;
+    // Check if settings already exist
+    const existingSettings = await this.getUserSettings(settings.userId);
+    
+    // Ensure lastAccessed is properly typed as string[]
+    const settingsToSave = {
+      ...settings,
+      // Set a default empty array if lastAccessed is undefined or not an array
+      lastAccessed: Array.isArray(settings.lastAccessed) ? settings.lastAccessed : []
+    };
+    
+    if (existingSettings) {
+      const [updated] = await db
+        .update(userSettings)
+        .set(settingsToSave)
+        .where(eq(userSettings.userId, settings.userId))
+        .returning();
+      return updated;
+    } else {
+      const [created] = await db
+        .insert(userSettings)
+        .values(settingsToSave)
+        .returning();
+      return created;
     }
   }
 
-  async updateLastAccessed(userId: string, path: string): Promise<void> {
-    try {
-      // For now, we'll skip updating lastAccessed to avoid PostgreSQL array issues
-      // We'll just make sure the user has settings
-      const settings = await this.getUserSettings(userId);
+  async updateLastAccessed(userId: number, path: string): Promise<void> {
+    // Get current settings
+    const settings = await this.getUserSettings(userId);
+    
+    if (settings) {
+      // Add the path to the beginning of the array and limit to 10 items
+      let lastAccessed = settings.lastAccessed || [];
       
-      if (!settings) {
-        // Create settings if they don't exist
-        await this.createOrUpdateUserSettings({
-          userId,
-          theme: 'light',
-          notifications: true
-        });
+      // Remove if already exists
+      lastAccessed = lastAccessed.filter(p => p !== path);
+      
+      // Add to beginning
+      lastAccessed.unshift(path);
+      
+      // Limit to 10
+      if (lastAccessed.length > 10) {
+        lastAccessed = lastAccessed.slice(0, 10);
       }
       
-      // We'll eventually implement this feature with a proper array solution
-      // For now, we're avoiding array operations to prevent database errors
-    } catch (error) {
-      console.error("Error in updateLastAccessed:", error);
-      // Don't throw - this is a non-critical operation
+      // Update with properly typed lastAccessed array
+      await db
+        .update(userSettings)
+        .set({ lastAccessed: lastAccessed as string[] })
+        .where(eq(userSettings.userId, userId));
     }
   }
   
@@ -314,135 +253,16 @@ export class DatabaseStorage implements IStorage {
       .orderBy(desc(fileAccessLogs.accessedAt));
   }
   
-  // File recipient methods
-  async getFileRecipients(fileId: number): Promise<FileRecipient[]> {
-    try {
-      return await db
-        .select()
-        .from(fileRecipients)
-        .where(eq(fileRecipients.fileId, fileId));
-    } catch (error) {
-      console.error("Error getting file recipients:", error);
-      return [];
-    }
-  }
-
-  async getFileRecipient(id: number): Promise<FileRecipient | undefined> {
-    try {
-      const [recipient] = await db
-        .select()
-        .from(fileRecipients)
-        .where(eq(fileRecipients.id, id));
-      return recipient;
-    } catch (error) {
-      console.error("Error getting file recipient:", error);
-      return undefined;
-    }
-  }
-
-  async getFileRecipientByEmail(fileId: number, email: string): Promise<FileRecipient | undefined> {
-    try {
-      const [recipient] = await db
-        .select()
-        .from(fileRecipients)
-        .where(
-          and(
-            eq(fileRecipients.fileId, fileId),
-            eq(fileRecipients.email, email.toLowerCase())
-          )
-        );
-      return recipient;
-    } catch (error) {
-      console.error("Error getting file recipient by email:", error);
-      return undefined;
-    }
-  }
-
-  async createFileRecipient(recipient: InsertFileRecipient): Promise<FileRecipient> {
-    try {
-      // Ensure email is lowercase for consistency
-      const normalizedRecipient = {
-        ...recipient,
-        email: recipient.email.toLowerCase(),
-      };
-
-      const [newRecipient] = await db
-        .insert(fileRecipients)
-        .values(normalizedRecipient)
-        .returning();
-      return newRecipient;
-    } catch (error) {
-      console.error("Error creating file recipient:", error);
-      throw error;
-    }
-  }
-
-  async updateFileRecipient(id: number, recipient: Partial<FileRecipient>): Promise<FileRecipient | undefined> {
-    try {
-      // Normalize email if it's being updated
-      const normalizedRecipient = recipient.email 
-        ? { ...recipient, email: recipient.email.toLowerCase() }
-        : recipient;
-
-      const [updatedRecipient] = await db
-        .update(fileRecipients)
-        .set({
-          ...normalizedRecipient,
-          // If recipient accessed the file, update the last accessed timestamp
-          ...(recipient.accessCount !== undefined ? { lastAccessed: new Date() } : {})
-        })
-        .where(eq(fileRecipients.id, id))
-        .returning();
-      return updatedRecipient;
-    } catch (error) {
-      console.error("Error updating file recipient:", error);
-      return undefined;
-    }
-  }
-
-  async deleteFileRecipient(id: number): Promise<boolean> {
-    try {
-      const result = await db
-        .delete(fileRecipients)
-        .where(eq(fileRecipients.id, id));
-      return result.rowCount > 0;
-    } catch (error) {
-      console.error("Error deleting file recipient:", error);
-      return false;
-    }
-  }
-  
-  /**
-   * Logs file access and increases the access counter for a shared file
-   * 
-   * @param log - Information about the file access
-   * @returns The created file access log entry
-   */
   async logFileAccess(log: InsertFileAccessLog): Promise<FileAccessLog> {
-    try {
-      // Make sure we're only sending fields that exist in the database
-      const sanitizedLog = {
-        fileId: log.fileId,
-        ipAddress: log.ipAddress,
-        userAgent: log.userAgent,
-        referrer: log.referrer,
-        isDownload: log.isDownload
-      };
-      
-      const [accessLog] = await db
-        .insert(fileAccessLogs)
-        .values(sanitizedLog)
-        .returning();
-      
-      // Increment the access count on the shared file
-      await this.incrementAccessCount(log.fileId);
-      
-      return accessLog;
-    } catch (error) {
-      console.error("Error logging file access:", error);
-      // Rethrow to let the caller handle it
-      throw error;
-    }
+    const [accessLog] = await db
+      .insert(fileAccessLogs)
+      .values(log)
+      .returning();
+    
+    // Increment the access count on the shared file
+    await this.incrementAccessCount(log.fileId);
+    
+    return accessLog;
   }
 }
 

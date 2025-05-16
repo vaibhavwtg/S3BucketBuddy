@@ -1,24 +1,18 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import type { Express, Request, Response } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { 
-  insertS3AccountSchema, 
-  insertSharedFileSchema, 
-  users, 
-  s3Accounts, 
-  sharedFiles, 
-  adminLogs 
-} from "@shared/schema";
-import { randomBytes, scrypt, timingSafeEqual } from "crypto";
-import { promisify } from "util";
-import { setupAuth, requireAuth } from "./auth";
+import { insertUserSchema, insertS3AccountSchema, insertSharedFileSchema } from "@shared/schema";
+import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
+import passport from "passport";
+import { Strategy as LocalStrategy } from "passport-local";
+import session from "express-session";
+import MemoryStore from "memorystore";
 import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, HeadBucketCommand, CopyObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import multer from "multer";
 import { Readable } from "stream";
-import { db } from "./db";
-import { eq, desc, inArray } from "drizzle-orm";
 
 // Helper function to convert null to undefined
 function nullToUndefined<T>(value: T | null): T | undefined {
@@ -28,7 +22,12 @@ function nullToUndefined<T>(value: T | null): T | undefined {
 // Define types for authenticated requests
 declare global {
   namespace Express {
-    // User will be handled by Replit Auth
+    interface User {
+      id: number;
+      username: string;
+      email: string;
+      avatarUrl?: string;
+    }
     
     // Add multer file to Request type
     interface Request {
@@ -37,210 +36,239 @@ declare global {
   }
 }
 
-// Add user ID extraction utility for route handlers
-interface AuthenticatedRequest extends Request {
-  userId?: string;
-}
-
-export function registerRoutes(app: Express): Server {
+export async function registerRoutes(app: Express): Promise<Server> {
   const httpServer = createServer(app);
+  const MemoryStoreSession = MemoryStore(session);
   
-  // Setup auth with local strategy
-  setupAuth(app);
+  // Configure session middleware
+  app.use(
+    session({
+      secret: process.env.SESSION_SECRET || "super-secret-key",
+      resave: false,
+      saveUninitialized: true, // Changed to true to ensure session is always created
+      cookie: {
+        secure: process.env.NODE_ENV === "production",
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        httpOnly: true,
+        sameSite: 'lax', // Helps with CSRF protection while allowing redirects
+        path: '/', // Ensure cookie is available throughout the application
+      },
+      store: new MemoryStoreSession({
+        checkPeriod: 86400000, // prune expired entries every 24h
+      }),
+    })
+  );
   
-  // Clear out any authentication error logs
-  console.log("Traditional authentication enabled");
+  // Initialize Passport
+  app.use(passport.initialize());
+  app.use(passport.session());
   
-  // Admin middleware to check if user is authorized
-  const requireAdmin = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  // Configure Local Strategy for authentication
+  passport.use(
+    new LocalStrategy(
+      {
+        usernameField: "email",
+        passwordField: "password",
+      },
+      async (email, password, done) => {
+        try {
+          const user = await storage.getUserByEmail(email);
+          
+          if (!user || !user.password) {
+            return done(null, false, { message: "Incorrect email or password" });
+          }
+          
+          const isValid = await bcrypt.compare(password, user.password);
+          
+          if (!isValid) {
+            return done(null, false, { message: "Incorrect email or password" });
+          }
+          
+          return done(null, {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl || undefined,
+          });
+        } catch (error) {
+          return done(error);
+        }
+      }
+    )
+  );
+  
+  // Serialize and Deserialize User
+  passport.serializeUser((user, done) => {
+    done(null, user.id);
+  });
+  
+  passport.deserializeUser(async (id: number, done) => {
+    try {
+      console.log(`Deserializing user with ID: ${id}`);
+      const user = await storage.getUser(id);
+      
+      if (!user) {
+        console.error(`User with ID ${id} not found during deserialization`);
+        return done(new Error("User not found"));
+      }
+      
+      const userData = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        avatarUrl: user.avatarUrl || undefined,
+      };
+      
+      console.log(`Successfully deserialized user: ${user.username} (${user.id})`);
+      done(null, userData);
+    } catch (error) {
+      console.error("Error during user deserialization:", error);
+      done(error);
+    }
+  });
+  
+  // Authentication middleware
+  const requireAuth = (req: Request, res: Response, next: any) => {
+    console.log("Authentication check for route:", req.method, req.url);
+    console.log("Authenticated:", req.isAuthenticated());
+    
     if (!req.isAuthenticated()) {
-      return res.status(401).json({ message: 'Not authenticated' });
+      console.log("Authentication failed");
+      return res.status(401).json({ message: "Unauthorized" });
     }
-    
-    const user = req.user as any;
-    // Allow access if the user has admin role
-    if (user?.role !== 'admin') {
-      return res.status(403).json({ message: 'Access denied. Admin privileges required.' });
-    }
-    
+    console.log("Authentication successful, user:", req.user ? req.user.id : 'none');
     next();
   };
-  
-  // Add middleware to extract userId for convenience
-  app.use((req: AuthenticatedRequest, res, next) => {
-    if (req.isAuthenticated() && req.user) {
-      // Store user ID for convenience in route handlers
-      req.userId = req.user.id;
-    }
-    next();
-  });
-  
-  // Middleware to log authentication status
-  app.use((req: Request, res: Response, next: NextFunction) => {
-    if (req.path.startsWith('/api') && !req.path.includes('/api/user')) {
-      console.log(`Auth check for ${req.method} ${req.path}: ${req.isAuthenticated() ? 'Authenticated' : 'Not authenticated'}`);
-    }
-    next();
-  });
   
   // Configure multer for file uploads
   const upload = multer({ storage: multer.memoryStorage() });
   
-  // User routes for traditional authentication
+  // Authentication Routes
+  app.post("/api/auth/register", async (req, res) => {
+    try {
+      const userSchema = insertUserSchema.extend({
+        confirmPassword: z.string(),
+      });
+      
+      const validatedData = userSchema.parse(req.body);
+      
+      // Check if passwords match
+      if (validatedData.password !== validatedData.confirmPassword) {
+        return res.status(400).json({ message: "Passwords do not match" });
+      }
+      
+      // Check if email is already taken
+      const existingEmail = await storage.getUserByEmail(validatedData.email);
+      if (existingEmail) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+      
+      // If username is not provided, use email as username
+      if (!validatedData.username) {
+        validatedData.username = validatedData.email.split('@')[0];
+      }
+      
+      // Ensure username is unique by adding a suffix if needed
+      let finalUsername = validatedData.username;
+      let counter = 1;
+      
+      while (await storage.getUserByUsername(finalUsername)) {
+        finalUsername = `${validatedData.username}${counter}`;
+        counter++;
+      }
+      
+      // Hash password
+      const hashedPassword = await bcrypt.hash(validatedData.password, 10);
+      
+      // Create user
+      const user = await storage.createUser({
+        ...validatedData,
+        username: finalUsername,
+        password: hashedPassword,
+        authProvider: "email",
+      });
+      
+      // Create default user settings
+      await storage.createOrUpdateUserSettings({
+        userId: user.id,
+        theme: "light",
+        notifications: true,
+      });
+      
+      // Authenticate the user
+      req.login(
+        {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          avatarUrl: user.avatarUrl || undefined,
+        },
+        (err) => {
+          if (err) {
+            return res.status(500).json({ message: "Authentication failed" });
+          }
+          return res.status(201).json({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            avatarUrl: user.avatarUrl,
+          });
+        }
+      );
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      console.error("Registration error:", error);
+      res.status(500).json({ message: "Registration failed" });
+    }
+  });
   
-  // Get current user with enhanced logging
-  app.get("/api/user", (req, res) => {
-    console.log("GET /api/user - Auth status:", req.isAuthenticated());
+  app.post("/api/auth/login", (req, res, next) => {
+    console.log("Login attempt:", req.body.email);
     
+    passport.authenticate("local", (err: any, user: any, info: { message?: string }) => {
+      if (err) {
+        console.error("Login error:", err);
+        return res.status(500).json({ message: "Login failed", error: err.message });
+      }
+      
+      if (!user) {
+        console.log("Login failed:", info?.message || "Invalid credentials");
+        return res.status(401).json({ message: info?.message || "Invalid credentials" });
+      }
+      
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Session creation error:", loginErr);
+          return res.status(500).json({ message: "Failed to create session" });
+        }
+        
+        console.log("Login successful for user:", user.username, `(${user.id})`);
+        console.log("Session established:", req.session.id);
+        
+        // Set a response header for debugging
+        res.setHeader('X-Session-ID', req.session.id);
+        
+        return res.json(user);
+      });
+    })(req, res, next);
+  });
+  
+  app.post("/api/auth/logout", (req, res) => {
+    req.logout((err) => {
+      if (err) {
+        return res.status(500).json({ message: "Logout failed" });
+      }
+      res.json({ message: "Logged out successfully" });
+    });
+  });
+  
+  app.get("/api/auth/me", (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).json({ message: "Not authenticated" });
     }
-    
-    // User is already attached to the request by passport
-    console.log("Authenticated user:", req.user?.id, req.user?.email);
     res.json(req.user);
-  });
-  
-  // ==== ADMIN API ROUTES ====
-  
-  // Get admin dashboard statistics
-  app.get("/api/admin/stats", requireAdmin, async (req: AuthenticatedRequest, res) => {
-    try {
-      // Get all users
-      const allUsers = await db.select().from(users);
-      
-      // Get accounts count
-      const accountsResult = await db.select().from(s3Accounts);
-      
-      // Get shared files
-      const sharedFilesResult = await db.select().from(sharedFiles);
-      
-      // Get active shared files (not expired)
-      const now = new Date();
-      const activeSharedFiles = sharedFilesResult.filter((file: any) => 
-        !file.expiresAt || new Date(file.expiresAt) > now
-      );
-      
-      // Calculate new users in the last week
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const newUsersThisWeek = allUsers.filter((user: any) => 
-        user.createdAt && new Date(user.createdAt) > oneWeekAgo
-      ).length;
-      
-      // Calculate active subscriptions
-      const paidSubscriptions = allUsers.filter((user: any) => 
-        user.subscriptionPlan && user.subscriptionPlan !== 'free'
-      ).length;
-      
-      // Calculate subscription conversion rate
-      const subscriptionConversionRate = allUsers.length > 0 ? 
-        (paidSubscriptions / allUsers.length) * 100 : 0;
-      
-      // Prepare stats to return
-      const stats = {
-        totalUsers: allUsers.length,
-        newUsersThisWeek,
-        activeSubscriptions: paidSubscriptions,
-        subscriptionConversionRate: Math.round(subscriptionConversionRate * 10) / 10, // Round to 1 decimal place
-        totalAccounts: accountsResult.length,
-        totalStorageUsed: "Calculation pending", // Would require S3 API calls to calculate
-        totalSharedFiles: sharedFilesResult.length,
-        activeSharedFiles: activeSharedFiles.length
-      };
-      
-      res.json(stats);
-    } catch (error) {
-      console.error("Error retrieving admin stats:", error);
-      res.status(500).json({ message: "Failed to retrieve admin statistics" });
-    }
-  });
-  
-  // Get users for admin management
-  app.get("/api/admin/users", requireAdmin, async (req, res) => {
-    try {
-      const usersList = await db.select().from(users);
-      
-      // Sort by creation date descending (newest first)
-      usersList.sort((a: any, b: any) => {
-        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return dateB - dateA;
-      });
-      
-      res.json(usersList);
-    } catch (error) {
-      console.error("Error retrieving users list:", error);
-      res.status(500).json({ message: "Failed to retrieve users" });
-    }
-  });
-  
-  // Update user (role, subscription, status)
-  app.patch("/api/admin/users/:userId", requireAdmin, async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const updateData = req.body;
-      
-      // Check if user exists
-      const existingUser = await storage.getUser(userId);
-      if (!existingUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      
-      // Update user in database
-      const updatedUser = await db.update(users)
-        .set(updateData)
-        .where(eq(users.id, userId))
-        .returning();
-      
-      if (!updatedUser || updatedUser.length === 0) {
-        return res.status(500).json({ message: "Failed to update user" });
-      }
-      
-      // Log admin action
-      await db.insert(adminLogs).values({
-        adminId: req.user!.id,
-        targetUserId: userId,
-        action: "update_user",
-        details: updateData,
-        ip: req.ip || "unknown"
-      });
-      
-      res.json(updatedUser[0]);
-    } catch (error) {
-      console.error("Error updating user:", error);
-      res.status(500).json({ message: "Failed to update user" });
-    }
-  });
-  
-  // Get admin logs
-  app.get("/api/admin/logs", requireAdmin, async (req, res) => {
-    try {
-      // Get all logs, ordered by most recent first
-      const logs = await db.select().from(adminLogs).orderBy(desc(adminLogs.createdAt));
-      
-      // Get all users for lookup purposes
-      const allUsers = await db.select().from(users);
-      
-      // Create a map for quick lookup
-      const usersMap = new Map();
-      
-      allUsers.forEach((user: any) => {
-        usersMap.set(user.id, user.username || user.email || "Unknown User");
-      });
-      
-      // Add usernames to the logs
-      const enhancedLogs = logs.map((log: any) => ({
-        ...log,
-        adminUsername: usersMap.get(log.adminId) || "Unknown Admin",
-        targetUsername: log.targetUserId ? usersMap.get(log.targetUserId) || "Unknown User" : null
-      }));
-      
-      res.json(enhancedLogs);
-    } catch (error) {
-      console.error("Error retrieving admin logs:", error);
-      res.status(500).json({ message: "Failed to retrieve admin logs" });
-    }
   });
   
   // S3 Account Routes
@@ -267,23 +295,6 @@ export function registerRoutes(app: Express): Server {
       
       // Filter out fields that are not in our DB schema
       const { saveCredentials, selectedBucket, ...accountData } = req.body;
-      
-      // Check if bucket already exists in another account owned by this user
-      if (selectedBucket) {
-        const existingAccounts = await storage.getS3Accounts(req.user!.id);
-        const duplicateBucket = existingAccounts.find(account => 
-          account.defaultBucket === selectedBucket &&
-          !(account.accessKeyId === accountData.accessKeyId && 
-            account.secretAccessKey === accountData.secretAccessKey)
-        );
-        
-        if (duplicateBucket) {
-          console.error(`Bucket '${selectedBucket}' is already added to account '${duplicateBucket.name}'`);
-          return res.status(400).json({ 
-            message: `This bucket is already added to account '${duplicateBucket.name}'. Each bucket can only be used with one account.` 
-          });
-        }
-      }
       
       // Prepare account data with user ID and defaultBucket if provided
       const accountInput = {
@@ -472,23 +483,6 @@ export function registerRoutes(app: Express): Server {
         return res.status(400).json({ 
           valid: false,
           error: "Access key ID and secret access key are required" 
-        });
-      }
-      
-      // Define valid AWS regions
-      const validRegions = [
-        "us-east-1", "us-east-2", "us-west-1", "us-west-2",
-        "ca-central-1", "eu-west-1", "eu-west-2", "eu-west-3",
-        "eu-central-1", "eu-north-1", "ap-northeast-1", "ap-northeast-2",
-        "ap-northeast-3", "ap-southeast-1", "ap-southeast-2", "ap-south-1",
-        "sa-east-1", "af-south-1", "eu-south-1", "me-south-1"
-      ];
-      
-      // Validate region
-      if (!validRegions.includes(region)) {
-        return res.status(400).json({
-          valid: false,
-          error: `Invalid region: '${region}'. Please select a valid AWS region.`
         });
       }
       
@@ -1261,27 +1255,7 @@ export function registerRoutes(app: Express): Server {
   // Shared Files Routes
   app.post("/api/shared-files", requireAuth, async (req, res) => {
     try {
-      const { 
-        accountId, 
-        bucket, 
-        path, 
-        filename, 
-        filesize,
-        contentType,
-        expiresAt, 
-        allowDownload,
-        password,
-        isPublic,
-        // Advanced permission settings
-        permissionLevel, 
-        accessType,
-        allowedDomains,
-        maxDownloads,
-        notifyOnAccess,
-        watermarkEnabled,
-        // Recipients for specific sharing 
-        recipients
-      } = req.body;
+      const { accountId, bucket, path, filename, expiresAt, allowDownload, password } = req.body;
       
       if (!accountId || !bucket || !path || !filename) {
         return res.status(400).json({ message: "Missing required fields" });
@@ -1293,7 +1267,7 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Account not found" });
       }
       
-      // Create S3 client
+      // Get file size and content type
       const s3Client = new S3Client({
         region: account.region,
         credentials: {
@@ -1302,24 +1276,13 @@ export function registerRoutes(app: Express): Server {
         },
       });
       
-      // Check if file exists and get metadata if not provided
-      let fileMetadata = {
-        ContentLength: filesize,
-        ContentType: contentType
-      };
+      // Check if file exists and get metadata
+      const headCommand = new HeadObjectCommand({
+        Bucket: bucket,
+        Key: path,
+      });
       
-      if (!fileMetadata.ContentLength || !fileMetadata.ContentType) {
-        const headCommand = new HeadObjectCommand({
-          Bucket: bucket,
-          Key: path,
-        });
-        
-        const headResponse = await s3Client.send(headCommand);
-        fileMetadata = {
-          ContentLength: headResponse.ContentLength,
-          ContentType: headResponse.ContentType
-        };
-      }
+      const headResponse = await s3Client.send(headCommand);
       
       // Generate share token
       const shareToken = randomBytes(16).toString("hex");
@@ -1327,56 +1290,23 @@ export function registerRoutes(app: Express): Server {
       // Hash password if provided
       let hashedPassword = null;
       if (password) {
-        // Use crypto for password hashing
-        const salt = randomBytes(16).toString("hex");
-        const scryptAsync = promisify(scrypt);
-        const hash = await scryptAsync(password, salt, 64) as Buffer;
-        hashedPassword = `${hash.toString("hex")}.${salt}`;
+        hashedPassword = await bcrypt.hash(password, 10);
       }
       
-      // Create shared file record with advanced permissions
+      // Create shared file record
       const sharedFile = await storage.createSharedFile({
         userId: req.user!.id,
         accountId: parseInt(accountId),
         bucket,
         path,
         filename,
-        filesize: fileMetadata.ContentLength || 0,
-        contentType: fileMetadata.ContentType,
+        filesize: headResponse.ContentLength || 0,
+        contentType: headResponse.ContentType,
         shareToken,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
-        // Permission settings
         allowDownload: allowDownload !== false,
-        permissionLevel: permissionLevel || 'view',
-        accessType: accessType || 'public',
-        // Security settings
         password: hashedPassword,
-        isPublic: isPublic === true,
-        allowedDomains: Array.isArray(allowedDomains) ? allowedDomains : undefined,
-        // Advanced settings
-        maxDownloads: typeof maxDownloads === 'number' ? maxDownloads : null,
-        notifyOnAccess: notifyOnAccess === true,
-        watermarkEnabled: watermarkEnabled === true,
       });
-      
-      // Process recipient emails if provided
-      if (Array.isArray(recipients) && recipients.length > 0) {
-        // Create recipient records for each email
-        await Promise.all(recipients.map(async (email: string) => {
-          if (typeof email === 'string' && email.trim().length > 0) {
-            try {
-              await storage.createFileRecipient({
-                fileId: sharedFile.id,
-                email: email.trim().toLowerCase(),
-                permissionLevel: permissionLevel || 'view',
-              });
-            } catch (error) {
-              console.error(`Failed to add recipient ${email}:`, error);
-              // Continue with other recipients if one fails
-            }
-          }
-        }));
-      }
       
       // Generate a direct S3 link that will work regardless of app state
       const s3Url = new URL(`https://${bucket}.s3.${account.region}.amazonaws.com/${path}`);
@@ -1447,59 +1377,6 @@ export function registerRoutes(app: Express): Server {
     }
   });
   
-  // API endpoint to expire a shared file (mark as expired without deleting)
-  app.patch("/api/shared-files/:id/expire", requireAuth, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      
-      // Check if file belongs to user
-      const sharedFile = await storage.getSharedFile(id);
-      if (!sharedFile || sharedFile.userId !== req.user!.id) {
-        return res.status(404).json({ message: "Shared file not found" });
-      }
-      
-      // Update the shared file to mark it as expired
-      const updatedFile = await storage.updateSharedFile(id, { 
-        isExpired: true 
-      });
-      
-      res.json({
-        ...updatedFile,
-        message: "Shared file expired successfully"
-      });
-    } catch (error) {
-      console.error("Error expiring shared file:", error);
-      res.status(500).json({ message: "Failed to expire shared file" });
-    }
-  });
-  
-  // API endpoint to toggle public access for a shared file
-  app.patch("/api/shared-files/:id/toggle-public", requireAuth, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      const { isPublic } = req.body;
-      
-      // Check if file belongs to user
-      const sharedFile = await storage.getSharedFile(id);
-      if (!sharedFile || sharedFile.userId !== req.user!.id) {
-        return res.status(404).json({ message: "Shared file not found" });
-      }
-      
-      // Update the shared file to toggle public access
-      const updatedFile = await storage.updateSharedFile(id, { 
-        isPublic: !!isPublic 
-      });
-      
-      res.json({
-        ...updatedFile,
-        message: isPublic ? "Public access enabled" : "Public access disabled"
-      });
-    } catch (error) {
-      console.error("Error updating shared file public access:", error);
-      res.status(500).json({ message: "Failed to update shared file" });
-    }
-  });
-  
   // File access logs route - get access history for a shared file
   app.get("/api/shared-files/:id/access-logs", requireAuth, async (req, res) => {
     try {
@@ -1547,23 +1424,13 @@ export function registerRoutes(app: Express): Server {
         return res.status(404).json({ message: "Shared file not found or expired" });
       }
       
-      // Check if the file is manually expired or date expired
-      if (sharedFile.isExpired || (sharedFile.expiresAt && new Date(sharedFile.expiresAt) < new Date())) {
-        return res.status(403).json({ message: "This shared link has expired" });
-      }
-      
       // Check password if required
       if (sharedFile.password) {
         if (!password) {
           return res.status(401).json({ passwordRequired: true, message: "Password required" });
         }
         
-        // Compare passwords using crypto
-        const [hashed, salt] = sharedFile.password.split(".");
-        const hashedBuf = Buffer.from(hashed, "hex");
-        const scryptAsync = promisify(scrypt);
-        const suppliedBuf = await scryptAsync(password as string, salt, 64) as Buffer;
-        const passwordValid = timingSafeEqual(hashedBuf, suppliedBuf);
+        const passwordValid = await bcrypt.compare(password as string, sharedFile.password);
         if (!passwordValid) {
           return res.status(401).json({ message: "Invalid password" });
         }
@@ -1592,11 +1459,8 @@ export function registerRoutes(app: Express): Server {
       
       const signedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
       
-      // Create a direct S3 URL as a fallback option (only include if file is marked as public)
-      // This URL can be used for embedding in websites or as a fallback when our signed URLs aren't suitable
-      const directS3Url = sharedFile.isPublic 
-        ? `https://${sharedFile.bucket}.s3.${account.region}.amazonaws.com/${sharedFile.path}`
-        : undefined;
+      // Create a direct S3 URL as a fallback option
+      const directS3Url = `https://${sharedFile.bucket}.s3.${account.region}.amazonaws.com/${sharedFile.path}`;
       
       // Log the file access
       try {
@@ -1605,6 +1469,8 @@ export function registerRoutes(app: Express): Server {
           ipAddress: req.ip || req.socket.remoteAddress || 'unknown',
           userAgent: req.headers['user-agent'] || 'unknown',
           referrer: req.headers.referer || 'direct',
+          country: null,
+          city: null,
           isDownload: req.query.download === 'true',
         });
         

@@ -46,9 +46,9 @@ export default function Dashboard() {
     navigate('/browser');
   };
   
-  // Navigate directly to a specific bucket - use path format instead of query params
+  // Navigate directly to a specific bucket
   const handleExploreBucket = (bucket: string, accountId: number) => {
-    navigate(`/browser/${accountId}/${bucket}`);
+    navigate(`/browser?account=${accountId}&bucket=${bucket}`);
   };
 
   return (
@@ -74,39 +74,25 @@ export default function Dashboard() {
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-            {accounts.length === 0 ? (
-              <div className="col-span-full p-6 text-center bg-card rounded-lg border border-border">
-                <p className="mb-2">No S3 accounts configured yet.</p>
-                <Button 
-                  onClick={() => setIsAddAccountOpen(true)}
-                  className="mt-2"
-                >
-                  Add S3 Account
-                </Button>
-              </div>
-            ) : (
-              accounts.map(account => (
-                <div 
-                  key={`bucket-${account.id}`}
-                  className="group cursor-pointer bg-card hover:bg-muted transition-colors rounded-lg border border-border overflow-hidden"
-                  onClick={() => navigate(`/browser/${account.id}`)}
-                >
-                  <div className="relative aspect-square flex items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors">
-                    <i className="ri-folder-fill text-6xl text-primary/80 group-hover:text-primary transition-colors"></i>
-                    {/* Account badge */}
-                    <div className="absolute top-2 right-2 bg-background/90 rounded-full px-2 py-1 text-xs font-medium border border-border">
-                      <span>{account.name.substring(0, 8)}</span>
-                    </div>
-                  </div>
-                  <div className="p-3">
-                    <h3 className="font-medium truncate group-hover:text-primary transition-colors">
-                      {account.defaultBucket || 'All Buckets'}
-                    </h3>
-                    <p className="text-xs text-muted-foreground mt-1">{account.region}</p>
+            {accounts.filter(account => account.defaultBucket).map(account => (
+              <div 
+                key={`bucket-${account.id}`}
+                className="group cursor-pointer bg-card hover:bg-muted transition-colors rounded-lg border border-border overflow-hidden"
+                onClick={() => handleExploreBucket(account.defaultBucket || '', account.id)}
+              >
+                <div className="relative aspect-square flex items-center justify-center bg-primary/5 group-hover:bg-primary/10 transition-colors">
+                  <i className="ri-folder-fill text-6xl text-primary/80 group-hover:text-primary transition-colors"></i>
+                  {/* Account badge */}
+                  <div className="absolute top-2 right-2 bg-background/90 rounded-full px-2 py-1 text-xs font-medium border border-border">
+                    <span>{account.name.substring(0, 8)}</span>
                   </div>
                 </div>
-              ))
-            )}
+                <div className="p-3">
+                  <h3 className="font-medium truncate group-hover:text-primary transition-colors">{account.defaultBucket}</h3>
+                  <p className="text-xs text-muted-foreground mt-1">{account.region}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
         

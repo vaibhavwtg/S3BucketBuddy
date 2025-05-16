@@ -46,14 +46,6 @@ export default function PublicSharedFile() {
           setIsPasswordRequired(true);
           throw new Error("Password required");
         }
-        
-        // Special handling for expired links 
-        if (error.status === 403) {
-          const errorObj = new Error("This shared link has expired");
-          (errorObj as any).status = 403;
-          throw errorObj;
-        }
-        
         throw error;
       }
     },
@@ -139,7 +131,7 @@ export default function PublicSharedFile() {
       <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 bg-muted/40">
         <div className="flex items-center mb-8">
           <i className="ri-cloud-line text-primary text-3xl mr-2"></i>
-          <h1 className="text-2xl font-bold">WickedFiles</h1>
+          <h1 className="text-2xl font-bold">CloudStore</h1>
         </div>
         
         <Card className="w-full max-w-md">
@@ -185,7 +177,7 @@ export default function PublicSharedFile() {
       <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 bg-muted/40">
         <div className="flex items-center mb-8">
           <i className="ri-cloud-line text-primary text-3xl mr-2"></i>
-          <h1 className="text-2xl font-bold">WickedFiles</h1>
+          <h1 className="text-2xl font-bold">CloudStore</h1>
         </div>
         
         <div className="flex flex-col items-center">
@@ -200,39 +192,26 @@ export default function PublicSharedFile() {
 
   // Show error state
   if (error || !sharedFile) {
-    // Determine the specific error message based on the error status
-    let errorTitle = "File Not Available";
-    let errorMessage = "The file you're looking for is no longer available or has expired.";
-    let errorIcon = "ri-error-warning-line";
-    let additionalMessage = "Please contact the person who shared this file with you.";
-    
-    // Check specific error codes for more accurate messages
-    if ((error as any)?.status === 403) {
-      errorTitle = "Link Expired";
-      errorMessage = "This shared link has been manually expired by the owner.";
-      errorIcon = "ri-time-line";
-    }
-    
     return (
       <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 bg-muted/40">
         <div className="flex items-center mb-8">
           <i className="ri-cloud-line text-primary text-3xl mr-2"></i>
-          <h1 className="text-2xl font-bold">WickedFiles</h1>
+          <h1 className="text-2xl font-bold">CloudStore</h1>
         </div>
         
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <CardTitle className="text-xl font-bold text-destructive">{errorTitle}</CardTitle>
+            <CardTitle className="text-xl font-bold text-destructive">File Not Available</CardTitle>
           </CardHeader>
           <CardContent className="text-center">
             <div className="mx-auto bg-destructive/10 w-16 h-16 rounded-full flex items-center justify-center mb-4">
-              <i className={`${errorIcon} text-3xl text-destructive`}></i>
+              <i className="ri-error-warning-line text-3xl text-destructive"></i>
             </div>
             <p className="text-muted-foreground mb-2">
-              {errorMessage}
+              The file you're looking for is no longer available or has expired.
             </p>
             <p className="text-sm text-muted-foreground">
-              {additionalMessage}
+              Please contact the person who shared this file with you.
             </p>
           </CardContent>
         </Card>
@@ -248,7 +227,7 @@ export default function PublicSharedFile() {
     <div className="min-h-screen w-full flex flex-col justify-center items-center p-4 bg-muted/40">
       <div className="flex items-center mb-8">
         <i className="ri-cloud-line text-primary text-3xl mr-2"></i>
-        <h1 className="text-2xl font-bold">WickedFiles</h1>
+        <h1 className="text-2xl font-bold">CloudStore</h1>
       </div>
       
       <Card className="w-full max-w-md">
@@ -315,7 +294,7 @@ export default function PublicSharedFile() {
         </CardContent>
         <CardFooter className="flex justify-center border-t pt-4">
           <p className="text-xs text-center text-muted-foreground">
-            Shared via WickedFiles • Secure file sharing
+            Shared via CloudStore • Secure file sharing
           </p>
         </CardFooter>
       </Card>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useLocation, useParams } from "wouter";
+import { useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
 // Debug helper for browser component
@@ -45,48 +45,23 @@ export default function Browser() {
         description: "Please log in to access your S3 buckets",
         variant: "destructive",
       });
-      navigate('/auth');
+      navigate('/login');
       return;
     }
   }, [authLoading, isAuthenticated, navigate, notify]);
   
-  // Get parameters from URL - support both path parameters and query parameters
-  const params = useParams();
-  
-  // Use URL parameters as fallback for backward compatibility
+  // Parse URL parameters
   const urlParams = new URLSearchParams(window.location.search);
-  const accountIdParam = params.accountId || urlParams.get('account');
+  const accountIdParam = urlParams.get('account');
+  const bucketParam = urlParams.get('bucket');
+  const prefixParam = urlParams.get('prefix') || "";
   
-  // Handle the bucket and prefix from path or query parameters
-  let bucketParam, prefixParam;
-  
-  if (params['*']) {
-    // Extract bucket and prefix from the path parameter
-    const pathSegments = params['*'].split('/');
-    bucketParam = pathSegments[0];
-    prefixParam = pathSegments.slice(1).join('/');
-  } else {
-    // Fallback to query parameters
-    bucketParam = urlParams.get('bucket');
-    prefixParam = urlParams.get('prefix') || "";
-  }
-  
-  // CRITICAL FIX: Parse account ID to number or undefined
-  // Using a more robust parsing that guarantees a number or undefined
-  let parsedAccountId: number | undefined = undefined;
-  if (accountIdParam) {
-    const parsed = parseInt(accountIdParam);
-    if (!isNaN(parsed)) {
-      parsedAccountId = parsed;
-    }
-  }
+  // Parse account ID to number or undefined
+  const parsedAccountId = accountIdParam ? parseInt(accountIdParam) : undefined;
   
   // Use empty string for bucket and prefix if not provided
-  // For /browser/6 routes, don't set bucket initially, let the redirect logic work
-  const bucket = location.startsWith(`/browser/${parsedAccountId}`) && !bucketParam 
-    ? "" // Don't set bucket yet for account-only URL to trigger auto-bucket selection
-    : (bucketParam || "");
-  const prefix = prefixParam || "";
+  const bucket = bucketParam || "";
+  const prefix = prefixParam;
   
   // Debug log current parameters
   if (DEBUG) {
@@ -98,29 +73,28 @@ export default function Browser() {
     });
   }
   
-  // Helper function for navigation with parameters - using path params instead of query params
+  // Helper function for navigation with parameters
   const navigateTo = useCallback((params: { 
     account?: string | number, 
     bucket?: string, 
     prefix?: string 
   }) => {
-    // Build the path-based URL
-    let navigationUrl = '/browser';
+    const queryParams = new URLSearchParams();
     
-    // Add account ID
+    // Only set parameters that are defined
     if (params.account !== undefined && params.account !== null) {
-      navigationUrl += `/${params.account}`;
-      
-      // Add bucket
-      if (params.bucket) {
-        navigationUrl += `/${params.bucket}`;
-        
-        // Add prefix if it exists
-        if (params.prefix) {
-          navigationUrl += `/${params.prefix}`;
-        }
-      }
+      queryParams.set('account', params.account.toString());
     }
+    
+    if (params.bucket) {
+      queryParams.set('bucket', params.bucket);
+    }
+    
+    if (params.prefix) {
+      queryParams.set('prefix', params.prefix);
+    }
+    
+    const navigationUrl = `/browser?${queryParams.toString()}`;
     
     if (DEBUG) {
       console.log('Navigating to:', { 
@@ -188,27 +162,17 @@ export default function Browser() {
     // Use the accountId from the bucket if available, otherwise use the current one
     const accountIdToUse = selectedBucket.accountId || parsedAccountId;
     
-    if (!accountIdToUse) {
-      console.error('No account ID available for navigation');
-      notify({
-        title: "Navigation Error",
-        description: "Unable to determine which account to use",
-        variant: "destructive",
-      });
-      return;
-    }
-    
     navigateTo({
       account: accountIdToUse,
       bucket: selectedBucket.Name
     });
-  }, [navigateTo, parsedAccountId, notify]);
+  }, [navigateTo, parsedAccountId]);
   
   // Hook for fetching buckets in selected account (if any)
   const { 
     data: buckets = [], 
     isLoading: isLoadingBuckets
-  } = useS3Buckets(parsedAccountId);
+  } = useS3Buckets(parsedAccountId, !bucket);
   
   // Hook for listing objects in selected bucket
   const { 
@@ -219,13 +183,13 @@ export default function Browser() {
   
   // Hook for file operations
   const { 
+    deleteFile, 
+    downloadFile, 
     batchDownload,
     batchDelete,
     batchMove,
     batchCopy,
-    deleteFile,
-    downloadFile,
-    isDeleting,
+    isDeleting, 
     isDownloading, 
     isBatchDownloading,
     isBatchDeleting,
@@ -239,47 +203,8 @@ export default function Browser() {
     isLoading: isLoadingAccounts
   } = useQuery<S3Account[]>({
     queryKey: ['/api/s3-accounts'],
-    enabled: isAuthenticated
+    enabled: parsedAccountId !== undefined && !bucket
   });
-  
-  // Add effect to select a bucket automatically when only account is specified
-  useEffect(() => {
-    // Only proceed if we have an account ID but no bucket, and accounts data is loaded
-    if (parsedAccountId && !bucket && accounts && accounts.length > 0) {
-      console.log("Auto-selecting bucket for account", parsedAccountId);
-      
-      // Find the selected account in our accounts list
-      const currentAccount = accounts.find(acc => acc.id === parsedAccountId);
-      
-      if (currentAccount) {
-        // First choice: Use the buckets API result if available
-        if (buckets && buckets.length > 0) {
-          const firstBucket = buckets[0].Name;
-          console.log(`Using first bucket from API: ${firstBucket}`);
-          
-          // Navigate to the selected bucket
-          navigateTo({
-            account: parsedAccountId,
-            bucket: firstBucket
-          });
-        }
-        // Second choice: Use the default bucket from account settings
-        else if (currentAccount.defaultBucket) {
-          console.log(`Using default bucket: ${currentAccount.defaultBucket}`);
-          
-          // Navigate to the default bucket
-          navigateTo({
-            account: parsedAccountId,
-            bucket: currentAccount.defaultBucket
-          });
-        }
-        // Last resort: Show a message that no buckets are available
-        else {
-          console.log("No buckets available for this account");
-        }
-      }
-    }
-  }, [parsedAccountId, bucket, accounts, buckets, navigateTo]);
   
   // Handle toggling selection mode
   const toggleSelectionMode = useCallback(() => {
@@ -518,15 +443,13 @@ export default function Browser() {
         console.log(`Account ${parsedAccountId} has default bucket ${account.defaultBucket}, redirecting...`);
       }
       
-      // Instead of effect, do the navigation directly
-      console.log(`Redirecting to bucket ${account.defaultBucket}`);
-      // Use setTimeout to delay navigation slightly to avoid rendering issues
+      // Use setTimeout to avoid rendering issues
       setTimeout(() => {
         navigateTo({
           account: parsedAccountId,
           bucket: account.defaultBucket
         });
-      }, 100);
+      }, 0);
       
       // Show loading while redirecting
       return (
@@ -539,7 +462,7 @@ export default function Browser() {
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
               </div>
-              <p>Loading default bucket: {account.defaultBucket}...</p>
+              <p>Loading default bucket...</p>
             </div>
           </div>
         </Layout>
@@ -553,56 +476,36 @@ export default function Browser() {
           <h1 className="text-2xl font-bold tracking-tight">Your S3 Buckets</h1>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {/* Show buckets for the selected account with better fallback handling */}
+            {/* Only show buckets for the selected account */}
             {allBuckets
-              .filter(bucket => 
-                // Make sure we have a valid account ID and bucket has a Name property
-                parsedAccountId && 
-                bucket.accountId === parsedAccountId && 
-                bucket.Name
-              )
-              .map((bucket, index) => {
-                // Debug logging to show all available buckets
-                if (DEBUG) {
-                  console.log(`Rendering bucket: ${bucket.Name} for account ${bucket.accountId} (${bucket.accountName})`);
-                }
-                
-                return (
-                  <Button
-                    key={bucket.Name || index}
-                    variant="outline"
-                    className="h-auto p-6 flex flex-col items-center justify-center gap-4 hover:bg-muted"
-                    onClick={() => handleSelectBucket(bucket)}
-                  >
-                    <div className="flex flex-col items-center justify-center gap-2">
-                      <svg className="h-12 w-12 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                      </svg>
-                      <span className="text-lg font-medium">{bucket.Name}</span>
-                      <span className="text-xs text-muted-foreground">{bucket.accountName} • {bucket.region}</span>
-                    </div>
-                  </Button>
-                );
-              })}
+              .filter(bucket => bucket.accountId === parsedAccountId)
+              .map((bucket, index) => (
+                <Button
+                  key={index}
+                  variant="outline"
+                  className="h-auto p-6 flex flex-col items-center justify-center gap-4 hover:bg-muted"
+                  onClick={() => handleSelectBucket(bucket)}
+                >
+                  <div className="flex flex-col items-center justify-center gap-2">
+                    <svg className="h-12 w-12 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    <span className="text-lg font-medium">{bucket.Name}</span>
+                    <span className="text-xs text-muted-foreground">{bucket.accountName} • {bucket.region}</span>
+                  </div>
+                </Button>
+              ))}
           </div>
           
-          {(allBuckets.filter(b => 
-              b.accountId === parsedAccountId && b.Name
-            ).length === 0) && (
+          {allBuckets.filter(b => b.accountId === parsedAccountId).length === 0 && (
             <div className="text-center py-12">
-              <p className="text-muted-foreground">
-                {isLoadingAllBuckets 
-                  ? "Loading buckets..." 
-                  : "No buckets found for this account."}
-              </p>
-              {!isLoadingAllBuckets && (
-                <Button 
-                  className="mt-4"
-                  onClick={() => navigate('/account-manager')}
-                >
-                  Manage Accounts
-                </Button>
-              )}
+              <p className="text-muted-foreground">No buckets found for this account.</p>
+              <Button 
+                className="mt-4"
+                onClick={() => navigate('/account-manager')}
+              >
+                Manage Accounts
+              </Button>
             </div>
           )}
         </div>
@@ -610,164 +513,155 @@ export default function Browser() {
     );
   }
   
-  // Handle navigation for when no account is selected
-  // This needs to be a top-level hook call outside of any conditional
-  useEffect(() => {
-    if (!parsedAccountId) {
-      navigate('/');
-    }
-  }, [parsedAccountId, navigate]);
-  
-  // Show loading state when redirecting
-  if (!parsedAccountId) {
-    return (
-      <Layout>
-        <div className="flex items-center justify-center h-[70vh]">
-          <div className="flex flex-col items-center">
-            <div className="animate-spin text-primary mb-4">
-              <svg className="h-12 w-12" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-            </div>
-            <p>Redirecting to dashboard...</p>
-          </div>
-        </div>
-      </Layout>
-    );
+  // If there's no account selected at all, redirect to the dashboard
+  if (!parsedAccountId && !bucket) {
+    navigate('/dashboard');
+    return null;
   }
   
-  // Main view for browsing files and folders in a bucket
+  // Return file browser if bucket is selected
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Breadcrumb navigation */}
-        <Breadcrumbs 
-          bucket={bucket} 
-          prefix={prefix} 
-          onNavigate={handleNavigateUp} 
-        />
+        {/* Breadcrumbs for navigation */}
+        <div className="flex items-center justify-between">
+          <Breadcrumbs 
+            accountId={parsedAccountId!} 
+            bucket={bucket} 
+            prefix={prefix} 
+          />
+          <StorageStats account={accounts.find(a => a.id === parsedAccountId)} />
+        </div>
         
         {/* File actions toolbar */}
-        <FileActions 
-          searchQuery={searchQuery}
-          onSearch={handleSearch}
-          onUpload={() => setIsUploadOpen(true)}
-          sortBy={sortBy}
-          onSortChange={setSortBy}
+        <FileActions
+          title={`Browsing ${bucket}`}
+          bucket={bucket}
+          prefix={prefix}
+          accountId={parsedAccountId!}
           viewMode={viewMode}
           onViewModeChange={setViewMode}
+          sortBy={sortBy}
+          onSortChange={setSortBy}
           selectionMode={selectionMode}
           selectedCount={Object.keys(selectedFiles).length}
-          onSelectionModeToggle={toggleSelectionMode}
-          onSelectAll={selectAllFiles}
-          onClearSelection={clearSelection}
+          onToggleSelectionMode={toggleSelectionMode}
           onBatchDownload={handleBatchDownload}
+          onBatchDelete={handleBatchDelete}
           onBatchMove={handleBatchMove}
           onBatchCopy={handleBatchCopy}
-          onBatchDelete={handleBatchDelete}
-          isBatchDownloading={isBatchDownloading}
-          isBatchDeleting={isBatchDeleting}
-          isBatchMoving={isBatchMoving}
-          isBatchCopying={isBatchCopying}
+          onSelectAll={selectAllFiles}
+          onClearSelection={clearSelection}
+          onSearch={handleSearch}
+          onUpload={() => setIsUploadOpen(true)}
         />
         
-        {/* Scrollable container for files and folders */}
-        <div className="bg-white dark:bg-black border rounded-md min-h-[calc(100vh-32rem)] max-h-[calc(100vh-20rem)] overflow-y-auto">
-          <div className="p-4">
-            {/* Loading state */}
-            {isLoadingObjects && (
-              <div className="flex justify-center items-center py-12">
-                <div className="animate-spin text-primary">
-                  <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                </div>
+        {/* Content area for files and folders */}
+        <div className="relative min-h-[300px]">
+          {/* Loading indicator */}
+          {isLoadingObjects && (
+            <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
+              <div className="animate-spin text-primary">
+                <svg className="h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
               </div>
-            )}
+            </div>
+          )}
+          
+          {/* Parent directory button */}
+          {prefix && (
+            <div className={viewMode === 'grid' ? 'mb-6' : 'mb-2'}>
+              <Button
+                variant="outline"
+                className="w-full md:w-auto flex items-center gap-2"
+                onClick={handleNavigateUp}
+              >
+                <svg className="h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                <span>Parent Directory</span>
+              </Button>
+            </div>
+          )}
+          
+          {/* Grid or list of folders and files */}
+          <div className={viewMode === 'grid' 
+            ? 'grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4' 
+            : 'space-y-2'
+          }>
+            {/* Folders */}
+            {filteredFolders.map((folder, index) => (
+              <FolderCard
+                key={index}
+                folder={folder}
+                accountId={parsedAccountId!}
+                bucket={bucket}
+                prefix={prefix}
+                viewMode={viewMode}
+                onClick={() => handleFolderClick(folder)}
+              />
+            ))}
             
-            {/* Grid or list view for folders and files */}
-            <div className={`grid ${viewMode === 'grid' 
-              ? 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6' 
-              : 'grid-cols-1'} gap-4`}
-            >
-              {/* Folders */}
-              {filteredFolders.map((folder, index) => (
-                <FolderCard 
-                  key={`folder-${index}`}
-                  folder={folder} 
-                  accountId={parsedAccountId}
-                  bucket={bucket}
-                  prefix={prefix}
-                  onClick={() => handleFolderClick(folder)}
-                  viewMode={viewMode}
-                />
-              ))}
-              
-              {/* Files */}
-              {filteredFiles.map((file, index) => (
-                <FileCard 
-                  key={`file-${index}`}
-                  file={file}
-                  bucket={bucket}
-                  accountId={parsedAccountId}
-                  parentPrefix={prefix}
-                  viewMode={viewMode}
-                  selectionMode={selectionMode}
-                  isSelected={!!selectedFiles[file.Key!]}
-                  onSelect={handleFileSelection}
-                  onDelete={(bucket, key) => {
-                    return new Promise<void>((resolve, reject) => {
-                      try {
-                        // Call the deleteFile function without awaiting
-                        deleteFile(bucket, key);
-                        resolve();
-                      } catch (error) {
-                        reject(error);
-                      }
-                    });
-                  }}
-                  onDownload={(bucket, key) => {
-                    if (!downloadFile) {
-                      notify({
-                        title: "Download Failed",
-                        description: "Download functionality is not available",
+            {/* Files */}
+            {filteredFiles.map((file, index) => (
+              <FileCard
+                key={index}
+                file={file}
+                bucket={bucket}
+                accountId={parsedAccountId!}
+                prefix={prefix}
+                selectable={selectionMode}
+                selected={!!selectedFiles[file.Key || '']}
+                onSelect={(file, selected) => handleFileSelection(file, selected)}
+                viewMode={viewMode}
+                onDelete={async () => {
+                  if (!file.Key) return;
+                  if (confirm('Are you sure you want to delete this file?')) {
+                    try {
+                      await deleteFile(bucket, file.Key);
+                      notify({ 
+                        title: "File deleted", 
+                        description: `Successfully deleted ${file.Key}` 
+                      });
+                      refetchObjects();
+                    } catch (error) {
+                      notify({ 
+                        title: "Delete failed", 
+                        description: "Failed to delete file",
                         variant: "destructive"
                       });
-                      return Promise.resolve();
                     }
-                    
-                    // Wrap the downloadFile call to ensure it returns a promise
-                    return downloadFile(bucket, key)
-                      .catch(error => {
-                        console.error("Error downloading file:", error);
-                        notify({
-                          title: "Download Failed",
-                          description: error instanceof Error ? error.message : "Unknown error",
-                          variant: "destructive"
-                        });
-                      });
-                  }}
-                  isDeleting={isDeleting}
-                  isDownloading={isDownloading}
-                  refetchFiles={refetchObjects}
-                />
-              ))}
-              
-              {/* Empty state */}
-              {filteredFiles.length === 0 && filteredFolders.length === 0 && !isLoadingObjects && (
-                <div className="col-span-full text-center py-12">
-                  <p className="text-muted-foreground">This folder is empty</p>
-                  <Button 
-                    className="mt-4"
-                    onClick={() => setIsUploadOpen(true)}
-                  >
-                    Upload Files
-                  </Button>
-                </div>
-              )}
-            </div>
+                  }
+                }}
+                onDownload={async () => {
+                  if (!file.Key) return;
+                  try {
+                    await downloadFile(bucket, file.Key);
+                  } catch (error) {
+                    notify({ 
+                      title: "Download failed", 
+                      description: "Failed to download file",
+                      variant: "destructive"
+                    });
+                  }
+                }}
+              />
+            ))}
+            
+            {/* Empty state */}
+            {filteredFiles.length === 0 && filteredFolders.length === 0 && !isLoadingObjects && (
+              <div className="col-span-full text-center py-12">
+                <p className="text-muted-foreground">This folder is empty</p>
+                <Button 
+                  className="mt-4"
+                  onClick={() => setIsUploadOpen(true)}
+                >
+                  Upload Files
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -778,7 +672,7 @@ export default function Browser() {
         onOpenChange={setIsUploadOpen}
         bucket={bucket}
         prefix={prefix}
-        accountId={parsedAccountId}
+        accountId={parsedAccountId!}
       />
       
       {/* Batch move dialog */}

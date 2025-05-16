@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -40,7 +40,7 @@ interface ShareDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   file: {
-    accountId: number | null | undefined;
+    accountId: number;
     bucket: string;
     path: string;
     filename: string;
@@ -50,46 +50,12 @@ interface ShareDialogProps {
 }
 
 const shareFileSchema = z.object({
-  // Basic sharing options
   expiryOption: z.string().default("never"),
   expiresAt: z.string().optional(),
   allowDownload: z.boolean().default(true),
-  
-  // Advanced permission options
-  permissionLevel: z.enum([
-    "view", 
-    "download", 
-    "edit", 
-    "comment", 
-    "full", 
-    "owner"
-  ]).default("view"),
-  
-  // Access control options
-  accessType: z.enum([
-    "public", 
-    "domain", 
-    "email", 
-    "password"
-  ]).default("public"),
-  
-  // Password protection
+  access: z.enum(["view", "download"]).default("view"),
   usePassword: z.boolean().default(false),
   password: z.string().optional(),
-  
-  // Embedding options
-  isPublic: z.boolean().default(false), // Allow public/direct S3 access for embedding
-  
-  // Domain restriction options
-  allowedDomains: z.string().optional(),
-  
-  // Recipient emails for specific sharing
-  recipientEmails: z.string().optional(),
-  
-  // Advanced settings
-  maxDownloads: z.number().optional(),
-  notifyOnAccess: z.boolean().default(false),
-  watermarkEnabled: z.boolean().default(false),
 });
 
 type ShareFileFormValues = z.infer<typeof shareFileSchema>;
@@ -99,48 +65,22 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
   const [directS3Url, setDirectS3Url] = useState<string>("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
-  // Debug log to see what file data we're getting
-  useEffect(() => {
-    if (open && file) {
-      console.log("ShareDialog file:", file);
-    }
-  }, [open, file]);
-  
-  // Use safe defaults if file is null or contentType is missing
-  const fileIcon = file?.contentType ? getFileIcon(file.contentType) : 'file-line';
-  const fileColor = file?.contentType ? getFileColor(file.contentType) : 'text-blue-500';
+  const fileIcon = getFileIcon(file.contentType);
+  const fileColor = getFileColor(file.contentType);
 
   const form = useForm<ShareFileFormValues>({
     resolver: zodResolver(shareFileSchema),
     defaultValues: {
-      // Basic sharing options
       expiryOption: "never",
       allowDownload: true,
-      
-      // Advanced permission options
-      permissionLevel: "view",
-      accessType: "public",
-      
-      // Protection options
+      access: "view",
       usePassword: false,
-      
-      // Embedding options
-      isPublic: false,
-      
-      // Advanced settings
-      notifyOnAccess: false,
-      watermarkEnabled: false,
     },
   });
 
-  // Watch form values
   const expiryOption = form.watch("expiryOption");
   const usePassword = form.watch("usePassword");
-  const permissionLevel = form.watch("permissionLevel");
-  const accessType = form.watch("accessType");
-  const isPublic = form.watch("isPublic");
-  const watermarkEnabled = form.watch("watermarkEnabled");
+  const access = form.watch("access");
 
   // Handle expiry option changes
   const handleExpiryChange = (value: string) => {
@@ -163,55 +103,15 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
 
   const shareFileMutation = useMutation({
     mutationFn: async (values: ShareFileFormValues) => {
-      console.log("Submitting with file:", JSON.stringify(file, null, 2));
-      
-      // Validate that we have a file to share
-      if (!file) {
-        throw new Error('Missing file information required for sharing');
-      }
-      
-      // Process recipient emails if provided
-      const recipients = values.recipientEmails 
-        ? values.recipientEmails.split(',').map(email => email.trim()).filter(email => email.length > 0)
-        : [];
-        
-      // Process allowed domains if provided
-      const domains = values.allowedDomains
-        ? values.allowedDomains.split(',').map(domain => domain.trim()).filter(domain => domain.length > 0)
-        : [];
-      
-      // Prepare the data for the API with advanced permission settings
+      // Prepare the data for the API
       const shareData = {
-        // Basic file info
-        accountId: typeof file.accountId === 'string' ? parseInt(file.accountId) : file.accountId,
-        bucket: file.bucket || '',
-        path: file.path || '',
-        filename: file.filename || 'Unknown file',
-        filesize: file.size || 0,
-        contentType: file.contentType || 'application/octet-stream',
-        
-        // Expiration settings
+        accountId: file.accountId,
+        bucket: file.bucket,
+        path: file.path,
+        filename: file.filename,
         expiresAt: values.expiryOption === "never" ? null : values.expiresAt,
-        
-        // Permission settings
-        permissionLevel: values.permissionLevel,
-        accessType: values.accessType,
-        allowDownload: values.permissionLevel === "download" || values.allowDownload,
-        
-        // Security settings
+        allowDownload: values.access === "download" || values.allowDownload,
         password: values.usePassword ? values.password : undefined,
-        
-        // Public access settings
-        isPublic: values.isPublic,
-        
-        // Advanced settings
-        allowedDomains: domains.length > 0 ? domains : undefined,
-        maxDownloads: values.maxDownloads,
-        notifyOnAccess: values.notifyOnAccess,
-        watermarkEnabled: values.watermarkEnabled,
-        
-        // Recipient information
-        recipients: recipients.length > 0 ? recipients : undefined,
       };
       
       const res = await apiRequest("POST", "/api/shared-files", shareData);
@@ -275,11 +175,8 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
         <div className="flex items-center mb-4">
           <i className={`ri-${fileIcon} text-2xl ${fileColor} mr-3`}></i>
           <div>
-            <p className="font-medium text-foreground">{file?.filename || "Selected file"}</p>
-            <p className="text-sm text-muted-foreground">
-              {file?.size ? formatBytes(file.size) : "Unknown size"}
-              {file?.contentType ? ` • ${file.contentType}` : ""}
-            </p>
+            <p className="font-medium text-foreground">{file.filename}</p>
+            <p className="text-sm text-muted-foreground">{formatBytes(file.size)} • {file.contentType}</p>
           </div>
         </div>
         
@@ -380,10 +277,10 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
               
               <FormField
                 control={form.control}
-                name="permissionLevel"
+                name="access"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Permission Level</FormLabel>
+                    <FormLabel>Access Settings</FormLabel>
                     <FormControl>
                       <RadioGroup
                         value={field.value}
@@ -391,33 +288,15 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
                         className="flex flex-col space-y-1"
                       >
                         <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="view" id="view-perm" />
-                          <label htmlFor="view-perm" className="text-sm font-medium">
+                          <RadioGroupItem value="view" id="view" />
+                          <label htmlFor="view" className="text-sm font-medium">
                             View only
                           </label>
                         </div>
                         <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="download" id="download-perm" />
-                          <label htmlFor="download-perm" className="text-sm font-medium">
-                            Download files
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="edit" id="edit-perm" />
-                          <label htmlFor="edit-perm" className="text-sm font-medium">
-                            Edit metadata
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="comment" id="comment-perm" />
-                          <label htmlFor="comment-perm" className="text-sm font-medium">
-                            Add comments
-                          </label>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <RadioGroupItem value="full" id="full-perm" />
-                          <label htmlFor="full-perm" className="text-sm font-medium">
-                            Full access
+                          <RadioGroupItem value="download" id="download" />
+                          <label htmlFor="download" className="text-sm font-medium">
+                            Allow download
                           </label>
                         </div>
                       </RadioGroup>
@@ -426,81 +305,6 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
                   </FormItem>
                 )}
               />
-              
-              <FormField
-                control={form.control}
-                name="accessType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Access Control</FormLabel>
-                    <Select
-                      value={field.value}
-                      onValueChange={field.onChange}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select access control" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="public">Anyone with the link</SelectItem>
-                        <SelectItem value="domain">Specific email domains</SelectItem>
-                        <SelectItem value="email">Specific email addresses</SelectItem>
-                        <SelectItem value="password">Password protected</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              {/* Show domain input field when domain access type is selected */}
-              {accessType === "domain" && (
-                <FormField
-                  control={form.control}
-                  name="allowedDomains"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Allowed Domains</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="example.com, company.org" 
-                          {...field} 
-                          value={field.value || ""}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Enter comma-separated email domains
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
-              
-              {/* Show recipient emails input when email access type is selected */}
-              {accessType === "email" && (
-                <FormField
-                  control={form.control}
-                  name="recipientEmails"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Recipient Emails</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="user@example.com, person@company.org" 
-                          {...field} 
-                          value={field.value || ""}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Enter comma-separated email addresses
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              )}
               
               <FormField
                 control={form.control}
@@ -542,110 +346,6 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
                   )}
                 />
               )}
-              
-              <FormField
-                control={form.control}
-                name="isPublic"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                    <div className="space-y-1 leading-none">
-                      <FormLabel>Enable public S3 URL</FormLabel>
-                      <FormDescription>
-                        Creates a direct S3 URL that can be embedded in websites and persists even if the app is unavailable.
-                      </FormDescription>
-                    </div>
-                  </FormItem>
-                )}
-              />
-              
-              {/* Advanced settings section */}
-              <div className="mt-6 border-t pt-4">
-                <h3 className="text-sm font-medium mb-3">Advanced Settings</h3>
-                
-                {/* Download limit field */}
-                <FormField
-                  control={form.control}
-                  name="maxDownloads"
-                  render={({ field }) => (
-                    <FormItem className="mb-4">
-                      <FormLabel>Download Limit</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          min="1"
-                          placeholder="No limit" 
-                          {...field}
-                          value={field.value || ""}
-                          onChange={e => {
-                            const value = e.target.value;
-                            field.onChange(value === "" ? undefined : parseInt(value));
-                          }}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Maximum number of downloads allowed (leave empty for unlimited)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Access notification setting */}
-                <FormField
-                  control={form.control}
-                  name="notifyOnAccess"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 mb-4">
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Notify on access
-                        </FormLabel>
-                        <FormDescription>
-                          Send email notifications when someone accesses this file
-                        </FormDescription>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                {/* Watermark setting */}
-                <FormField
-                  control={form.control}
-                  name="watermarkEnabled"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-row items-center space-x-3 space-y-0">
-                      <FormControl>
-                        <Switch
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
-                      </FormControl>
-                      <div className="space-y-1 leading-none">
-                        <FormLabel>
-                          Apply watermark
-                        </FormLabel>
-                        <FormDescription>
-                          Add a watermark to image and document previews
-                        </FormDescription>
-                      </div>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
               
               <DialogFooter className="pt-4">
                 <Button 

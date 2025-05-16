@@ -69,8 +69,6 @@ export interface SharedFile {
   createdAt: string;
   shareUrl?: string;
   accessCount?: number;
-  isExpired?: boolean; // New property: whether the file has been manually expired
-  isPublic?: boolean;  // New property: whether the file has public direct access
 }
 
 export interface UserSettings {
@@ -87,11 +85,9 @@ export interface SharedFileAccess {
   contentType?: string;
   filesize: number;
   signedUrl: string;
-  directS3Url?: string; // Direct S3 URL for embedding in websites
+  directS3Url?: string; // Add direct S3 URL 
   allowDownload: boolean;
   expiresAt?: string;
-  accessCount?: number; // Number of times the file has been accessed
-  isExpired?: boolean; // Whether the file has been manually expired
 }
 
 export interface FileUploadProgress {

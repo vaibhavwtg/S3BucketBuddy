@@ -20,34 +20,11 @@ import { S3Bucket, S3Object, S3CommonPrefix, S3ListObjectsResult, FileUploadProg
  */
 export function useS3Buckets(accountId: number | undefined) {
   const enabled = typeof accountId === 'number';
-  const { toast } = useToast();
   
   return useQuery({
     queryKey: [`/api/s3/${accountId}/buckets`],
-    queryFn: async () => {
-      if (!accountId) {
-        console.error("Invalid accountId for bucket listing:", accountId);
-        return [];
-      }
-      
-      try {
-        console.log(`Fetching buckets for account ${accountId}`);
-        const buckets = await listBuckets(accountId);
-        console.log(`Successfully fetched ${buckets.length} buckets for account ${accountId}`);
-        return buckets;
-      } catch (error) {
-        console.error(`Error fetching buckets for account ${accountId}:`, error);
-        toast({
-          title: "Failed to load buckets",
-          description: error instanceof Error ? error.message : "Could not load buckets for this account",
-          variant: "destructive",
-        });
-        throw error;
-      }
-    },
+    queryFn: () => listBuckets(accountId as number),
     enabled,
-    retry: 2,
-    refetchOnWindowFocus: false
   });
 }
 
@@ -61,7 +38,6 @@ export function useAllS3Buckets() {
   });
   
   // Fetch buckets for all accounts
-  const { toast } = useToast();
   const results = useQuery<EnhancedS3Bucket[]>({
     queryKey: ['all-buckets'],
     queryFn: async () => {
@@ -85,10 +61,6 @@ export function useAllS3Buckets() {
           const buckets = await listBuckets(account.id);
           console.log(`Retrieved ${buckets.length} buckets for account ${account.id}`);
           
-          if (!buckets || buckets.length === 0) {
-            console.log(`No buckets found for account ${account.id} (${account.name})`);
-          }
-          
           // Attach account info to each bucket and filter out invalid buckets
           return buckets
             .filter(bucket => bucket && bucket.Name) // Filter out invalid buckets
@@ -100,40 +72,18 @@ export function useAllS3Buckets() {
             } as EnhancedS3Bucket));
         } catch (error) {
           console.error(`Error fetching buckets for account ${account.id}:`, error);
-          toast({
-            title: "Bucket Loading Issue",
-            description: `Failed to load buckets for account ${account.name}`,
-            variant: "destructive"
-          });
           return [];
         }
       });
       
-      try {
-        const results = await Promise.all(bucketsPromises);
-        
-        // Flatten the results and log
-        const flattenedResults = results.flat();
-        console.log('All buckets data:', flattenedResults);
-        
-        if (flattenedResults.length === 0) {
-          console.log('No buckets found across all accounts');
-        }
-        
-        return flattenedResults;
-      } catch (error) {
-        console.error('Error loading buckets from accounts:', error);
-        toast({
-          title: "Failed to Load Buckets",
-          description: "Could not retrieve your S3 buckets. Please try again.",
-          variant: "destructive"
-        });
-        return [];
-      }
+      const results = await Promise.all(bucketsPromises);
+      
+      // Flatten the results and log
+      const flattenedResults = results.flat();
+      console.log('All buckets data:', flattenedResults);
+      return flattenedResults;
     },
     enabled: accounts.length > 0,
-    retry: 2,
-    refetchOnWindowFocus: false
   });
   
   return {
@@ -153,71 +103,14 @@ export function useS3Objects(
   prefix: string = "",
   enabled = true
 ) {
-  // Enhance type checking to ensure accountId is a number
-  const validAccountId = typeof accountId === 'number' && !isNaN(accountId);
-  
-  // Enhanced validation for bucket - must be non-empty string
-  const validBucket = typeof bucket === 'string' && bucket.trim() !== '';
-  
-  // Make sure the query is properly enabled with valid parameters
-  // Fix for file browsing: simplify the enabled condition to avoid edge cases
-  const isEnabled = enabled && typeof accountId === 'number' && typeof bucket === 'string' && bucket !== '';
-  
+  const isEnabled = enabled && typeof accountId === 'number' && typeof bucket === 'string';
   const { toast } = useToast();
-  
-  // Add detailed logging to help debug issues
-  if (enabled && !isEnabled) {
-    console.warn("S3Objects query disabled due to invalid params:", { 
-      accountId, 
-      validAccountId, 
-      bucket, 
-      validBucket 
-    });
-  }
   
   return useQuery<S3ListObjectsResult>({
     queryKey: [`/api/s3/${accountId}/objects`, bucket, prefix],
-    queryFn: async () => {
-      // Double-check parameters to prevent runtime errors
-      if (!validAccountId || !validBucket) {
-        console.error("Invalid parameters for S3 objects query:", { 
-          accountId, 
-          bucket, 
-          prefix 
-        });
-        return { 
-          objects: [], 
-          folders: [], 
-          prefix: prefix || '', 
-          delimiter: '/' 
-        };
-      }
-      
-      try {
-        console.log(`Fetching objects for account ${accountId}, bucket ${bucket}, prefix ${prefix || "(root)"}`);
-        const result = await listObjects(accountId, bucket, prefix);
-        console.log(`Fetched objects successfully: ${result.objects.length} files, ${result.folders.length} folders`);
-        return result;
-      } catch (error) {
-        console.error("Error fetching objects:", error);
-        toast({
-          title: "Failed to load files",
-          description: error instanceof Error ? error.message : "Could not load files from this bucket",
-          variant: "destructive",
-        });
-        // Return empty result instead of throwing to prevent UI crashes
-        return { 
-          objects: [], 
-          folders: [], 
-          prefix: prefix || '', 
-          delimiter: '/', 
-          error: error instanceof Error ? error.message : "Unknown error"
-        };
-      }
-    },
+    queryFn: () => listObjects(accountId as number, bucket as string, prefix),
     enabled: isEnabled,
-    retry: 2, // Retry twice for S3 failures
-    refetchOnWindowFocus: false // Avoid excessive requests
+    retry: 1 // Only retry once for S3 failures
   });
 }
 
@@ -227,7 +120,6 @@ export function useS3Objects(
 export function useS3FileOperations(accountId: number | undefined) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [uploadProgress, setUploadProgress] = useState<Record<string, FileUploadProgress>>({});
 
   // Single file deletion
   const deleteFileMutation = useMutation({
@@ -255,11 +147,60 @@ export function useS3FileOperations(accountId: number | undefined) {
     },
   });
   
-  // Single file download 
-  const downloadFileMutation = useMutation({
-    mutationFn: async ({ bucket, key }: { bucket: string; key: string }) => {
+  // Batch file deletion
+  const batchDeleteMutation = useMutation({
+    mutationFn: async ({ bucket, keys }: { bucket: string; keys: string[] }) => {
       if (!accountId) throw new Error("Account ID is required");
+      return deleteObjects(accountId, bucket, keys);
+    },
+    onSuccess: (result, variables) => {
+      const { deleted, errors } = result;
       
+      if (errors.length === 0) {
+        toast({
+          title: "Batch delete successful",
+          description: `Successfully deleted ${deleted.length} file(s)`,
+        });
+      } else if (deleted.length > 0) {
+        toast({
+          title: "Partial batch delete",
+          description: `Deleted ${deleted.length} file(s), but ${errors.length} file(s) failed`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Batch delete failed",
+          description: "Failed to delete any files",
+          variant: "destructive",
+        });
+      }
+      
+      // Invalidate the objects query to refresh the list
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/s3/${accountId}/objects`, variables.bucket] 
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Batch delete failed",
+        description: error instanceof Error ? error.message : "Failed to delete files",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Single file download  
+  const downloadFile = async (bucket: string, key: string) => {
+    if (!accountId) {
+      toast({
+        title: "Download failed",
+        description: "Account ID is required",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    try {
       const signedUrl = await getDownloadUrl(accountId, bucket, key);
       
       // Create a temporary link and click it to start the download
@@ -270,35 +211,21 @@ export function useS3FileOperations(accountId: number | undefined) {
       link.click();
       document.body.removeChild(link);
       
-      return { success: true };
-    },
-    onSuccess: () => {
       toast({
         title: "Download started",
         description: "Your file will download shortly",
       });
-    },
-    onError: (error) => {
+    } catch (error) {
       toast({
         title: "Download failed",
         description: error instanceof Error ? error.message : "Failed to generate download link",
         variant: "destructive",
       });
-    },
-  });
-  
-  // Create a wrapper function for downloadFileMutation
-  const downloadFile = async (bucket: string, key: string): Promise<void> => {
-    try {
-      await downloadFileMutation.mutateAsync({ bucket, key });
-      return Promise.resolve();
-    } catch (error) {
-      return Promise.reject(error);
     }
   };
 
   // Batch file download
-  const downloadFiles = async (bucket: string, keys: string[]): Promise<void> => {
+  const downloadFiles = async (bucket: string, keys: string[]) => {
     if (!accountId) {
       toast({
         title: "Download failed",
@@ -354,48 +281,6 @@ export function useS3FileOperations(accountId: number | undefined) {
       });
     }
   };
-  
-  // Batch file deletion
-  const batchDeleteMutation = useMutation({
-    mutationFn: async ({ bucket, keys }: { bucket: string; keys: string[] }) => {
-      if (!accountId) throw new Error("Account ID is required");
-      return deleteObjects(accountId, bucket, keys);
-    },
-    onSuccess: (result, variables) => {
-      const { deleted, errors } = result;
-      
-      if (errors.length === 0) {
-        toast({
-          title: "Batch delete successful",
-          description: `Successfully deleted ${deleted.length} file(s)`,
-        });
-      } else if (deleted.length > 0) {
-        toast({
-          title: "Partial batch delete",
-          description: `Deleted ${deleted.length} file(s), but ${errors.length} file(s) failed`,
-          variant: "destructive",
-        });
-      } else {
-        toast({
-          title: "Batch delete failed",
-          description: "Failed to delete any files",
-          variant: "destructive",
-        });
-      }
-      
-      // Invalidate the objects query to refresh the list
-      queryClient.invalidateQueries({ 
-        queryKey: [`/api/s3/${accountId}/objects`, variables.bucket] 
-      });
-    },
-    onError: (error) => {
-      toast({
-        title: "Batch delete failed",
-        description: error instanceof Error ? error.message : "Failed to delete files",
-        variant: "destructive",
-      });
-    },
-  });
 
   // Batch copy operation
   const batchCopyMutation = useMutation({
@@ -540,74 +425,98 @@ export function useS3FileOperations(accountId: number | undefined) {
       });
     },
   });
-  
-  // Upload file operation
+
+  return {
+    // Single file operations
+    deleteFile: (bucket: string, key: string) => deleteFileMutation.mutate({ bucket, key }),
+    downloadFile,
+    renameFile: (bucket: string, sourceKey: string, newName: string) => 
+      renameFileMutation.mutate({ bucket, sourceKey, newName }),
+    
+    // Batch operations
+    batchDeleteFiles: (bucket: string, keys: string[]) => 
+      batchDeleteMutation.mutate({ bucket, keys }),
+    batchCopyFiles: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
+      batchCopyMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
+    batchMoveFiles: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
+      batchMoveMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
+    downloadFiles,
+    
+    // Mutation states
+    isDeleting: deleteFileMutation.isPending,
+    isBatchDeleting: batchDeleteMutation.isPending,
+    isBatchCopying: batchCopyMutation.isPending,
+    isBatchMoving: batchMoveMutation.isPending,
+    isRenaming: renameFileMutation.isPending,
+  };
+}
+
+/**
+ * Hook for uploading files to S3
+ */
+export function useS3Upload(accountId: number | undefined) {
+  const [uploadProgress, setUploadProgress] = useState<Record<string, FileUploadProgress>>({});
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
   const uploadFileMutation = useMutation({
-    mutationFn: async ({ bucket, file, prefix = "" }: { bucket: string; file: File; prefix?: string }) => {
+    mutationFn: async ({ 
+      bucket, 
+      file, 
+      prefix = "" 
+    }: { 
+      bucket: string; 
+      file: File; 
+      prefix?: string; 
+    }) => {
       if (!accountId) throw new Error("Account ID is required");
       
-      // Update progress
-      setUploadProgress(prev => ({
-        ...prev,
-        [file.name]: {
-          filename: file.name,
-          progress: 0,
-          status: "uploading"
-        }
-      }));
-      
-      // Define progress callback
+      // Track progress for this file
       const onProgress = (progress: FileUploadProgress) => {
         setUploadProgress(prev => ({
           ...prev,
-          [progress.filename]: progress
+          [file.name]: progress
         }));
       };
       
-      // Upload with progress tracking
       return uploadFile(accountId, bucket, file, prefix, onProgress);
     },
     onSuccess: (_, variables) => {
-      const { file } = variables;
-      
-      // Mark as completed
+      // Set completed status
       setUploadProgress(prev => ({
         ...prev,
-        [file.name]: {
-          filename: file.name,
+        [variables.file.name]: {
+          filename: variables.file.name,
           progress: 100,
-          status: "completed"
+          status: "completed",
         }
       }));
       
-      // Success toast is handled in the batch uploader to avoid multiple toasts
+      // Invalidate the objects query to refresh the list
       queryClient.invalidateQueries({ 
-        queryKey: [`/api/s3/${accountId}/objects`] 
+        queryKey: [`/api/s3/${accountId}/objects`, variables.bucket] 
       });
     },
-    onError: (error: Error, variables) => {
-      const { file } = variables;
-      
-      // Mark as error
+    onError: (error, variables) => {
+      // Set error status
       setUploadProgress(prev => ({
         ...prev,
-        [file.name]: {
-          filename: file.name,
+        [variables.file.name]: {
+          filename: variables.file.name,
           progress: 0,
           status: "error",
-          error: error instanceof Error ? error.message : "Upload failed"
+          error: error instanceof Error ? error.message : "Upload failed",
         }
       }));
       
       toast({
         title: "Upload failed",
-        description: `Failed to upload ${file.name}: ${error instanceof Error ? error.message : "Unknown error"}`,
+        description: error instanceof Error ? error.message : "Failed to upload file",
         variant: "destructive",
       });
     },
   });
-  
-  // Batch upload function
+
   const uploadBatch = async (bucket: string, files: File[], prefix = "") => {
     if (!accountId) {
       toast({
@@ -618,33 +527,24 @@ export function useS3FileOperations(accountId: number | undefined) {
       return;
     }
     
-    if (files.length === 0) {
-      toast({
-        title: "No files selected",
-        description: "Please select at least one file to upload",
-        variant: "destructive",
-      });
-      return;
-    }
-    
-    // Initialize progress tracking
+    // Initialize progress for all files
     const initialProgress: Record<string, FileUploadProgress> = {};
     files.forEach(file => {
       initialProgress[file.name] = {
         filename: file.name,
         progress: 0,
-        status: "pending"
+        status: "pending",
       };
     });
-    
     setUploadProgress(initialProgress);
     
-    // Upload files sequentially
+    // Upload files sequentially to avoid overwhelming the network
     for (const file of files) {
       try {
         await uploadFileMutation.mutateAsync({ bucket, file, prefix });
       } catch (error) {
-        console.error(`Error uploading file ${file.name}:`, error);
+        // Error is already handled in the mutation
+        continue;
       }
     }
     
@@ -657,42 +557,17 @@ export function useS3FileOperations(accountId: number | undefined) {
       });
     }
   };
-  
-  // Reset upload progress
+
   const resetProgress = () => {
     setUploadProgress({});
   };
-  
+
   return {
-    // Single file operations
-    deleteFile: (bucket: string, key: string) => deleteFileMutation.mutate({ bucket, key }),
-    downloadFile,
-    renameFile: (bucket: string, sourceKey: string, newName: string) => 
-      renameFileMutation.mutate({ bucket, sourceKey, newName }),
-    
-    // Batch operations
-    batchDelete: (bucket: string, keys: string[]) => 
-      batchDeleteMutation.mutate({ bucket, keys }),
-    batchMove: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
-      batchMoveMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
-    batchCopy: (sourceBucket: string, keys: string[], destinationBucket: string, destinationPrefix = "") => 
-      batchCopyMutation.mutate({ sourceBucket, keys, destinationBucket, destinationPrefix }),
-    batchDownload: (bucket: string, keys: string[]) => downloadFiles(bucket, keys),
-    
-    // Upload operations
     uploadFile: (bucket: string, file: File, prefix = "") => 
       uploadFileMutation.mutate({ bucket, file, prefix }),
     uploadBatch,
     uploadProgress,
     resetProgress,
-    
-    // Loading states
-    isDeleting: deleteFileMutation.isPending,
-    isDownloading: downloadFileMutation.isPending,
-    isBatchDeleting: batchDeleteMutation.isPending,
-    isBatchDownloading: false, // We don't have a proper mutation for batch downloads
-    isBatchMoving: batchMoveMutation.isPending,
-    isBatchCopying: batchCopyMutation.isPending,
     isUploading: uploadFileMutation.isPending,
   };
 }

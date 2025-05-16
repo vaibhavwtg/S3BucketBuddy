@@ -25,34 +25,27 @@ import { Checkbox } from "@/components/ui/checkbox";
 interface FileCardProps {
   file: S3Object;
   bucket: string;
-  accountId?: number;
-  parentPrefix?: string;
+  accountId: number;
+  prefix: string;
   selectable?: boolean;
-  isSelected?: boolean;
+  selected?: boolean;
   onSelect?: (file: S3Object, selected: boolean) => void;
   viewMode?: 'grid' | 'list';
-  selectionMode?: boolean;
-  isDeleting?: boolean;
-  isDownloading?: boolean;
-  refetchFiles?: () => void;
-  onDelete?: (bucket: string, key: string) => Promise<void>;
-  onDownload?: (bucket: string, key: string) => Promise<void>;
+  onDelete?: () => Promise<void>;
+  onDownload?: () => Promise<void>;
 }
 
 export function FileCard({ 
   file, 
   bucket, 
   accountId, 
-  parentPrefix,
-  selectionMode = false,
-  isSelected = false,
+  prefix,
+  selectable = false,
+  selected = false,
   onSelect,
   viewMode = 'grid',
   onDelete,
-  onDownload,
-  isDeleting = false,
-  isDownloading = false,
-  refetchFiles
+  onDownload
 }: FileCardProps) {
   const [isShareOpen, setIsShareOpen] = useState(false);
   const { toast } = useToast();
@@ -60,15 +53,7 @@ export function FileCard({
 
   const handleDownload = async () => {
     try {
-      if (!file.Key || !accountId) {
-        console.error("Missing required props for download", { fileKey: file.Key, accountId });
-        return;
-      }
-      
-      if (onDownload) {
-        await onDownload(bucket, file.Key);
-        return;
-      }
+      if (!file.Key) return;
       
       const signedUrl = await getDownloadUrl(accountId, bucket, file.Key);
       
@@ -87,7 +72,7 @@ export function FileCard({
     } catch (error) {
       toast({
         title: "Download failed",
-        description: error instanceof Error ? error.message : "Failed to generate download link",
+        description: "Failed to generate download link",
         variant: "destructive",
       });
     }
@@ -96,16 +81,6 @@ export function FileCard({
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!file.Key) return;
-      
-      if (onDelete) {
-        await onDelete(bucket, file.Key);
-        return;
-      }
-      
-      if (!accountId) {
-        throw new Error("Account ID is required for deletion");
-      }
-      
       return deleteObject(accountId, bucket, file.Key);
     },
     onSuccess: () => {
@@ -114,17 +89,10 @@ export function FileCard({
         description: "File has been deleted successfully",
       });
       
-      // Invalidate the objects query to refresh the list if accountId is available
-      if (accountId) {
-        queryClient.invalidateQueries({ 
-          queryKey: [`/api/s3/${accountId}/objects`] 
-        });
-      }
-      
-      // Call refetchFiles if provided
-      if (refetchFiles) {
-        refetchFiles();
-      }
+      // Invalidate the objects query to refresh the list
+      queryClient.invalidateQueries({ 
+        queryKey: [`/api/s3/${accountId}/objects`] 
+      });
     },
     onError: () => {
       toast({
@@ -160,17 +128,17 @@ export function FileCard({
   };
 
   return (
-    <Card className={`group hover:shadow-md transition-all duration-200 ${isSelected ? 'ring-2 ring-primary' : ''} h-full overflow-hidden`}>
+    <Card className={`group hover:shadow-md transition-all duration-200 ${selected ? 'ring-2 ring-primary' : ''} h-full overflow-hidden`}>
       {viewMode === 'grid' ? (
         <>
           {/* Grid View */}
           <div className="aspect-square bg-muted relative overflow-hidden flex items-center justify-center">
             <i className={`ri-${fileIcon} text-5xl ${fileColor}`}></i>
             
-            {selectionMode && (
+            {selectable && (
               <div className="absolute top-2 left-2 z-10">
                 <Checkbox 
-                  checked={isSelected} 
+                  checked={selected} 
                   onCheckedChange={handleSelectionChange}
                   className="h-4 w-4 border-2 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
                 />
@@ -239,9 +207,9 @@ export function FileCard({
       ) : (
         // List View
         <div className="p-2 flex items-center gap-3">
-          {selectionMode && (
+          {selectable && (
             <Checkbox 
-              checked={isSelected} 
+              checked={selected} 
               onCheckedChange={handleSelectionChange}
               className="h-4 w-4 border-2 data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground"
             />
