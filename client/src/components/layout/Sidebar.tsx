@@ -128,32 +128,6 @@ export function Sidebar() {
         <div className="pt-4 mt-4 border-t border-border">
           <h2 className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">My Accounts</h2>
           <div className="mt-2 space-y-1">
-            {accounts.map((account) => (
-              <Link key={account.id} href={`/browser?account=${account.id}`}>
-                <a className={cn(
-                  "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
-                  isActive(`/browser?account=${account.id}`) ? 
-                    "bg-muted text-foreground" : 
-                    "text-foreground hover:bg-muted"
-                )}>
-                  <div className={cn(
-                    "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
-                    isActive(`/browser?account=${account.id}`) ? 
-                      "bg-primary/10" : 
-                      "bg-slate-200 dark:bg-slate-700"
-                  )}>
-                    <i className={cn(
-                      "ri-amazon-line",
-                      isActive(`/browser?account=${account.id}`) ? 
-                        "text-primary" : 
-                        "text-slate-600 dark:text-slate-300"
-                    )}></i>
-                  </div>
-                  <span>{account.name}</span>
-                </a>
-              </Link>
-            ))}
-            
             <Button 
               variant="ghost" 
               className="w-full justify-start text-primary hover:bg-primary/5"
@@ -163,10 +137,10 @@ export function Sidebar() {
               <span>Add Account</span>
             </Button>
             
-            <Link href="/manage-accounts">
+            <Link href="/account-manager">
               <a className={cn(
                 "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
-                isActive("/manage-accounts") ? 
+                isActive("/account-manager") ? 
                   "bg-muted text-foreground" : 
                   "text-foreground hover:bg-muted"
               )}>
@@ -188,7 +162,7 @@ export function Sidebar() {
                 className="w-full justify-start px-4 py-2 font-medium hover:bg-muted rounded-lg"
               >
                 <Avatar className="w-8 h-8 mr-3">
-                  <AvatarImage src={user.avatarUrl} alt={user.username} />
+                  <AvatarImage src={user.profileImageUrl} alt={user.username} />
                   <AvatarFallback>{generateInitials(user.username)}</AvatarFallback>
                 </Avatar>
                 <div className="text-left">

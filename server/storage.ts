@@ -16,6 +16,8 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  getAllUsers(): Promise<User[]>;
+  updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
   
   // S3 Account operations
   getS3Accounts(userId: number): Promise<S3Account[]>;
