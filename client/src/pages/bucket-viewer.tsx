@@ -178,7 +178,7 @@ export default function BucketViewer() {
   }
   
   // If authenticated but no bucket selected, show bucket selection screen
-  if (!bucket && accountId && buckets && buckets.length > 0) {
+  if (!bucket && accountId && Array.isArray(buckets) && buckets.length > 0) {
     return (
       <Layout>
         <div className="container py-6">
@@ -257,7 +257,7 @@ export default function BucketViewer() {
         ) : (
           <>
             {/* Folders */}
-            {folders.length > 0 && (
+            {folders && folders.length > 0 && (
               <div className="mb-6">
                 <h2 className="text-lg font-medium mb-3">Folders</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -278,7 +278,7 @@ export default function BucketViewer() {
             )}
             
             {/* Files */}
-            {files.length > 0 ? (
+            {files && files.length > 0 ? (
               <div>
                 <h2 className="text-lg font-medium mb-3">Files</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
@@ -336,7 +336,7 @@ export default function BucketViewer() {
               </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
-                {folders.length === 0 ? "This bucket is empty" : "No files in this folder"}
+                {folders && folders.length === 0 ? "This bucket is empty" : "No files in this folder"}
               </div>
             )}
           </>
