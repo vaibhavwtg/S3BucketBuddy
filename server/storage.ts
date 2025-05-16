@@ -172,10 +172,11 @@ export class DatabaseStorage implements IStorage {
     const existingSettings = await this.getUserSettings(settings.userId);
     
     // Ensure lastAccessed is properly typed as string[]
+    // Ensure lastAccessed is properly typed as string[]
     const settingsToSave = {
       ...settings,
       // Set a default empty array if lastAccessed is undefined or not an array
-      lastAccessed: Array.isArray(settings.lastAccessed) ? settings.lastAccessed : []
+      lastAccessed: Array.isArray(settings.lastAccessed) ? settings.lastAccessed : [] as string[]
     };
     
     if (existingSettings) {

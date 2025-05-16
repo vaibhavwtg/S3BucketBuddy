@@ -27,7 +27,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const upload = multer({ storage: multer.memoryStorage() });
   
   // S3 Accounts routes
-  app.get("/api/accounts", isAuthenticated, async (req: Request, res: Response) => {
+  app.get("/api/s3-accounts", isAuthenticated, async (req: Request, res: Response) => {
     try {
       if (!req.session?.userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -41,7 +41,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/accounts", isAuthenticated, async (req: Request, res: Response) => {
+  // Validate S3 credentials before saving
+  app.post("/api/validate-s3-credentials", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const { accessKeyId, secretAccessKey, region } = req.body;
+      
+      // Create an S3 client with the provided credentials
+      const s3Client = new S3Client({
+        region,
+        credentials: {
+          accessKeyId,
+          secretAccessKey
+        }
+      });
+      
+      // Try to list buckets to verify credentials
+      const command = new ListBucketsCommand({});
+      const response = await s3Client.send(command);
+      
+      // Return the list of buckets
+      res.status(200).json({
+        valid: true,
+        buckets: response.Buckets || []
+      });
+    } catch (error) {
+      console.error("Error validating S3 credentials:", error);
+      res.status(400).json({
+        valid: false,
+        message: "Invalid S3 credentials. Please check your access key, secret key, and region."
+      });
+    }
+  });
+
+  app.post("/api/s3-accounts", isAuthenticated, async (req: Request, res: Response) => {
     try {
       if (!req.session?.userId) {
         return res.status(401).json({ message: "Unauthorized" });
@@ -57,6 +89,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error creating account:", error);
       res.status(500).json({ message: "Error creating account" });
+    }
+  });
+
+  // User settings routes
+  app.get("/api/user-settings", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session?.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      let settings = await storage.getUserSettings(req.session.userId);
+      
+      // If no settings exist, create default settings
+      if (!settings) {
+        settings = await storage.createOrUpdateUserSettings({
+          userId: req.session.userId,
+          theme: 'light',
+          notifications: true,
+          lastAccessed: []
+        });
+      }
+      
+      res.json(settings);
+    } catch (error) {
+      console.error("Error fetching user settings:", error);
+      res.status(500).json({ message: "Error fetching user settings" });
+    }
+  });
+  
+  app.post("/api/user-settings", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session?.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const settingsData = {
+        ...req.body,
+        userId: req.session.userId
+      };
+      
+      const settings = await storage.createOrUpdateUserSettings(settingsData);
+      res.status(200).json(settings);
+    } catch (error) {
+      console.error("Error updating user settings:", error);
+      res.status(500).json({ message: "Error updating user settings" });
     }
   });
 
