@@ -13,9 +13,9 @@ export default function DebugLogin() {
     try {
       setStatus('loading');
       
-      // Direct login with test credentials
+      // Direct login with admin credentials
       const response = await apiRequest("POST", "/api/login", {
-        email: "admin@wickedfiles.com", // Use the admin credentials
+        email: "admin@wickedfiles.com",
         password: "password123"
       });
       
@@ -47,7 +47,7 @@ export default function DebugLogin() {
         <CardContent>
           <div className="space-y-4">
             <div>
-              <p><strong>Email:</strong> test@wickedfiles.com</p>
+              <p><strong>Email:</strong> admin@wickedfiles.com</p>
               <p><strong>Password:</strong> password123</p>
             </div>
             
