@@ -27,7 +27,7 @@ import { AddAccountDialog } from "@/components/dialogs/AddAccountDialog";
 import { S3Account } from "@/lib/types";
 
 export function Sidebar() {
-  const [location, navigate] = useLocation();
+  const [location] = useLocation();
   const { user, logout } = useAuth();
   const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
 
@@ -53,53 +53,53 @@ export function Sidebar() {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-        <div
-          onClick={() => window.location.href = '/'}
-          className={cn(
-            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg cursor-pointer",
+        <Link href="/">
+          <a className={cn(
+            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
             isActive("/") ? 
               "text-white bg-primary" : 
               "text-foreground hover:bg-muted"
           )}>
             <i className="ri-dashboard-line mr-3 text-lg"></i>
             <span>Dashboard</span>
-        </div>
-        <div
-          onClick={() => window.location.href = '/shared'} 
-          className={cn(
-            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg cursor-pointer",
+          </a>
+        </Link>
+        <Link href="/shared">
+          <a className={cn(
+            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
             isActive("/shared") ? 
               "text-white bg-primary" : 
               "text-foreground hover:bg-muted"
           )}>
             <i className="ri-share-line mr-3 text-lg"></i>
             <span>Shared Files</span>
-        </div>
-        <div
-          onClick={() => window.location.href = '/settings'}
-          className={cn(
-            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg cursor-pointer",
+          </a>
+        </Link>
+        <Link href="/settings">
+          <a className={cn(
+            "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
             isActive("/settings") ? 
               "text-white bg-primary" : 
               "text-foreground hover:bg-muted"
           )}>
             <i className="ri-settings-3-line mr-3 text-lg"></i>
             <span>Settings</span>
-        </div>
+          </a>
+        </Link>
         
         {/* Admin link - only visible for admins */}
         {user?.role === 'admin' && (
-          <div
-            onClick={() => window.location.href = '/admin'}
-            className={cn(
-              "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg cursor-pointer",
+          <Link href="/admin">
+            <a className={cn(
+              "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
               isActive("/admin") ? 
                 "text-white bg-primary" : 
                 "text-foreground hover:bg-muted"
             )}>
               <i className="ri-admin-line mr-3 text-lg"></i>
               <span>Admin</span>
-          </div>
+            </a>
+          </Link>
         )}
 
         {/* My Files Section - Buckets as Folders */}
@@ -110,31 +110,29 @@ export function Sidebar() {
               .filter(account => account.defaultBucket)
               .map((account) => (
                 <div key={`bucket-${account.id}`} className="w-full">
-                  <div
-                    onClick={() => window.location.href = `/s3-files/${account.id}`}
-                    style={{cursor: 'pointer'}}
-                    className={cn(
+                  <Link href={`/s3-files/${account.id}`}>
+                    <a className={cn(
                       "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
                       isActive(`/s3-files/${account.id}`) ? 
                         "bg-muted text-primary" : 
                         "text-foreground hover:bg-muted"
-                    )}
-                  >
-                    <div className={cn(
-                      "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
-                      isActive(`/s3-files/${account.id}`) ? 
-                        "bg-primary/10" : 
-                        "bg-primary/5"
                     )}>
-                      <i className={cn(
-                        "ri-folder-fill",
+                      <div className={cn(
+                        "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
                         isActive(`/s3-files/${account.id}`) ? 
-                          "text-primary" : 
-                          "text-primary/70"
-                      )}></i>
-                    </div>
-                    <span>{account.defaultBucket}</span>
-                  </div>
+                          "bg-primary/10" : 
+                          "bg-primary/5"
+                      )}>
+                        <i className={cn(
+                          "ri-folder-fill",
+                          isActive(`/s3-files/${account.id}`) ? 
+                            "text-primary" : 
+                            "text-primary/70"
+                        )}></i>
+                      </div>
+                      <span>{account.defaultBucket}</span>
+                    </a>
+                  </Link>
                 </div>
               ))}
           </div>
@@ -145,31 +143,29 @@ export function Sidebar() {
           <h2 className="px-4 text-xs font-semibold text-muted-foreground uppercase tracking-wider">My Accounts</h2>
           <div className="mt-2 space-y-1">
             {accounts.map((account) => (
-              <div 
-                key={account.id} 
-                className={cn(
-                  "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg cursor-pointer",
+              <Link key={account.id} href={`/s3-files/${account.id}`}>
+                <a className={cn(
+                  "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
                   isActive(`/s3-files/${account.id}`) ? 
                     "bg-muted text-foreground" : 
                     "text-foreground hover:bg-muted"
-                )}
-                onClick={() => window.location.href = `/s3-files/${account.id}`}
-              >
-                <div className={cn(
-                  "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
-                  isActive(`/s3-files/${account.id}`) ? 
-                    "bg-primary/10" : 
-                    "bg-slate-200 dark:bg-slate-700"
                 )}>
-                  <i className={cn(
-                    "ri-amazon-line",
+                  <div className={cn(
+                    "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
                     isActive(`/s3-files/${account.id}`) ? 
-                      "text-primary" : 
-                      "text-slate-600 dark:text-slate-300"
-                  )}></i>
-                </div>
-                <span>{account.name}</span>
-              </div>
+                      "bg-primary/10" : 
+                      "bg-slate-200 dark:bg-slate-700"
+                  )}>
+                    <i className={cn(
+                      "ri-amazon-line",
+                      isActive(`/s3-files/${account.id}`) ? 
+                        "text-primary" : 
+                        "text-slate-600 dark:text-slate-300"
+                    )}></i>
+                  </div>
+                  <span>{account.name}</span>
+                </a>
+              </Link>
             ))}
             
             <Button 
@@ -181,17 +177,17 @@ export function Sidebar() {
               <span>Add Account</span>
             </Button>
             
-            <div
-              onClick={() => window.location.href = '/manage-accounts'}
-              className={cn(
-                "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg cursor-pointer",
+            <Link href="/manage-accounts">
+              <a className={cn(
+                "flex items-center px-4 py-2.5 text-sm font-medium rounded-lg",
                 isActive("/manage-accounts") ? 
                   "bg-muted text-foreground" : 
                   "text-foreground hover:bg-muted"
               )}>
                 <i className="ri-settings-line mr-3 text-lg"></i>
                 <span>Manage Accounts</span>
-            </div>
+              </a>
+            </Link>
           </div>
         </div>
       </nav>

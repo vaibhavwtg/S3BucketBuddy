@@ -263,8 +263,8 @@ export function ShareDialog({ open, onOpenChange, file }: ShareDialogProps) {
           <div>
             <p className="font-medium text-foreground">{file?.filename || "Selected file"}</p>
             <p className="text-sm text-muted-foreground">
-              {file?.size ? formatBytes(file.size) : "Unknown size"}
-              {file?.contentType ? ` • ${file.contentType}` : ""}
+              {file && typeof file.size !== 'undefined' ? formatBytes(file.size) : "Unknown size"}
+              {file && file.contentType ? ` • ${file.contentType}` : ""}
             </p>
           </div>
         </div>

@@ -566,10 +566,18 @@ export default function S3FileViewer() {
 
   // Handle share file
   const handleShareFile = (file: any) => {
-    // Make sure we have a valid file object with required properties
+    if (!file || !file.Key) {
+      toast({
+        title: "Error",
+        description: "Cannot share this file - missing file information",
+        variant: "destructive"
+      });
+      return;
+    }
+    // Create a proper file object with all required properties
     const fileObj = {
       accountId: accountId,
-      bucket: defaultBucket,
+      bucket: defaultBucket || '',
       path: prefix || '',
       filename: file.Key.split('/').pop() || 'file',
       contentType: file.ContentType || 'application/octet-stream',
