@@ -15,6 +15,7 @@ import DebugLogin from "@/pages/debug-login";
 import DirectBrowser from "@/pages/direct-browser";
 import BucketViewer from "@/pages/bucket-viewer";
 import SimpleBrowser from "@/pages/simple-browser";
+import S3FileViewer from "@/pages/s3-file-viewer";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import PublicSharedFile from "@/pages/public-shared-file";
 import { useEffect } from "react";
@@ -68,6 +69,12 @@ function Router() {
       </Route>
       <Route path="/browser">
         <ProtectedRoute component={Browser} />
+      </Route>
+      <Route path="/s3-files/:accountId">
+        <ProtectedRoute component={S3FileViewer} />
+      </Route>
+      <Route path="/s3-files">
+        <ProtectedRoute component={S3FileViewer} />
       </Route>
       <Route path="/simple-browser/:accountId/:bucketName*">
         <ProtectedRoute component={SimpleBrowser} />
