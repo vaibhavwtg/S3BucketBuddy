@@ -13,6 +13,7 @@ import AccountManager from "@/pages/account-manager";
 import AdminDashboard from "@/pages/admin/dashboard";
 import DebugLogin from "@/pages/debug-login";
 import DirectBrowser from "@/pages/direct-browser";
+import BucketViewer from "@/pages/bucket-viewer";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import PublicSharedFile from "@/pages/public-shared-file";
 import { useEffect } from "react";
@@ -66,6 +67,15 @@ function Router() {
       </Route>
       <Route path="/browser">
         <ProtectedRoute component={Browser} />
+      </Route>
+      <Route path="/bucket-viewer/:accountId/:bucket*">
+        <ProtectedRoute component={BucketViewer} />
+      </Route>
+      <Route path="/bucket-viewer/:accountId">
+        <ProtectedRoute component={BucketViewer} />
+      </Route>
+      <Route path="/bucket-viewer">
+        <ProtectedRoute component={BucketViewer} />
       </Route>
       <Route path="/direct-browser/:accountId">
         <ProtectedRoute component={DirectBrowser} />

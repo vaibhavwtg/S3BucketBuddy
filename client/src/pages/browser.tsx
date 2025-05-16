@@ -518,19 +518,15 @@ export default function Browser() {
         console.log(`Account ${parsedAccountId} has default bucket ${account.defaultBucket}, redirecting...`);
       }
       
-      // Use useEffect for navigation to avoid React warnings about updating during render
-      useEffect(() => {
-        // Add a small delay to avoid potential race conditions
-        const redirectTimer = setTimeout(() => {
-          navigateTo({
-            account: parsedAccountId,
-            bucket: account.defaultBucket
-          });
-        }, 100);
-        
-        // Clean up timer
-        return () => clearTimeout(redirectTimer);
-      }, [parsedAccountId, account.defaultBucket, navigateTo]);
+      // Instead of effect, do the navigation directly
+      console.log(`Redirecting to bucket ${account.defaultBucket}`);
+      // Use setTimeout to delay navigation slightly to avoid rendering issues
+      setTimeout(() => {
+        navigateTo({
+          account: parsedAccountId,
+          bucket: account.defaultBucket
+        });
+      }, 100);
       
       // Show loading while redirecting
       return (
