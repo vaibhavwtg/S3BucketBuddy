@@ -91,8 +91,6 @@ export const upsertUserSchema = createInsertSchema(users).omit({
   updatedAt: true,
 });
 
-export type UpsertUser = z.infer<typeof upsertUserSchema>;
-
 // Create a custom S3 account schema that includes an optional "auto" region
 const baseS3AccountSchema = createInsertSchema(s3Accounts).omit({
   id: true,
@@ -121,6 +119,7 @@ export const insertFileAccessLogSchema = createInsertSchema(fileAccessLogs).omit
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
+export type UpsertUser = z.infer<typeof upsertUserSchema>;
 export type User = typeof users.$inferSelect;
 
 export type InsertS3Account = z.infer<typeof insertS3AccountSchema>;

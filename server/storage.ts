@@ -1,9 +1,10 @@
 import { 
-  users, type User, type InsertUser,
+  users, type User, type InsertUser, type UpsertUser,
   s3Accounts, type S3Account, type InsertS3Account,
   sharedFiles, type SharedFile, type InsertSharedFile,
   userSettings, type UserSettings, type InsertUserSettings,
-  fileAccessLogs, type FileAccessLog, type InsertFileAccessLog
+  fileAccessLogs, type FileAccessLog, type InsertFileAccessLog,
+  sessions
 } from "@shared/schema";
 import { db, pool } from "./db";
 import { eq, and, isNull, gt, desc, asc, or } from "drizzle-orm";
