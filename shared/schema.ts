@@ -22,6 +22,8 @@ export const users = pgTable("users", {
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
+  isAdmin: boolean("is_admin").default(false).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -79,6 +81,7 @@ export const userSettings = pgTable("user_settings", {
   theme: text("theme").default("light"),
   defaultAccountId: integer("default_account_id").references(() => s3Accounts.id),
   notifications: boolean("notifications").default(true),
+  viewMode: text("view_mode").default("grid"),
   lastAccessed: jsonb("last_accessed").$type<string[]>().default([]),
 });
 

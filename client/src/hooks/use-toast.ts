@@ -149,6 +149,13 @@ function toast({ ...props }: Toast) {
 
   const dismiss = () => dispatch({ type: "DISMISS_TOAST", toastId: id });
 
+  // Auto-dismiss non-destructive toasts
+  if (props.variant !== 'destructive') {
+    setTimeout(() => {
+      dismiss();
+    }, AUTO_DISMISS_DELAY);
+  }
+
   dispatch({
     type: "ADD_TOAST",
     toast: {

@@ -63,14 +63,7 @@ export default function Dashboard() {
         <div>
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">My Files</h2>
-            <Button 
-              variant="outline" 
-              size="sm"
-              onClick={() => navigate('/browser')}
-            >
-              <i className="ri-folder-line mr-2"></i>
-              View All Files
-            </Button>
+
           </div>
           
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
