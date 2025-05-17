@@ -220,7 +220,7 @@ export default function SharedFiles() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={() => copyShareLink(file.shareUrl || "")}>
+                                <DropdownMenuItem onClick={() => copyShareLink(`${window.location.origin}/shared/${file.shareToken}`)}>
                                   <i className="ri-clipboard-line mr-2"></i>
                                   Copy Link
                                 </DropdownMenuItem>
