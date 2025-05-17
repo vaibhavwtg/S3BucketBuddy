@@ -5,11 +5,11 @@ import { z } from "zod";
 import { insertS3AccountSchema, insertSharedFileSchema } from "@shared/schema";
 import { randomBytes } from "crypto";
 import { setupSession, setupAuthRoutes, isAuthenticated } from "./auth";
-import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, PutObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, HeadBucketCommand, CopyObjectCommand } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { S3Client } from "@aws-sdk/client-s3";
 import multer from "multer";
 import { Readable } from "stream";
 import { eq } from "drizzle-orm";
+import { listBuckets, listObjects, getDownloadUrl, deleteObject, deleteObjects, copyObject, getObjectMetadata } from "./s3-client";
 
 // Helper function to convert null to undefined
 function nullToUndefined<T>(value: T | null): T | undefined {

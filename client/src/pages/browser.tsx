@@ -34,9 +34,14 @@ export default function Browser() {
   });
   
   // Set viewMode based on user settings or default to grid
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>(
-    userSettings?.viewMode || 'grid'
-  );
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  // Update viewMode when user settings change
+  useEffect(() => {
+    if (userSettings?.viewMode) {
+      setViewMode(userSettings.viewMode as 'grid' | 'list');
+    }
+  }, [userSettings]);
   const [selectionMode, setSelectionMode] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<Record<string, S3Object>>({});
   

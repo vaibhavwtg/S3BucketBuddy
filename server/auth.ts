@@ -16,6 +16,8 @@ declare global {
         id: number;
         username: string;
         email: string;
+        isAdmin?: boolean;
+        isActive?: boolean;
       };
     }
   }
