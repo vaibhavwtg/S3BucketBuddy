@@ -383,6 +383,222 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Shared Files API routes
+  app.get("/api/shared-files", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId;
+      const sharedFiles = await storage.getSharedFiles(userId!);
+      
+      // Enhance with the full share URL for frontend use
+      const enhancedFiles = sharedFiles.map(file => ({
+        ...file,
+        shareUrl: `${req.protocol}://${req.hostname}/shared/${file.shareToken}`
+      }));
+      
+      res.json(enhancedFiles);
+    } catch (error) {
+      console.error("Error fetching shared files:", error);
+      res.status(500).json({ message: "Error fetching shared files" });
+    }
+  });
+  
+  // Create a new shared file
+  app.post("/api/shared-files", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId;
+      const { accountId, bucket, path, filename, expiresAt, allowDownload, password } = req.body;
+      
+      // Get file metadata if not provided
+      let filesize = req.body.filesize;
+      let contentType = req.body.contentType;
+      
+      if (!filesize || !contentType) {
+        try {
+          // Fetch S3 account to create AWS client
+          const account = await storage.getS3Account(accountId);
+          if (!account) {
+            return res.status(404).json({ message: "S3 account not found" });
+          }
+          
+          // Create signed URL to retrieve file metadata
+          const downloadUrl = await getDownloadUrl(accountId, bucket, path || filename);
+          
+          // Set filesize and contentType if not provided
+          if (!filesize) filesize = 0; // Default size if we can't get it
+          if (!contentType) contentType = "application/octet-stream"; // Default content type
+        } catch (error) {
+          console.error("Error fetching file metadata:", error);
+          // Continue with default values if metadata fetch fails
+        }
+      }
+      
+      // Generate a unique share token
+      const shareToken = randomBytes(16).toString('hex');
+      
+      // Save to database
+      const sharedFile = await storage.createSharedFile({
+        userId: userId!,
+        accountId,
+        bucket,
+        path: path || '',
+        filename,
+        filesize: filesize || 0,
+        contentType,
+        shareToken,
+        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+        allowDownload: allowDownload || true,
+        password,
+      });
+      
+      // Return with the shareable URL
+      res.status(201).json({
+        ...sharedFile,
+        shareUrl: `${req.protocol}://${req.hostname}/shared/${shareToken}`,
+        directS3Url: `https://${bucket}.s3.amazonaws.com/${path || filename}`
+      });
+    } catch (error) {
+      console.error("Error creating shared file:", error);
+      res.status(500).json({ message: "Error creating shared file" });
+    }
+  });
+  
+  // Delete a shared file
+  app.delete("/api/shared-files/:id", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId;
+      const fileId = parseInt(req.params.id);
+      
+      // Verify the file exists and belongs to the user
+      const sharedFile = await storage.getSharedFile(fileId);
+      
+      if (!sharedFile) {
+        return res.status(404).json({ message: "Shared file not found" });
+      }
+      
+      if (sharedFile.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to delete this file" });
+      }
+      
+      // Delete the file
+      await storage.deleteSharedFile(fileId);
+      
+      res.status(200).json({ message: "File share deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting shared file:", error);
+      res.status(500).json({ message: "Error deleting shared file" });
+    }
+  });
+  
+  // Get access logs for a shared file
+  app.get("/api/shared-files/:id/access-logs", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const userId = req.session.userId;
+      const fileId = parseInt(req.params.id);
+      
+      // Verify the file exists and belongs to the user
+      const sharedFile = await storage.getSharedFile(fileId);
+      
+      if (!sharedFile) {
+        return res.status(404).json({ message: "Shared file not found" });
+      }
+      
+      if (sharedFile.userId !== userId) {
+        return res.status(403).json({ message: "You don't have permission to view these logs" });
+      }
+      
+      // Get access logs
+      const logs = await storage.getFileAccessLogs(fileId);
+      
+      res.json(logs);
+    } catch (error) {
+      console.error("Error fetching access logs:", error);
+      res.status(500).json({ message: "Error fetching access logs" });
+    }
+  });
+  
+  // Public access to shared files
+  app.get("/api/shared/:token", async (req: Request, res: Response) => {
+    try {
+      const { token } = req.params;
+      const password = req.query.password as string;
+      
+      // Find the shared file
+      const sharedFile = await storage.getSharedFileByToken(token);
+      
+      if (!sharedFile) {
+        return res.status(404).json({ message: "Shared file not found or has expired" });
+      }
+      
+      // Check if file has expired
+      if (sharedFile.expiresAt && new Date(sharedFile.expiresAt) < new Date()) {
+        return res.status(410).json({ message: "This shared file has expired" });
+      }
+      
+      // Check if password is required
+      if (sharedFile.password) {
+        if (!password) {
+          return res.status(401).json({ 
+            message: "Password required", 
+            passwordRequired: true 
+          });
+        }
+        
+        // Verify password (in a real app, use a proper password comparison)
+        if (password !== sharedFile.password) {
+          return res.status(401).json({ 
+            message: "Incorrect password", 
+            passwordRequired: true 
+          });
+        }
+      }
+      
+      // Increment access count
+      await storage.incrementAccessCount(sharedFile.id);
+      
+      // Log access
+      await storage.logFileAccess({
+        fileId: sharedFile.id,
+        ipAddress: req.ip || req.socket.remoteAddress || '',
+        userAgent: req.headers['user-agent'] || '',
+        referrer: req.headers.referer || '',
+        isDownload: false,
+      });
+      
+      // Create signed URL for download
+      const s3Account = await storage.getS3Account(sharedFile.accountId);
+      let signedUrl = '';
+      let directS3Url = '';
+      
+      try {
+        signedUrl = await getDownloadUrl(
+          sharedFile.accountId, 
+          sharedFile.bucket, 
+          sharedFile.path || sharedFile.filename
+        );
+        
+        // Generate a direct S3 URL as a fallback
+        directS3Url = `https://${sharedFile.bucket}.s3.amazonaws.com/${sharedFile.path || sharedFile.filename}`;
+      } catch (error) {
+        console.error("Error generating download URL:", error);
+        return res.status(500).json({ message: "Error generating download URL" });
+      }
+      
+      // Return file access details
+      res.json({
+        filename: sharedFile.filename,
+        contentType: sharedFile.contentType,
+        filesize: sharedFile.filesize,
+        signedUrl,
+        directS3Url,
+        allowDownload: sharedFile.allowDownload,
+        expiresAt: sharedFile.expiresAt,
+      });
+    } catch (error) {
+      console.error("Error accessing shared file:", error);
+      res.status(500).json({ message: "Error accessing shared file" });
+    }
+  });
+  
   // Create HTTP server
   const httpServer = createServer(app);
   
