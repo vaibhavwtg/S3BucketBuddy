@@ -773,6 +773,15 @@ export default function Browser() {
         isProcessing={isBatchCopying}
       />
       
+      {/* Share file dialog */}
+      {isShareOpen && (
+        <ShareDialog
+          open={isShareOpen}
+          onOpenChange={setIsShareOpen}
+          file={shareFile}
+        />
+      )}
+      
 
       
       {/* Delete confirmation dialog */}
