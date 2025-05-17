@@ -705,15 +705,28 @@ export default function Browser() {
                 }}
                 onShare={() => {
                   if (!file.Key) return;
-                  setShareFile({
-                    accountId: parsedAccountId!,
-                    bucket,
-                    path: file.Key,
-                    filename: file.Key.split('/').pop() || '',
-                    contentType: file.ContentType,
-                    size: file.Size || 0
+                  // Create direct S3 URL
+                  const fileUrl = `https://${bucket}.s3.amazonaws.com/${file.Key}`;
+                  // Copy to clipboard
+                  navigator.clipboard.writeText(fileUrl).then(() => {
+                    notify({
+                      title: "Link copied",
+                      description: "Direct link copied to clipboard"
+                    });
+                  }).catch(() => {
+                    // Fallback copy method
+                    const tempElement = document.createElement('textarea');
+                    tempElement.value = fileUrl;
+                    document.body.appendChild(tempElement);
+                    tempElement.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(tempElement);
+                    
+                    notify({
+                      title: "Link copied",
+                      description: "Direct link copied to clipboard"
+                    });
                   });
-                  setIsShareOpen(true);
                 }}
                 onRename={() => {
                   if (!file.Key) return;
