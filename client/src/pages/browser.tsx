@@ -17,6 +17,17 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { UploadDialog } from "@/components/dialogs/UploadDialog";
 import { BatchOperationDialog } from "@/components/dialogs/BatchOperationDialog";
+import { ShareDialog } from "@/components/dialogs/ShareDialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function Browser() {
   const [location, navigate] = useLocation();
@@ -51,6 +62,27 @@ export default function Browser() {
   const [isBatchMoveOpen, setIsBatchMoveOpen] = useState(false);
   const [isBatchCopyOpen, setIsBatchCopyOpen] = useState(false);
   const [currentBatchOperation, setCurrentBatchOperation] = useState<"move" | "copy">("move");
+  
+  // State for file operations
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const [shareFile, setShareFile] = useState<{
+    accountId: number;
+    bucket: string;
+    path: string;
+    filename: string;
+    contentType?: string;
+    size: number;
+  }>({
+    accountId: 0,
+    bucket: '',
+    path: '',
+    filename: '',
+    size: 0
+  });
+  
+  // State for delete confirmation
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  const [fileToDelete, setFileToDelete] = useState<string>('');
   
   // Update user settings when view mode changes
   const updateViewModeMutation = useMutation({
@@ -654,24 +686,10 @@ export default function Browser() {
                 selected={!!selectedFiles[file.Key || '']}
                 onSelect={(file, selected) => handleFileSelection(file, selected)}
                 viewMode={viewMode}
-                onDelete={async () => {
+                onDelete={() => {
                   if (!file.Key) return;
-                  if (confirm('Are you sure you want to delete this file?')) {
-                    try {
-                      await deleteFile(bucket, file.Key);
-                      notify({ 
-                        title: "File deleted", 
-                        description: `Successfully deleted ${file.Key}` 
-                      });
-                      refetchObjects();
-                    } catch (error) {
-                      notify({ 
-                        title: "Delete failed", 
-                        description: "Failed to delete file",
-                        variant: "destructive"
-                      });
-                    }
-                  }
+                  setFileToDelete(file.Key);
+                  setIsDeleteConfirmOpen(true);
                 }}
                 onDownload={async () => {
                   if (!file.Key) return;
@@ -699,11 +717,11 @@ export default function Browser() {
                 }}
                 onRename={() => {
                   if (!file.Key) return;
-                  setRenameFile({
-                    key: file.Key,
-                    newKey: file.Key.split('/').pop() || ''
+                  // Alert user that rename is coming soon
+                  notify({
+                    title: "Rename feature",
+                    description: "File rename functionality will be available soon"
                   });
-                  setIsRenameOpen(true);
                 }}
               />
             ))}
@@ -754,6 +772,47 @@ export default function Browser() {
         onConfirm={handleBatchCopyConfirm}
         isProcessing={isBatchCopying}
       />
+      
+
+      
+      {/* Delete confirmation dialog */}
+      {isDeleteConfirmOpen && (
+        <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete the file. This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={async () => {
+                  if (!fileToDelete) return;
+                  try {
+                    await deleteFile(bucket, fileToDelete);
+                    notify({
+                      title: "File deleted",
+                      description: `Successfully deleted file`
+                    });
+                    refetchObjects();
+                  } catch (error) {
+                    notify({
+                      title: "Delete failed",
+                      description: "Failed to delete file",
+                      variant: "destructive"
+                    });
+                  }
+                  setIsDeleteConfirmOpen(false);
+                }}
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
     </Layout>
   );
 }
