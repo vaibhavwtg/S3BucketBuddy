@@ -290,14 +290,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      // List buckets
+      // List buckets using our s3-client utility
       try {
-        const command = new ListBucketsCommand({});
-        const response = await s3Client.send(command);
+        const buckets = await listBuckets(accountId);
         
         // Return buckets as JSON array
-        return res.json(response.Buckets || []);
-      } catch (s3Error) {
+        return res.json(buckets);
+      } catch (s3Error: any) {
         console.error("S3 error listing buckets:", s3Error);
         return res.status(400).json({ 
           message: "Error accessing S3 buckets", 
@@ -350,23 +349,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       });
       
-      // List objects
+      // List objects using our s3-client utility
       try {
-        const command = new ListObjectsV2Command({
-          Bucket: bucket,
-          Prefix: prefix,
-          Delimiter: delimiter
-        });
-        
-        const response = await s3Client.send(command);
+        const result = await listObjects(accountId, bucket, prefix, delimiter);
         
         // Return objects and folders as JSON
-        return res.json({
-          objects: response.Contents || [],
-          folders: response.CommonPrefixes || [],
-          prefix: prefix,
-          delimiter: delimiter
-        });
+        return res.json(result);
       } catch (s3Error: any) {
         console.error("S3 error listing objects:", s3Error);
         return res.status(400).json({ 
