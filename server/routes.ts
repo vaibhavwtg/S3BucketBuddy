@@ -393,8 +393,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Create a new shared file
   app.post("/api/shared-files", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      const userId = req.session.userId;
+      // Use user ID from session or user object
+      const userId = req.session.userId || req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ message: "Unauthorized - No user ID found" });
+      }
+      
+      console.log("Creating shared file for user:", userId);
+      console.log("Request body:", req.body);
+      
       const { accountId, bucket, path, filename, expiresAt, allowDownload, password } = req.body;
+      
+      // Validate required fields
+      if (!accountId || !bucket || !filename) {
+        return res.status(400).json({ message: "Missing required fields: accountId, bucket, and filename are required" });
+      }
       
       // Get file metadata if not provided
       let filesize = req.body.filesize;
@@ -408,35 +421,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
             return res.status(404).json({ message: "S3 account not found" });
           }
           
-          // Create signed URL to retrieve file metadata
-          const downloadUrl = await getDownloadUrl(accountId, bucket, path || filename);
+          console.log("Getting metadata for file:", path || filename);
+          const metadata = await getObjectMetadata(accountId, bucket, path || filename);
+          console.log("S3 metadata:", metadata);
           
-          // Set filesize and contentType if not provided
-          if (!filesize) filesize = 0; // Default size if we can't get it
-          if (!contentType) contentType = "application/octet-stream"; // Default content type
+          // Extract metadata from S3 response
+          if (metadata) {
+            if (!filesize && metadata.ContentLength) {
+              filesize = metadata.ContentLength;
+            }
+            if (!contentType && metadata.ContentType) {
+              contentType = metadata.ContentType;
+            }
+          }
+          
+          // If still no metadata, use defaults
+          if (!filesize) filesize = 0;
+          if (!contentType) contentType = "application/octet-stream";
         } catch (error) {
           console.error("Error fetching file metadata:", error);
           // Continue with default values if metadata fetch fails
+          filesize = filesize || 0;
+          contentType = contentType || "application/octet-stream";
         }
       }
       
       // Generate a unique share token
       const shareToken = randomBytes(16).toString('hex');
+      console.log("Generated share token:", shareToken);
       
       // Save to database
       const sharedFile = await storage.createSharedFile({
-        userId: userId!,
+        userId: userId,
         accountId,
         bucket,
         path: path || '',
         filename,
         filesize: filesize || 0,
-        contentType,
+        contentType: contentType || "application/octet-stream",
         shareToken,
         expiresAt: expiresAt ? new Date(expiresAt) : undefined,
-        allowDownload: allowDownload || true,
+        allowDownload: allowDownload !== undefined ? allowDownload : true,
         password,
       });
+      
+      console.log("Shared file created:", sharedFile);
       
       // Return with the shareable URL
       res.status(201).json({
