@@ -685,6 +685,26 @@ export default function Browser() {
                     });
                   }
                 }}
+                onShare={() => {
+                  if (!file.Key) return;
+                  setShareFile({
+                    accountId: parsedAccountId!,
+                    bucket,
+                    path: file.Key,
+                    filename: file.Key.split('/').pop() || '',
+                    contentType: file.ContentType,
+                    size: file.Size || 0
+                  });
+                  setIsShareOpen(true);
+                }}
+                onRename={() => {
+                  if (!file.Key) return;
+                  setRenameFile({
+                    key: file.Key,
+                    newKey: file.Key.split('/').pop() || ''
+                  });
+                  setIsRenameOpen(true);
+                }}
               />
             ))}
             
