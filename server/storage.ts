@@ -187,12 +187,17 @@ export class DatabaseStorage implements IStorage {
     const existingSettings = await this.getUserSettings(settings.userId);
     
     // Ensure lastAccessed is properly typed as string[]
-    // Ensure lastAccessed is properly typed as string[]
-    const settingsToSave = {
-      ...settings,
-      // Set a default empty array if lastAccessed is undefined or not an array
-      lastAccessed: Array.isArray(settings.lastAccessed) ? settings.lastAccessed : [] as string[]
+    // Ensure lastAccessed is properly formatted for PostgreSQL
+    // PostgreSQL requires a special format for array literals
+    let settingsToSave = {
+      ...settings
     };
+    
+    // Remove lastAccessed if it's empty to avoid issues with PostgreSQL array formatting
+    if (settings.lastAccessed === undefined || 
+       (Array.isArray(settings.lastAccessed) && settings.lastAccessed.length === 0)) {
+      delete settingsToSave.lastAccessed;
+    }
     
     if (existingSettings) {
       const [updated] = await db
