@@ -191,18 +191,19 @@ export class DatabaseStorage implements IStorage {
       ...settings
     };
     
-    // Ensure lastAccessed is a properly formatted array
-    if (settingsToSave.lastAccessed !== undefined) {
-      // Make sure it's an array
-      if (!Array.isArray(settingsToSave.lastAccessed)) {
-        settingsToSave.lastAccessed = [];
-      }
-    } else if (existingSettings?.lastAccessed) {
-      // Use existing lastAccessed if available
-      settingsToSave.lastAccessed = existingSettings.lastAccessed;
-    } else {
-      // Initialize as empty array if none exists
-      settingsToSave.lastAccessed = [];
+    // Special handling for array fields to fix PostgreSQL issues
+    
+    // Remove lastAccessed from the settings to save to avoid malformed array issues
+    if ('lastAccessed' in settingsToSave) {
+      delete settingsToSave.lastAccessed;
+    }
+    
+    // If we're only updating viewMode, make a clean object with just that property
+    if (settings.viewMode && Object.keys(settings).length === 2) { // userId + viewMode
+      settingsToSave = {
+        userId: settings.userId,
+        viewMode: settings.viewMode
+      };
     }
     
     if (existingSettings) {
