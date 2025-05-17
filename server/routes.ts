@@ -504,6 +504,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // S3 file download route - generates a signed URL for downloading files
+  app.get("/api/s3/:accountId/download", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const accountId = parseInt(req.params.accountId);
+      if (isNaN(accountId)) {
+        return res.status(400).json({ message: "Invalid account ID format" });
+      }
+      
+      const bucket = req.query.bucket as string;
+      const key = req.query.key as string;
+      
+      if (!bucket || !key) {
+        return res.status(400).json({ message: "Bucket and key are required" });
+      }
+      
+      // Get account from database to verify ownership and credentials
+      const account = await storage.getS3Account(accountId);
+      
+      // Check if the account exists and belongs to the current user
+      if (!account || account.userId !== req.user?.id) {
+        return res.status(403).json({ message: "You don't have access to this S3 account" });
+      }
+      
+      // Generate signed URL for download
+      try {
+        const signedUrl = await getDownloadUrl(accountId, bucket, key);
+        return res.json({ signedUrl });
+      } catch (error: any) {
+        console.error("Error generating download URL:", error);
+        return res.status(500).json({ 
+          message: "Error generating download URL", 
+          error: error.message || "Unknown error" 
+        });
+      }
+    } catch (error: any) {
+      console.error("Server error generating download URL:", error);
+      return res.status(500).json({ 
+        message: "Server error", 
+        error: error.message || "Unknown error" 
+      });
+    }
+  });
+  
   // Public access to shared files
   app.get("/api/shared/:token", async (req: Request, res: Response) => {
     try {
