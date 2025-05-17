@@ -216,29 +216,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateLastAccessed(userId: number, path: string): Promise<void> {
-    // Get current settings
-    const settings = await this.getUserSettings(userId);
-    
-    if (settings) {
-      // Add the path to the beginning of the array and limit to 10 items
-      let lastAccessed = settings.lastAccessed || [];
+    try {
+      // Get current settings
+      const settings = await this.getUserSettings(userId);
       
-      // Remove if already exists
-      lastAccessed = lastAccessed.filter(p => p !== path);
-      
-      // Add to beginning
-      lastAccessed.unshift(path);
-      
-      // Limit to 10
-      if (lastAccessed.length > 10) {
-        lastAccessed = lastAccessed.slice(0, 10);
+      if (settings) {
+        // Add the path to the beginning of the array and limit to 10 items
+        let lastAccessed = Array.isArray(settings.lastAccessed) ? [...settings.lastAccessed] : [];
+        
+        // Remove if already exists
+        lastAccessed = lastAccessed.filter(p => p !== path);
+        
+        // Add to beginning
+        lastAccessed.unshift(path);
+        
+        // Limit to 10
+        if (lastAccessed.length > 10) {
+          lastAccessed = lastAccessed.slice(0, 10);
+        }
+        
+        // Don't update if the array is empty
+        if (lastAccessed.length > 0) {
+          // Update with properly typed lastAccessed array
+          await db
+            .update(userSettings)
+            .set({ lastAccessed })
+            .where(eq(userSettings.userId, userId));
+        }
       }
-      
-      // Update with properly typed lastAccessed array
-      await db
-        .update(userSettings)
-        .set({ lastAccessed: lastAccessed as string[] })
-        .where(eq(userSettings.userId, userId));
+    } catch (error) {
+      console.error("Error updating last accessed:", error);
     }
   }
   

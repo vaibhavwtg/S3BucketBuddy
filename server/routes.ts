@@ -231,9 +231,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update existing settings with the changes
+      // Don't include lastAccessed in this update to avoid array handling issues
+      const { lastAccessed, ...updateData } = req.body;
+      
       const updatedSettings = await storage.createOrUpdateUserSettings({
         ...currentSettings,
-        ...req.body,
+        ...updateData,
         userId: req.session.userId // Ensure userId stays the same
       });
       
