@@ -186,17 +186,23 @@ export class DatabaseStorage implements IStorage {
     // Check if settings already exist
     const existingSettings = await this.getUserSettings(settings.userId);
     
-    // Ensure lastAccessed is properly typed as string[]
-    // Ensure lastAccessed is properly formatted for PostgreSQL
-    // PostgreSQL requires a special format for array literals
+    // Handle lastAccessed array properly for PostgreSQL
     let settingsToSave = {
       ...settings
     };
     
-    // Remove lastAccessed if it's empty to avoid issues with PostgreSQL array formatting
-    if (settings.lastAccessed === undefined || 
-       (Array.isArray(settings.lastAccessed) && settings.lastAccessed.length === 0)) {
-      delete settingsToSave.lastAccessed;
+    // Ensure lastAccessed is a properly formatted array
+    if (settingsToSave.lastAccessed !== undefined) {
+      // Make sure it's an array
+      if (!Array.isArray(settingsToSave.lastAccessed)) {
+        settingsToSave.lastAccessed = [];
+      }
+    } else if (existingSettings?.lastAccessed) {
+      // Use existing lastAccessed if available
+      settingsToSave.lastAccessed = existingSettings.lastAccessed;
+    } else {
+      // Initialize as empty array if none exists
+      settingsToSave.lastAccessed = [];
     }
     
     if (existingSettings) {

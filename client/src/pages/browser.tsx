@@ -51,6 +51,26 @@ export default function Browser() {
   const [isBatchCopyOpen, setIsBatchCopyOpen] = useState(false);
   const [currentBatchOperation, setCurrentBatchOperation] = useState<"move" | "copy">("move");
   
+  // Update user settings when view mode changes
+  const updateViewModeMutation = useMutation({
+    mutationFn: async (newViewMode: 'grid' | 'list') => {
+      const res = await apiRequest("PATCH", "/api/user-settings", {
+        viewMode: newViewMode
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/user-settings'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Failed to save view preference",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
+  });
+  
   // Check if user is authenticated and redirect if not
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
