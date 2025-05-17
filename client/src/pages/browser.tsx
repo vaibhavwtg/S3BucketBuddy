@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { Layout } from "@/components/layout/Layout";
 // Debug helper for browser component
 const DEBUG = true;
@@ -574,7 +575,10 @@ export default function Browser() {
           prefix={prefix}
           accountId={parsedAccountId!}
           viewMode={viewMode}
-          onViewModeChange={setViewMode}
+          onViewModeChange={(newMode) => {
+            setViewMode(newMode);
+            updateViewModeMutation.mutate(newMode);
+          }}
           sortBy={sortBy}
           onSortChange={setSortBy}
           selectionMode={selectionMode}
