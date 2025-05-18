@@ -342,7 +342,7 @@ export default function SharedFiles() {
                                   Copy App Link
                                 </DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => copyShareLink(`https://${file.bucket}.s3.amazonaws.com/${file.path}`)}>
-                                  <i className="ri-aws-fill mr-2"></i>
+                                  <i className="ri-link-m mr-2"></i>
                                   Copy Direct S3 Link
                                 </DropdownMenuItem>
                                 <DropdownMenuSeparator />

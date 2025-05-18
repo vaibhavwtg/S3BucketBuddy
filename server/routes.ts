@@ -689,6 +689,91 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // S3 Upload route
+  app.post("/api/s3/:accountId/upload", isAuthenticated, upload.single('file'), async (req: Request, res: Response) => {
+    try {
+      if (!req.session?.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const accountId = parseInt(req.params.accountId);
+      const bucket = req.body.bucket;
+      const prefix = req.body.prefix || '';
+      
+      if (!accountId || !bucket) {
+        return res.status(400).json({ message: "Missing required parameters: accountId and bucket" });
+      }
+      
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      try {
+        // Get S3 account to create AWS client
+        const account = await storage.getS3Account(accountId);
+        if (!account) {
+          return res.status(404).json({ message: "S3 account not found" });
+        }
+        
+        // Create S3 client
+        const s3Client = new S3Client({
+          region: account.region,
+          credentials: {
+            accessKeyId: account.accessKeyId,
+            secretAccessKey: account.secretAccessKey,
+          },
+        });
+        
+        // File details
+        const file = req.file;
+        const filename = file.originalname;
+        const key = prefix ? `${prefix}${prefix.endsWith('/') ? '' : '/'}${filename}` : filename;
+        
+        // Convert buffer to stream
+        const stream = new Readable();
+        stream.push(file.buffer);
+        stream.push(null);
+        
+        // Upload to S3
+        const command = {
+          Bucket: bucket,
+          Key: key,
+          Body: stream,
+          ContentType: file.mimetype,
+        };
+        
+        const response = await s3Client.send({
+          ...command,
+          $command: {
+            name: 'PutObjectCommand'
+          }
+        });
+        
+        console.log("File uploaded successfully:", filename);
+        
+        return res.status(200).json({
+          message: "File uploaded successfully",
+          key: key,
+          bucket: bucket,
+          contentType: file.mimetype,
+          size: file.size
+        });
+      } catch (s3Error: any) {
+        console.error("S3 error uploading file:", s3Error);
+        return res.status(400).json({ 
+          message: "Error uploading to S3", 
+          error: s3Error.message || "Unknown S3 error" 
+        });
+      }
+    } catch (error: any) {
+      console.error("Server error uploading file:", error);
+      return res.status(500).json({ 
+        message: "Server error uploading file",
+        error: error.message || "Unknown error" 
+      });
+    }
+  });
+
   // Create HTTP server
   const httpServer = createServer(app);
   
