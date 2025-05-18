@@ -62,12 +62,8 @@ export const fileAccessLogs = pgTable("file_access_logs", {
   id: serial("id").primaryKey(),
   fileId: integer("file_id").notNull().references(() => sharedFiles.id),
   accessedAt: timestamp("accessed_at").defaultNow().notNull(),
-  ipAddress: varchar("ip_address", { length: 45 }), // IPv6 can be up to 45 chars
+  ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
-  country: varchar("country", { length: 2 }),
-  city: varchar("city", { length: 100 }),
-  referrer: text("referrer"),
-  isDownload: boolean("is_download").default(false),
 }, (table) => {
   return {
     fileIdIdx: index("file_access_logs_file_id_idx").on(table.fileId),

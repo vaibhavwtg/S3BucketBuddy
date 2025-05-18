@@ -648,7 +648,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
           fileId: sharedFile.id,
           ipAddress: req.ip || req.socket.remoteAddress || '',
           userAgent: req.headers['user-agent'] || '',
-          isDownload: false,
         });
       } catch (logError) {
         console.error("Error logging file access:", logError);

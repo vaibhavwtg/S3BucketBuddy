@@ -108,6 +108,4 @@ export interface FileAccessLog {
   accessedAt: string;
   ipAddress: string;
   userAgent: string;
-  country?: string;
-  city?: string;
 }

@@ -28,10 +28,6 @@ interface FileAccessLog {
   fileId: number;
   ipAddress: string;
   userAgent: string;
-  referrer: string;
-  country: string | null;
-  city: string | null;
-  isDownload: boolean;
   accessedAt: string;
 }
 
