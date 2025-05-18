@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/components/ui/theme-provider";
 import { UploadDialog } from "@/components/dialogs/UploadDialog";
+import { ThemeSelector } from "@/components/theme/ThemeSelector";
 import { Link } from "wouter";
 
 interface HeaderProps {
@@ -76,10 +77,9 @@ export function Header({
             </Link>
           </Button>
 
-          <Button variant="ghost" size="icon" onClick={toggleTheme} className="hidden sm:flex">
-            <i className={`text-xl ${theme === 'dark' ? 'ri-sun-line' : 'ri-moon-line'}`}></i>
-            <span className="sr-only">Toggle theme</span>
-          </Button>
+          <div className="hidden sm:flex">
+            <ThemeSelector />
+          </div>
         </div>
       </div>
 
