@@ -39,7 +39,7 @@ export function ShareDialog({
   file 
 }: ShareDialogProps) {
   const [copied, setCopied] = useState(false);
-  const [expiryType, setExpiryType] = useState("days"); // "days" or "never"
+  const [expiryType, setExpiryType] = useState("never"); // "days" or "never"
   const [expiryDays, setExpiryDays] = useState("7"); // Default 7 days
   const [allowDownload, setAllowDownload] = useState(true);
   const [directS3Link, setDirectS3Link] = useState(false);
