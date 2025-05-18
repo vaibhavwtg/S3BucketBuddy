@@ -5,6 +5,7 @@ import { useTheme } from "@/components/ui/theme-provider";
 import { UploadDialog } from "@/components/dialogs/UploadDialog";
 import { ThemeSelector } from "@/components/theme/ThemeSelector";
 import { Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 
 interface HeaderProps {
   currentPath?: string;
@@ -22,6 +23,12 @@ export function Header({
   const { theme, setTheme } = useTheme();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Fetch the current user's default account
+  const { data: userSettings } = useQuery({
+    queryKey: ['/api/user-settings'],
+    staleTime: 300000 // 5 minutes
+  });
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,12 +90,13 @@ export function Header({
         </div>
       </div>
 
-      {isUploadOpen && currentBucket && (
+      {isUploadOpen && currentBucket && userSettings?.defaultAccountId && (
         <UploadDialog
           open={isUploadOpen}
           onOpenChange={setIsUploadOpen}
           bucket={currentBucket}
           prefix={currentPath || ""}
+          accountId={userSettings.defaultAccountId}
         />
       )}
     </header>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layout } from "@/components/layout/Layout";
+import { useTheme } from "@/components/ui/theme-provider";
 import {
   Tabs,
   TabsContent,
@@ -48,7 +49,6 @@ import { AddAccountDialog } from "@/components/dialogs/AddAccountDialog";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useTheme } from "@/components/ui/theme-provider";
 import { apiRequest } from "@/lib/queryClient";
 
 const profileSchema = z.object({
@@ -279,6 +279,9 @@ export default function AccountSettings() {
                                 <SelectItem value="light">Light</SelectItem>
                                 <SelectItem value="dark">Dark</SelectItem>
                                 <SelectItem value="system">System</SelectItem>
+                                <SelectItem value="ocean">Ocean</SelectItem>
+                                <SelectItem value="sunset">Sunset</SelectItem>
+                                <SelectItem value="forest">Forest</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormDescription>
