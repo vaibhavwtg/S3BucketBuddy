@@ -9,10 +9,14 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Link, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface FileInfo {
   accountId: number;
@@ -35,7 +39,11 @@ export function ShareDialog({
   file 
 }: ShareDialogProps) {
   const [copied, setCopied] = useState(false);
-  const [expiry, setExpiry] = useState("7"); // Default 7 days
+  const [expiryType, setExpiryType] = useState("days"); // "days" or "never"
+  const [expiryDays, setExpiryDays] = useState("7"); // Default 7 days
+  const [allowDownload, setAllowDownload] = useState(true);
+  const [directS3Link, setDirectS3Link] = useState(false);
+  const [password, setPassword] = useState("");
   const [shareUrl, setShareUrl] = useState("");
   const { toast } = useToast();
   
@@ -44,23 +52,25 @@ export function ShareDialog({
       accountId: number;
       bucket: string;
       path: string;
-      expiresInDays: number;
+      expiresInDays?: number;
       filename: string;
       contentType?: string;
       size: number;
+      allowDownload: boolean;
+      password?: string;
+      directS3Link: boolean;
     }) => {
       const res = await apiRequest("POST", "/api/shared-files", data);
       return await res.json();
     },
     onSuccess: (data) => {
-      setShareUrl(`${window.location.origin}/shared/${data.token}`);
+      setShareUrl(data.shareUrl);
       queryClient.invalidateQueries({ queryKey: ["/api/shared-files"] });
     },
     onError: (error: Error) => {
       toast({
         title: "Sharing failed",
         description: error.message,
-        variant: "destructive"
       });
     }
   });
@@ -70,34 +80,42 @@ export function ShareDialog({
       navigator.clipboard.writeText(shareUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      toast({
+        title: "Link copied!",
+        description: "The share link has been copied to your clipboard",
+      });
     }
   }
   
   function handleShare() {
-    const days = parseInt(expiry, 10);
-    if (isNaN(days) || days < 1) {
-      toast({
-        title: "Invalid expiry",
-        description: "Please enter a valid number of days for expiry",
-        variant: "destructive"
-      });
-      return;
+    if (expiryType === "days") {
+      const days = parseInt(expiryDays, 10);
+      if (isNaN(days) || days < 1) {
+        toast({
+          title: "Invalid expiry",
+          description: "Please enter a valid number of days for expiry",
+        });
+        return;
+      }
     }
     
     createShareMutation.mutate({
       accountId: file.accountId,
       bucket: file.bucket,
       path: file.path,
-      expiresInDays: days,
+      expiresInDays: expiryType === "days" ? parseInt(expiryDays, 10) : undefined,
       filename: file.filename,
       contentType: file.contentType,
-      size: file.size
+      size: file.size,
+      allowDownload,
+      password: password.trim() || undefined,
+      directS3Link
     });
   }
   
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[450px]">
         <DialogHeader>
           <DialogTitle>Share File</DialogTitle>
           <DialogDescription>
@@ -106,32 +124,80 @@ export function ShareDialog({
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-4 items-center gap-4">
-            <label htmlFor="expiry" className="text-right text-sm font-medium">
-              Expires in days
-            </label>
+          {/* Expiration Options */}
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">Expiration</h4>
+            <RadioGroup 
+              defaultValue={expiryType}
+              onValueChange={setExpiryType}
+              className="flex flex-col space-y-2"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="never" id="never" />
+                <Label htmlFor="never">Never expire</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="days" id="days" />
+                <Label htmlFor="days">Expire after</Label>
+                <Input
+                  disabled={expiryType !== "days"}
+                  id="expiry-days"
+                  value={expiryDays}
+                  onChange={(e) => setExpiryDays(e.target.value)}
+                  className="w-20 ml-2"
+                  type="number"
+                  min="1"
+                  max="365"
+                />
+                <span className="text-sm">days</span>
+              </div>
+            </RadioGroup>
+          </div>
+          
+          {/* Access Options */}
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">Access Options</h4>
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="allow-download" 
+                checked={allowDownload} 
+                onCheckedChange={(checked) => setAllowDownload(checked as boolean)}
+              />
+              <Label htmlFor="allow-download">Allow download</Label>
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                id="direct-s3-link" 
+                checked={directS3Link} 
+                onCheckedChange={(checked) => setDirectS3Link(checked as boolean)}
+              />
+              <Label htmlFor="direct-s3-link">Use direct S3 link</Label>
+            </div>
+          </div>
+          
+          {/* Password Protection */}
+          <div className="space-y-3">
+            <h4 className="font-medium text-sm">Password Protection (Optional)</h4>
             <Input
-              id="expiry"
-              value={expiry}
-              onChange={(e) => setExpiry(e.target.value)}
-              className="col-span-3"
-              type="number"
-              min="1"
-              max="30"
+              id="password"
+              type="password"
+              placeholder="Leave empty for no password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </div>
           
+          {/* Generated Share URL */}
           {shareUrl && (
-            <div className="grid grid-cols-4 items-center gap-4">
-              <label htmlFor="url" className="text-right text-sm font-medium">
-                Share URL
-              </label>
-              <div className="col-span-3 flex gap-2">
+            <div className="space-y-2 mt-2">
+              <h4 className="font-medium text-sm">Share URL</h4>
+              <div className="flex gap-2">
                 <Input
-                  id="url"
+                  id="share-url"
                   value={shareUrl}
                   readOnly
-                  className="col-span-3"
+                  className="flex-1"
                 />
                 <Button 
                   variant="outline" 
@@ -141,6 +207,17 @@ export function ShareDialog({
                 >
                   {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                 </Button>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1">
+                {directS3Link ? (
+                  <div className="flex items-center gap-1">
+                    <ExternalLink className="h-3 w-3" /> Direct S3 link (faster, less secure)
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <Link className="h-3 w-3" /> App-hosted link (slower, more secure)
+                  </div>
+                )}
               </div>
             </div>
           )}

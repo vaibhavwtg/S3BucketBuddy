@@ -402,7 +402,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Creating shared file for user:", userId);
       console.log("Request body:", req.body);
       
-      const { accountId, bucket, path, filename, expiresAt, allowDownload, password } = req.body;
+      const { 
+        accountId, 
+        bucket, 
+        path, 
+        filename, 
+        expiresInDays, 
+        allowDownload = true, 
+        password,
+        size,
+        directS3Link = false
+      } = req.body;
       
       // Validate required fields
       if (!accountId || !bucket || !filename) {
@@ -410,7 +420,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Get file metadata if not provided
-      let filesize = req.body.filesize;
+      let filesize = size || req.body.filesize;
       let contentType = req.body.contentType;
       
       if (!filesize || !contentType) {
@@ -450,6 +460,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const shareToken = randomBytes(16).toString('hex');
       console.log("Generated share token:", shareToken);
       
+      // Calculate expiry date if provided
+      let expiresAt: Date | undefined = undefined;
+      if (expiresInDays && expiresInDays > 0) {
+        expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+      }
+      
       // Save to database
       const sharedFile = await storage.createSharedFile({
         userId: userId,
@@ -460,18 +477,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         filesize: filesize || 0,
         contentType: contentType || "application/octet-stream",
         shareToken,
-        expiresAt: expiresAt ? new Date(expiresAt) : undefined,
+        expiresAt,
         allowDownload: allowDownload !== undefined ? allowDownload : true,
-        password,
+        password: password && password.trim() ? password.trim() : undefined,
       });
       
       console.log("Shared file created:", sharedFile);
       
+      // Determine the URL to return based on direct S3 link preference
+      const appShareUrl = `${req.protocol}://${req.hostname}/shared/${shareToken}`;
+      const s3DirectUrl = `https://${bucket}.s3.amazonaws.com/${path || filename}`;
+      
       // Return with the shareable URL
       res.status(201).json({
         ...sharedFile,
-        shareUrl: `${req.protocol}://${req.hostname}/shared/${shareToken}`,
-        directS3Url: `https://${bucket}.s3.amazonaws.com/${path || filename}`
+        shareUrl: directS3Link ? s3DirectUrl : appShareUrl,
+        directS3Url: s3DirectUrl,
+        appShareUrl,
+        shareToken,
       });
     } catch (error) {
       console.error("Error creating shared file:", error);
