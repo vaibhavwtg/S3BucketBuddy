@@ -205,6 +205,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // PUT endpoint for full user settings updates from settings page
+  app.put("/api/user-settings", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      if (!req.session?.userId) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      const settingsData = {
+        ...req.body,
+        userId: req.session.userId
+      };
+      
+      const settings = await storage.createOrUpdateUserSettings(settingsData);
+      res.status(200).json(settings);
+    } catch (error) {
+      console.error("Error updating user settings (PUT):", error);
+      res.status(500).json({ message: "Error updating settings" });
+    }
+  });
+  
   // PATCH endpoint for partial user settings updates (like viewMode)
   app.patch("/api/user-settings", isAuthenticated, async (req: Request, res: Response) => {
     try {
