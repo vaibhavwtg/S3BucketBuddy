@@ -734,20 +734,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         stream.push(file.buffer);
         stream.push(null);
         
-        // Upload to S3
-        const command = {
+        // Import the PutObjectCommand directly
+        const { PutObjectCommand } = require('@aws-sdk/client-s3');
+        
+        // Create the proper command
+        const command = new PutObjectCommand({
           Bucket: bucket,
           Key: key,
-          Body: stream,
+          Body: file.buffer,
           ContentType: file.mimetype,
-        };
-        
-        const response = await s3Client.send({
-          ...command,
-          $command: {
-            name: 'PutObjectCommand'
-          }
         });
+        
+        // Send the command
+        const response = await s3Client.send(command);
         
         console.log("File uploaded successfully:", filename);
         
