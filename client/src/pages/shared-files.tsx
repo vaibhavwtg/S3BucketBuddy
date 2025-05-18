@@ -24,6 +24,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { formatBytes, formatDate, getFileIcon, getFileColor } from "@/lib/utils";
 import { SharedFile } from "@/lib/types";
@@ -36,20 +39,78 @@ export default function SharedFiles() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortField, setSortField] = useState<"createdAt" | "filename" | "expiresAt" | "accessCount">("createdAt");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [filterStatus, setFilterStatus] = useState<"all" | "active" | "expired">("all");
 
   // Fetch shared files
   const { data: sharedFiles = [], isLoading } = useQuery<SharedFile[]>({
     queryKey: ['/api/shared-files'],
   });
 
-  // Filter files based on search term
+  // Filter files based on search term and status
   const filteredFiles = sharedFiles.filter(file => {
     const lowerSearchTerm = searchTerm.toLowerCase();
-    return (
+    const matchesSearch = (
       file.filename.toLowerCase().includes(lowerSearchTerm) ||
       file.bucket.toLowerCase().includes(lowerSearchTerm) ||
       file.path.toLowerCase().includes(lowerSearchTerm)
     );
+    
+    // Apply status filter
+    if (filterStatus === "all") {
+      return matchesSearch;
+    }
+    
+    const isExpired = file.expiresAt ? new Date(file.expiresAt) < new Date() : false;
+    
+    if (filterStatus === "expired" && isExpired) {
+      return matchesSearch;
+    }
+    
+    if (filterStatus === "active" && !isExpired) {
+      return matchesSearch;
+    }
+    
+    return false;
+  })
+  // Apply sorting
+  .sort((a, b) => {
+    // Helper to handle empty or null values
+    const compareValues = (valueA: any, valueB: any, isAsc: boolean) => {
+      // Handle undefined/null values
+      if (valueA === undefined || valueA === null) return isAsc ? -1 : 1;
+      if (valueB === undefined || valueB === null) return isAsc ? 1 : -1;
+      
+      // For dates, convert strings to Date objects
+      if (valueA instanceof Date || typeof valueA === 'string' && !isNaN(Date.parse(valueA))) {
+        const dateA = valueA instanceof Date ? valueA : new Date(valueA);
+        const dateB = valueB instanceof Date ? valueB : new Date(valueB);
+        return isAsc ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
+      }
+      
+      // For strings
+      if (typeof valueA === 'string' && typeof valueB === 'string') {
+        return isAsc ? valueA.localeCompare(valueB) : valueB.localeCompare(valueA);
+      }
+      
+      // For numbers
+      return isAsc ? valueA - valueB : valueB - valueA;
+    };
+    
+    const isAsc = sortDirection === 'asc';
+    
+    switch (sortField) {
+      case 'filename':
+        return compareValues(a.filename, b.filename, isAsc);
+      case 'expiresAt':
+        return compareValues(a.expiresAt, b.expiresAt, isAsc);
+      case 'accessCount':
+        return compareValues(a.accessCount || 0, b.accessCount || 0, isAsc);
+      case 'createdAt':
+      default:
+        return compareValues(a.createdAt, b.createdAt, isAsc);
+    }
   });
 
   // Copy share link to clipboard
@@ -107,14 +168,70 @@ export default function SharedFiles() {
       <div className="space-y-6">
         <h1 className="text-2xl font-bold tracking-tight">Shared Files</h1>
         
-        <div className="flex items-center justify-between">
-          <div className="max-w-sm flex-1">
+        <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
+          <div className="max-w-sm flex-1 w-full md:w-auto">
             <Input
               placeholder="Search shared files..."
               value={searchTerm}
               onChange={handleSearch}
               className="w-full"
             />
+          </div>
+          
+          <div className="flex flex-wrap gap-2 items-center">
+            {/* Filter Status */}
+            <div className="flex gap-1 border rounded-md p-1">
+              <Button 
+                size="sm" 
+                variant={filterStatus === "all" ? "default" : "ghost"}
+                onClick={() => setFilterStatus("all")}
+              >
+                All
+              </Button>
+              <Button 
+                size="sm" 
+                variant={filterStatus === "active" ? "default" : "ghost"}
+                onClick={() => setFilterStatus("active")}
+              >
+                Active
+              </Button>
+              <Button 
+                size="sm" 
+                variant={filterStatus === "expired" ? "default" : "ghost"}
+                onClick={() => setFilterStatus("expired")}
+              >
+                Expired
+              </Button>
+            </div>
+            
+            {/* Sort Controls */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1">
+                  <i className={`ri-sort-${sortDirection === "asc" ? "asc" : "desc"} text-sm`}></i>
+                  Sort
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setSortField("createdAt")}>
+                  {sortField === "createdAt" && "✓ "}Date Created
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortField("filename")}>
+                  {sortField === "filename" && "✓ "}Filename
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortField("expiresAt")}>
+                  {sortField === "expiresAt" && "✓ "}Expiration Date
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSortField("accessCount")}>
+                  {sortField === "accessCount" && "✓ "}Access Count
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => setSortDirection(sortDirection === "asc" ? "desc" : "asc")}>
+                  <i className={`ri-sort-${sortDirection === "asc" ? "asc" : "desc"} mr-2`}></i>
+                  {sortDirection === "asc" ? "Ascending" : "Descending"}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
         
