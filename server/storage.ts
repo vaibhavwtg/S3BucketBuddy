@@ -12,22 +12,22 @@ import { randomBytes } from "crypto";
 
 export interface IStorage {
   // User operations
-  getUser(id: number): Promise<User | undefined>;
+  getUser(id: number | string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   getAllUsers(): Promise<User[]>;
-  updateUser(id: number, data: Partial<User>): Promise<User | undefined>;
+  updateUser(id: number | string, data: Partial<User>): Promise<User | undefined>;
   
   // S3 Account operations
-  getS3Accounts(userId: number): Promise<S3Account[]>;
+  getS3Accounts(userId: number | string): Promise<S3Account[]>;
   getS3Account(id: number): Promise<S3Account | undefined>;
   createS3Account(account: InsertS3Account): Promise<S3Account>;
   updateS3Account(id: number, account: Partial<S3Account>): Promise<S3Account | undefined>;
   deleteS3Account(id: number): Promise<boolean>;
   
   // Shared files operations
-  getSharedFiles(userId: number): Promise<SharedFile[]>;
+  getSharedFiles(userId: number | string): Promise<SharedFile[]>;
   getSharedFile(id: number): Promise<SharedFile | undefined>;
   getSharedFileByToken(token: string): Promise<SharedFile | undefined>;
   createSharedFile(file: InsertSharedFile): Promise<SharedFile>;
@@ -40,15 +40,15 @@ export interface IStorage {
   logFileAccess(log: InsertFileAccessLog): Promise<FileAccessLog>;
   
   // User settings operations
-  getUserSettings(userId: number): Promise<UserSettings | undefined>;
+  getUserSettings(userId: number | string): Promise<UserSettings | undefined>;
   createOrUpdateUserSettings(settings: InsertUserSettings): Promise<UserSettings>;
-  updateLastAccessed(userId: number, path: string): Promise<void>;
+  updateLastAccessed(userId: number | string, path: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
   // User operations
-  async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
+  async getUser(id: number | string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id.toString()));
     return user;
   }
 
@@ -73,18 +73,20 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(users).orderBy(desc(users.createdAt));
   }
   
-  async updateUser(id: number, data: Partial<User>): Promise<User | undefined> {
+  async updateUser(id: number | string, data: Partial<User>): Promise<User | undefined> {
     const [updatedUser] = await db
       .update(users)
       .set({ ...data, updatedAt: new Date() })
-      .where(eq(users.id, id))
+      .where(eq(users.id, id.toString()))
       .returning();
     return updatedUser;
   }
 
   // S3 Account operations
-  async getS3Accounts(userId: number): Promise<S3Account[]> {
-    return db.select().from(s3Accounts).where(eq(s3Accounts.userId, userId));
+  async getS3Accounts(userId: number | string): Promise<S3Account[]> {
+    // Convert userId to number for S3 accounts since they expect numeric IDs
+    const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
+    return db.select().from(s3Accounts).where(eq(s3Accounts.userId, numericUserId));
   }
 
   async getS3Account(id: number): Promise<S3Account | undefined> {

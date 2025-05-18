@@ -47,7 +47,7 @@ export default function UserManagement() {
   
   // Toggle user active status
   const toggleUserMutation = useMutation({
-    mutationFn: async (userId: number) => {
+    mutationFn: async (userId: number | string) => {
       const res = await apiRequest("PATCH", `/api/admin/users/${userId}/toggle-status`, {});
       return await res.json();
     },
