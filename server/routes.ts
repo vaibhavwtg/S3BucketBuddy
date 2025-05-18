@@ -69,11 +69,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // S3 Accounts routes
   app.get("/api/s3-accounts", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      if (!req.session?.userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
-      
-      const accounts = await storage.getS3Accounts(req.session.userId);
+      // User is already verified by isAuthenticated middleware
+      const accounts = await storage.getS3Accounts(req.user?.id || 0);
       res.json(accounts);
     } catch (error) {
       console.error("Error fetching accounts:", error);

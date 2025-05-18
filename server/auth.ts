@@ -16,8 +16,13 @@ declare global {
         id: number;
         username: string;
         email: string;
+        firstName?: string;
+        lastName?: string;
+        profileImageUrl?: string;
         isAdmin?: boolean;
         isActive?: boolean;
+        createdAt: Date;
+        updatedAt?: Date;
       };
     }
   }
@@ -40,7 +45,20 @@ export async function comparePasswords(supplied: string, stored: string) {
 // Authentication middleware
 export function isAuthenticated(req: Request, res: Response, next: NextFunction) {
   if (req.session && req.session.userId) {
-    next();
+    // Fetch the user and attach to the request
+    storage.getUser(req.session.userId)
+      .then(user => {
+        if (user) {
+          req.user = user;
+          next();
+        } else {
+          res.status(401).json({ message: "User not found" });
+        }
+      })
+      .catch(err => {
+        console.error("Error fetching user in auth middleware:", err);
+        res.status(500).json({ message: "Server error" });
+      });
   } else {
     res.status(401).json({ message: "Unauthorized" });
   }
