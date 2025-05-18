@@ -715,14 +715,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
           return res.status(404).json({ message: "S3 account not found" });
         }
         
-        // Create S3 client
-        const s3Client = new S3Client({
-          region: account.region,
-          credentials: {
-            accessKeyId: account.accessKeyId,
-            secretAccessKey: account.secretAccessKey,
-          },
-        });
+        // Use our existing getS3Client function
+        const s3Client = await getS3Client(accountId);
         
         // File details
         const file = req.file;

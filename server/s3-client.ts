@@ -1,11 +1,12 @@
-import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, CopyObjectCommand, HeadBucketCommand } from "@aws-sdk/client-s3";
+import { S3Client, ListBucketsCommand, ListObjectsV2Command, GetObjectCommand, DeleteObjectCommand, DeleteObjectsCommand, HeadObjectCommand, CopyObjectCommand, HeadBucketCommand, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { storage } from "./storage";
 
 // Cache S3 clients by account ID to avoid creating new ones for each request
 const s3ClientCache = new Map<number, S3Client>();
 
-async function getS3Client(accountId: number): Promise<S3Client> {
+// Export this function so it can be used in routes.ts
+export async function getS3Client(accountId: number): Promise<S3Client> {
   // Check if we already have a client for this account
   if (s3ClientCache.has(accountId)) {
     return s3ClientCache.get(accountId)!;
