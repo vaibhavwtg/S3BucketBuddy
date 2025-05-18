@@ -42,6 +42,7 @@ export function FileCard({
   onShare,
   viewMode,
 }: FileCardProps) {
+  const { toast } = useToast();
   const fileName = file.Key?.split('/').pop() || '';
   const fileSize = file.Size || 0;
   const lastModified = file.LastModified ? new Date(file.LastModified) : new Date();
@@ -110,14 +111,10 @@ export function FileCard({
                 onClick={() => {
                   const publicUrl = `https://${bucket}.s3.amazonaws.com/${file.Key}`;
                   navigator.clipboard.writeText(publicUrl);
-                  // Use global toast from window object if available
-                  const toast = (window as any).toast;
-                  if (toast) {
-                    toast({
-                      title: "Public link copied",
-                      description: "Direct S3 URL has been copied to clipboard"
-                    });
-                  }
+                  toast({
+                    title: "Public link copied",
+                    description: "Direct S3 URL has been copied to clipboard"
+                  });
                 }} 
                 className="cursor-pointer"
               >
