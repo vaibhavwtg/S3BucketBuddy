@@ -49,7 +49,19 @@ export function isAuthenticated(req: Request, res: Response, next: NextFunction)
     storage.getUser(req.session.userId)
       .then(user => {
         if (user) {
-          req.user = user;
+          // Convert null values to undefined to match the type expected by req.user
+          req.user = {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            firstName: user.firstName ?? undefined,
+            lastName: user.lastName ?? undefined,
+            profileImageUrl: user.profileImageUrl ?? undefined,
+            isAdmin: user.isAdmin === true,
+            isActive: user.isActive === true,
+            createdAt: user.createdAt,
+            updatedAt: user.updatedAt ?? undefined
+          };
           next();
         } else {
           res.status(401).json({ message: "User not found" });

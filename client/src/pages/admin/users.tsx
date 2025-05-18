@@ -86,7 +86,7 @@ export default function UserManagement() {
   };
   
   // If not admin, show access denied
-  if (currentUser && !currentUser.isAdmin) {
+  if (currentUser && currentUser.isAdmin !== true) {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center h-[70vh]">
@@ -94,6 +94,9 @@ export default function UserManagement() {
           <h1 className="text-2xl font-semibold mb-2">Access Denied</h1>
           <p className="text-muted-foreground">
             You don't have permission to access the user management area.
+          </p>
+          <p className="text-sm text-muted-foreground mt-2">
+            User role: {currentUser.isAdmin === true ? 'Admin' : 'Regular User'}
           </p>
         </div>
       </Layout>
