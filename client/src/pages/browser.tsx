@@ -705,28 +705,16 @@ export default function Browser() {
                 }}
                 onShare={() => {
                   if (!file.Key) return;
-                  // Create direct S3 URL
-                  const fileUrl = `https://${bucket}.s3.amazonaws.com/${file.Key}`;
-                  // Copy to clipboard
-                  navigator.clipboard.writeText(fileUrl).then(() => {
-                    notify({
-                      title: "Link copied",
-                      description: "Direct link copied to clipboard"
-                    });
-                  }).catch(() => {
-                    // Fallback copy method
-                    const tempElement = document.createElement('textarea');
-                    tempElement.value = fileUrl;
-                    document.body.appendChild(tempElement);
-                    tempElement.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(tempElement);
-                    
-                    notify({
-                      title: "Link copied",
-                      description: "Direct link copied to clipboard"
-                    });
+                  // Set the file to share and open the share dialog
+                  setShareFile({
+                    accountId: parsedAccountId!,
+                    bucket: bucket,
+                    path: file.Key,
+                    filename: file.Key.split('/').pop() || file.Key,
+                    contentType: file.contentType,
+                    size: file.Size || 0
                   });
+                  setIsShareOpen(true);
                 }}
                 onRename={() => {
                   if (!file.Key) return;
