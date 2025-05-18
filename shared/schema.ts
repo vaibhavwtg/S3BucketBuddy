@@ -117,10 +117,16 @@ export const insertUserSettingsSchema = createInsertSchema(userSettings).omit({
   id: true,
 });
 
-export const insertFileAccessLogSchema = createInsertSchema(fileAccessLogs).omit({
-  id: true,
-  accessedAt: true,
-});
+export const insertFileAccessLogSchema = createInsertSchema(fileAccessLogs)
+  .omit({
+    id: true,
+    accessedAt: true,
+  })
+  .partial({
+    country: true,
+    city: true,
+    referrer: true,
+  });
 
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;

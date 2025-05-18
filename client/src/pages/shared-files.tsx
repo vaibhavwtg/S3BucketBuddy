@@ -339,8 +339,13 @@ export default function SharedFiles() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => copyShareLink(`${window.location.origin}/shared/${file.shareToken}`)}>
                                   <i className="ri-clipboard-line mr-2"></i>
-                                  Copy Link
+                                  Copy App Link
                                 </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => copyShareLink(`https://${file.bucket}.s3.amazonaws.com/${file.path}`)}>
+                                  <i className="ri-aws-fill mr-2"></i>
+                                  Copy Direct S3 Link
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 <DropdownMenuItem onClick={() => handleDeleteShare(file.id)}>
                                   <i className="ri-delete-bin-line mr-2"></i>
                                   Delete Share
