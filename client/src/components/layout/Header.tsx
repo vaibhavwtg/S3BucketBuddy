@@ -37,9 +37,10 @@ export function Header({
     }
   };
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
+  // We're using ThemeSelector component directly, so we don't need this function anymore
+  // const toggleTheme = () => {
+  //   setTheme(theme === "dark" ? "light" : "dark");
+  // };
 
   return (
     <header className="bg-card shadow-sm z-10">
