@@ -4,13 +4,14 @@ import { S3Object } from '@/lib/types';
 import { FileIcon } from './FileIcon';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { useToast } from '@/hooks/use-toast';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Download, Trash, PenSquare, Link } from 'lucide-react';
+import { MoreHorizontal, Download, Trash, PenSquare, Link, ExternalLink } from 'lucide-react';
 
 interface FileCardProps {
   file: S3Object;
@@ -104,6 +105,24 @@ export function FileCard({
               <DropdownMenuItem onClick={onShare} className="cursor-pointer">
                 <Link className="mr-2 h-4 w-4" />
                 <span>Share</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem 
+                onClick={() => {
+                  const publicUrl = `https://${bucket}.s3.amazonaws.com/${file.Key}`;
+                  navigator.clipboard.writeText(publicUrl);
+                  // Use global toast from window object if available
+                  const toast = (window as any).toast;
+                  if (toast) {
+                    toast({
+                      title: "Public link copied",
+                      description: "Direct S3 URL has been copied to clipboard"
+                    });
+                  }
+                }} 
+                className="cursor-pointer"
+              >
+                <ExternalLink className="mr-2 h-4 w-4" />
+                <span>Copy Public Link</span>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={onRename} className="cursor-pointer">
                 <PenSquare className="mr-2 h-4 w-4" />
