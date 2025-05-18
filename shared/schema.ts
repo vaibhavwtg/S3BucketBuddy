@@ -73,7 +73,7 @@ export const fileAccessLogs = pgTable("file_access_logs", {
 
 export const userSettings = pgTable("user_settings", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id).unique(),
+  userId: varchar("user_id", { length: 100 }).notNull(),
   theme: text("theme").default("light"),
   defaultAccountId: integer("default_account_id").references(() => s3Accounts.id),
   notifications: boolean("notifications").default(true),

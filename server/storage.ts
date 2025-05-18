@@ -174,15 +174,18 @@ export class DatabaseStorage implements IStorage {
   }
 
   // User settings operations
-  async getUserSettings(userId: number): Promise<UserSettings | undefined> {
+  async getUserSettings(userId: number | string): Promise<UserSettings | undefined> {
     const [settings] = await db
       .select()
       .from(userSettings)
-      .where(eq(userSettings.userId, userId));
+      .where(eq(userSettings.userId, userId.toString()));
     return settings;
   }
 
   async createOrUpdateUserSettings(settings: InsertUserSettings): Promise<UserSettings> {
+    // Convert userId to string to match database
+    settings.userId = settings.userId.toString();
+    
     // Check if settings already exist
     const existingSettings = await this.getUserSettings(settings.userId);
     
