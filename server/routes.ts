@@ -642,14 +642,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Increment access count
       await storage.incrementAccessCount(sharedFile.id);
       
-      // Log access
-      await storage.logFileAccess({
-        fileId: sharedFile.id,
-        ipAddress: req.ip || req.socket.remoteAddress || '',
-        userAgent: req.headers['user-agent'] || '',
-        referrer: req.headers.referer || '',
-        isDownload: false,
-      });
+      // Log access - but don't let it break the main functionality
+      try {
+        await storage.logFileAccess({
+          fileId: sharedFile.id,
+          ipAddress: req.ip || req.socket.remoteAddress || '',
+          userAgent: req.headers['user-agent'] || '',
+          isDownload: false,
+        });
+      } catch (logError) {
+        console.error("Error logging file access:", logError);
+        // Continue even if logging fails
+      }
       
       // Create signed URL for download
       const s3Account = await storage.getS3Account(sharedFile.accountId);
