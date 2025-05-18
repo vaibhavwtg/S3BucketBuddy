@@ -14,9 +14,6 @@ import AccountManager from "@/pages/account-manager";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import PublicSharedFile from "@/pages/public-shared-file";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
-import LandingPage from "@/pages/landing";
-import AboutPage from "@/pages/about";
-import ContactPage from "@/pages/contact";
 
 // Protected route component
 function ProtectedRoute({ component: Component, ...rest }: { component: React.ComponentType<any>, path?: string }) {
@@ -60,9 +57,7 @@ function Router() {
   return (
     <Switch>
       {/* Public Pages */}
-      <Route path="/" component={LandingPage} />
-      <Route path="/about" component={AboutPage} />
-      <Route path="/contact" component={ContactPage} />
+      <Route path="/" component={LoginRoute} />
       <Route path="/login" component={LoginRoute} />
       <Route path="/shared/:token" component={PublicSharedFile} />
       
