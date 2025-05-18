@@ -202,7 +202,13 @@ export function setupAuthRoutes(app: Express) {
       
       // Return user (without password)
       const { password: _, ...userWithoutPassword } = user;
-      res.status(200).json(userWithoutPassword);
+      // Ensure boolean values are correctly converted
+      const userWithCorrectBooleans = {
+        ...userWithoutPassword,
+        isAdmin: user.isAdmin === true,
+        isActive: user.isActive === true
+      };
+      res.status(200).json(userWithCorrectBooleans);
     } catch (error) {
       console.error("Get user error:", error);
       res.status(500).json({ message: "Error getting user" });
