@@ -70,7 +70,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/s3-accounts", isAuthenticated, async (req: Request, res: Response) => {
     try {
       // User is already verified by isAuthenticated middleware
-      const accounts = await storage.getS3Accounts(req.user?.id || 0);
+      if (!req.user?.id) {
+        return res.status(401).json({ message: "Unauthorized" });
+      }
+      
+      // Get user's S3 accounts
+      const accounts = await storage.getS3Accounts(req.user.id);
+      console.log("Fetched S3 accounts for user:", req.user.id, accounts);
       res.json(accounts);
     } catch (error) {
       console.error("Error fetching accounts:", error);

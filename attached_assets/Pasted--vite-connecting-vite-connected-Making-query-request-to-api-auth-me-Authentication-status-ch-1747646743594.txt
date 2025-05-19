@@ -1,0 +1,30 @@
+[vite] connecting...
+[vite] connected.
+Making query request to /api/auth/me
+Authentication status changed: 
+Object {isAuthenticated: false, user: undefined, cookies: ""}
+Response from /api/auth/me: 
+Object {status: 200, statusText: "OK"}
+Authentication status changed: 
+Object {isAuthenticated: true, user: {…}, cookies: ""}
+User is authenticated with cookies: 
+Warning: validateDOMNesting(...): <a> cannot appear as a descendant of &lt;a&gt;.
+    at a
+    at a
+    at https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=7a6bfd1b:337:18
+    at nav
+    at aside
+    at Sidebar (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/layout/Sidebar.tsx:38:22)
+    at div
+    at Layout (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/layout/Layout.tsx:21:3)
+    at Dashboard (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/pages/dashboard.tsx:35:20)
+    at component
+    at Route (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=7a6bfd1b:323:16)
+    at ProtectedRoute (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/App.tsx?v=Gc3muRLKMEP_KmM3CHuMn:34:38)
+    at Switch (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=7a6bfd1b:379:17)
+    at Router
+    at Provider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=7a6bfd1b:38:15)
+    at TooltipProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=7a6bfd1b:63:5)
+    at ThemeProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/theme-provider.tsx:25:3)
+    at AuthProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/hooks/use-auth.ts:7:32)
+    at QueryClientProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=7a6bfd1b:2805:3
