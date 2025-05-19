@@ -2,14 +2,15 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { z } from "zod";
-import { insertS3AccountSchema, insertSharedFileSchema } from "@shared/schema";
+import { insertS3AccountSchema, insertSharedFileSchema, sharedFiles } from "@shared/schema";
 import { randomBytes } from "crypto";
 import { setupSession, setupAuthRoutes, isAuthenticated } from "./auth";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import multer from "multer";
 import { Readable } from "stream";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { listBuckets, listObjects, getDownloadUrl, deleteObject, deleteObjects, copyObject, getObjectMetadata, getS3Client } from "./s3-client";
+import { db } from "./db";
 
 // Helper function to convert null to undefined
 function nullToUndefined<T>(value: T | null): T | undefined {
