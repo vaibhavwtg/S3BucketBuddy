@@ -126,18 +126,31 @@ export class DatabaseStorage implements IStorage {
   
   // Check if a file is already shared
   async getExistingSharedFile(userId: number | string, accountId: number, bucket: string, path: string): Promise<SharedFile | undefined> {
-    const [file] = await db
-      .select()
-      .from(sharedFiles)
-      .where(
-        and(
-          eq(sharedFiles.userId, userId),
-          eq(sharedFiles.accountId, accountId),
-          eq(sharedFiles.bucket, bucket),
-          eq(sharedFiles.path, path)
-        )
-      );
-    return file;
+    console.log("Checking for existing shares - userId:", userId, "accountId:", accountId, "bucket:", bucket, "path:", path);
+    try {
+      const [file] = await db
+        .select()
+        .from(sharedFiles)
+        .where(
+          and(
+            eq(sharedFiles.userId, userId),
+            eq(sharedFiles.accountId, accountId),
+            eq(sharedFiles.bucket, bucket),
+            eq(sharedFiles.path, path)
+          )
+        );
+      
+      if (file) {
+        console.log("Found existing shared file:", file.id);
+      } else {
+        console.log("No existing share found for this file");
+      }
+      
+      return file;
+    } catch (error) {
+      console.error("Error checking for existing shared file:", error);
+      return undefined;
+    }
   }
 
   async getSharedFile(id: number): Promise<SharedFile | undefined> {
