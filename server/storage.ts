@@ -84,9 +84,8 @@ export class DatabaseStorage implements IStorage {
 
   // S3 Account operations
   async getS3Accounts(userId: number | string): Promise<S3Account[]> {
-    // Convert userId to number for S3 accounts since they expect numeric IDs
-    const numericUserId = typeof userId === 'string' ? parseInt(userId) : userId;
-    return db.select().from(s3Accounts).where(eq(s3Accounts.userId, numericUserId));
+    // S3 accounts now use string user IDs, no need to convert
+    return db.select().from(s3Accounts).where(eq(s3Accounts.userId, userId));
   }
 
   async getS3Account(id: number): Promise<S3Account | undefined> {

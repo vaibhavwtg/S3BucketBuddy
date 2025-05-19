@@ -99,8 +99,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Try to list buckets to verify credentials
-      const command = new ListBucketsCommand({});
-      const response = await s3Client.send(command);
+      const response = await s3Client.send({ 
+        $command: "ListBuckets" 
+      });
       
       // Return the list of buckets
       res.status(200).json({
@@ -118,15 +119,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/s3-accounts", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      if (!req.session?.userId) {
+      if (!req.user?.id) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
       const accountData = {
         ...req.body,
-        userId: req.session.userId
+        userId: req.user.id
       };
       
+      console.log("Creating S3 account for user:", req.user.id, accountData);
       const account = await storage.createS3Account(accountData);
       res.status(201).json(account);
     } catch (error) {
@@ -138,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Delete S3 account
   app.delete("/api/s3-accounts/:id", isAuthenticated, async (req: Request, res: Response) => {
     try {
-      if (!req.session?.userId) {
+      if (!req.user?.id) {
         return res.status(401).json({ message: "Unauthorized" });
       }
       
@@ -154,7 +156,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Make sure the account belongs to the authenticated user
-      if (account.userId !== req.session.userId) {
+      if (account.userId !== req.user.id) {
         return res.status(403).json({ message: "Not authorized to delete this account" });
       }
       
