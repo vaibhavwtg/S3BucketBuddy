@@ -11,6 +11,25 @@ Before starting, ensure you have the following installed on your Mac:
 - PostgreSQL (v14+ recommended)
 - Git
 
+### Installing Prerequisites on macOS
+
+If you don't have these dependencies installed, you can use Homebrew:
+
+```bash
+# Install Homebrew if not already installed
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Install Node.js and npm
+brew install node@18
+
+# Install PostgreSQL
+brew install postgresql@14
+brew services start postgresql@14
+
+# Create a database user (if needed)
+createuser -s postgres
+```
+
 ## Installation Steps
 
 ### 1. Clone the Repository
