@@ -116,12 +116,28 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Shared files operations
-  async getSharedFiles(userId: number): Promise<SharedFile[]> {
+  async getSharedFiles(userId: number | string): Promise<SharedFile[]> {
     return db
       .select()
       .from(sharedFiles)
       .where(eq(sharedFiles.userId, userId))
       .orderBy(desc(sharedFiles.createdAt));
+  }
+  
+  // Check if a file is already shared
+  async getExistingSharedFile(userId: number | string, accountId: number, bucket: string, path: string): Promise<SharedFile | undefined> {
+    const [file] = await db
+      .select()
+      .from(sharedFiles)
+      .where(
+        and(
+          eq(sharedFiles.userId, userId),
+          eq(sharedFiles.accountId, accountId),
+          eq(sharedFiles.bucket, bucket),
+          eq(sharedFiles.path, path)
+        )
+      );
+    return file;
   }
 
   async getSharedFile(id: number): Promise<SharedFile | undefined> {

@@ -481,31 +481,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // Generate a unique share token
-      const shareToken = randomBytes(16).toString('hex');
-      console.log("Generated share token:", shareToken);
+      // First, check if this file is already shared
+      const existingShare = await storage.getExistingSharedFile(userId, accountId, bucket, path || '');
       
-      // Calculate expiry date if provided
-      let expiresAt: Date | undefined = undefined;
-      if (expiresInDays && expiresInDays > 0) {
-        expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+      let sharedFile;
+      
+      if (existingShare) {
+        // File is already shared, return the existing share
+        sharedFile = existingShare;
+        
+        // Update the expiry date if new one is provided
+        if (expiresInDays && expiresInDays > 0) {
+          const newExpiresAt = new Date();
+          newExpiresAt.setDate(newExpiresAt.getDate() + expiresInDays);
+          
+          // Update the existing shared file with new expiry date
+          sharedFile = await storage.updateSharedFile(existingShare.id, { 
+            expiresAt: newExpiresAt,
+            allowDownload: allowDownload !== undefined ? allowDownload : existingShare.allowDownload,
+            password: password && password.trim() ? password.trim() : existingShare.password
+          });
+          
+          console.log("Updated existing shared file with new expiry date");
+        }
+      } else {
+        // This is a new share, generate a unique share token
+        const shareToken = randomBytes(16).toString('hex');
+        console.log("Generated share token:", shareToken);
+        
+        // Calculate expiry date if provided
+        let expiresAt: Date | undefined = undefined;
+        if (expiresInDays && expiresInDays > 0) {
+          expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+        }
+        
+        // Save to database
+        sharedFile = await storage.createSharedFile({
+          userId: userId,
+          accountId,
+          bucket,
+          path: path || '',
+          filename,
+          filesize: filesize || 0,
+          contentType: contentType || "application/octet-stream",
+          shareToken,
+          expiresAt,
+          allowDownload: allowDownload !== undefined ? allowDownload : true,
+          password: password && password.trim() ? password.trim() : undefined,
+        });
       }
-      
-      // Save to database
-      const sharedFile = await storage.createSharedFile({
-        userId: userId,
-        accountId,
-        bucket,
-        path: path || '',
-        filename,
-        filesize: filesize || 0,
-        contentType: contentType || "application/octet-stream",
-        shareToken,
-        expiresAt,
-        allowDownload: allowDownload !== undefined ? allowDownload : true,
-        password: password && password.trim() ? password.trim() : undefined,
-      });
       
       console.log("Shared file created:", sharedFile);
       
