@@ -481,14 +481,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
       
-      // First, check if this file is already shared
-      const existingShare = await storage.getExistingSharedFile(userId, accountId, bucket, path || '');
+      // First, directly check the database for existing shared files
+      const [existingShare] = await db
+        .select()
+        .from(sharedFiles)
+        .where(
+          and(
+            eq(sharedFiles.userId, userId),
+            eq(sharedFiles.accountId, accountId),
+            eq(sharedFiles.bucket, bucket),
+            eq(sharedFiles.path, path || '')
+          )
+        );
+      
+      console.log("Checking for existing shared file:", {userId, accountId, bucket, path: path || ''});
       
       let sharedFile;
+      let shareToken;
       
       if (existingShare) {
-        // File is already shared, return the existing share
+        console.log("Found existing shared file:", existingShare.id);
+        // File is already shared, use the existing share
         sharedFile = existingShare;
+        shareToken = existingShare.shareToken;
         
         // Update the expiry date if new one is provided
         if (expiresInDays && expiresInDays > 0) {
@@ -496,17 +511,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
           newExpiresAt.setDate(newExpiresAt.getDate() + expiresInDays);
           
           // Update the existing shared file with new expiry date
-          sharedFile = await storage.updateSharedFile(existingShare.id, { 
+          const updatedFile = await storage.updateSharedFile(existingShare.id, { 
             expiresAt: newExpiresAt,
             allowDownload: allowDownload !== undefined ? allowDownload : existingShare.allowDownload,
             password: password && password.trim() ? password.trim() : existingShare.password
           });
           
+          if (updatedFile) {
+            sharedFile = updatedFile;
+          }
           console.log("Updated existing shared file with new expiry date");
         }
       } else {
+        console.log("No existing shared file found, creating new one");
         // This is a new share, generate a unique share token
-        const shareToken = randomBytes(16).toString('hex');
+        shareToken = randomBytes(16).toString('hex');
         console.log("Generated share token:", shareToken);
         
         // Calculate expiry date if provided
@@ -535,7 +554,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.log("Shared file created:", sharedFile);
       
       // Determine the URL to return based on direct S3 link preference
-      const appShareUrl = `${req.protocol}://${req.hostname}/shared/${shareToken}`;
+      const appShareUrl = `${req.protocol}://${req.hostname}/shared/${sharedFile.shareToken}`;
       const s3DirectUrl = `https://${bucket}.s3.amazonaws.com/${path || filename}`;
       
       // Return with the shareable URL
@@ -543,8 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...sharedFile,
         shareUrl: directS3Link ? s3DirectUrl : appShareUrl,
         directS3Url: s3DirectUrl,
-        appShareUrl,
-        shareToken,
+        appShareUrl
       });
     } catch (error) {
       console.error("Error creating shared file:", error);
