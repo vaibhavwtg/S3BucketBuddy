@@ -44,15 +44,15 @@ export function Header({
 
   return (
     <header className="bg-card shadow-sm z-10">
-      <div className="flex items-center justify-between p-4">
-        {/* Mobile Menu Button */}
-        <Button variant="ghost" size="icon" className="md:hidden">
-          <i className="ri-menu-line text-2xl"></i>
+      <div className="flex items-center justify-between p-3 md:p-4">
+        {/* Mobile Menu Button - Will open a mobile drawer in future version */}
+        <Button variant="ghost" size="icon" className="md:hidden flex-shrink-0">
+          <i className="ri-menu-line text-lg md:text-2xl"></i>
           <span className="sr-only">Menu</span>
         </Button>
 
-        {/* Search Bar */}
-        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:ml-6 sm:max-w-lg">
+        {/* Search Bar - Hidden on smaller screens, shown on SM and up */}
+        <div className="hidden sm:flex-1 sm:flex sm:items-center sm:ml-4 sm:mr-2 sm:max-w-lg">
           <form onSubmit={handleSearch} className="w-full">
             <div className="relative w-full">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -60,7 +60,7 @@ export function Header({
               </div>
               <Input
                 type="text"
-                className="pl-10 pr-3"
+                className="pl-10 pr-3 h-9"
                 placeholder="Search files and folders..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -70,22 +70,26 @@ export function Header({
         </div>
 
         {/* Action buttons */}
-        <div className="flex items-center space-x-2 ml-4">
+        <div className="flex items-center space-x-1 sm:space-x-2 ml-auto sm:ml-4">
           {showUploadButton && currentBucket && (
-            <Button className="hidden sm:flex items-center" onClick={() => setIsUploadOpen(true)}>
-              <i className="ri-upload-line mr-2"></i>
+            <Button 
+              size="sm"
+              className="hidden sm:flex items-center" 
+              onClick={() => setIsUploadOpen(true)}
+            >
+              <i className="ri-upload-line mr-1 sm:mr-2"></i>
               <span>Upload</span>
             </Button>
           )}
 
-          <Button variant="ghost" size="icon" asChild>
+          <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9" asChild>
             <Link href="/settings">
-              <i className="ri-notification-3-line text-xl"></i>
+              <i className="ri-notification-3-line text-lg sm:text-xl"></i>
               <span className="sr-only">Notifications</span>
             </Link>
           </Button>
 
-          <div className="hidden sm:flex">
+          <div className="flex">
             <ThemeSelector />
           </div>
         </div>

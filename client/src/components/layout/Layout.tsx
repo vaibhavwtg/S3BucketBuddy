@@ -19,8 +19,8 @@ export function Layout({
   showUploadButton 
 }: LayoutProps) {
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
+    <div className="flex h-screen overflow-hidden bg-background">
+      {/* Sidebar - Hidden on mobile */}
       <Sidebar />
       
       {/* Main Content Area */}
@@ -34,11 +34,11 @@ export function Layout({
         />
         
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto p-4 bg-background">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 pb-24 md:pb-4 bg-background">
           {children}
         </main>
         
-        {/* Mobile Navigation */}
+        {/* Mobile Navigation - Extra padding at bottom to prevent content being hidden behind nav */}
         <MobileNav currentBucket={currentBucket} currentPath={currentPath} />
       </div>
     </div>

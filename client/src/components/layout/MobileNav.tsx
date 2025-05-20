@@ -1,8 +1,9 @@
-import { useLocation, Link } from "wouter";
+import { useLocation } from "wouter";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useState } from "react";
 import { UploadDialog } from "@/components/dialogs/UploadDialog";
+import { useQuery } from "@tanstack/react-query";
 
 interface MobileNavProps {
   currentBucket?: string;
@@ -12,50 +13,81 @@ interface MobileNavProps {
 export function MobileNav({ currentBucket, currentPath }: MobileNavProps) {
   const [location] = useLocation();
   const [isUploadOpen, setIsUploadOpen] = useState(false);
+  
+  // Get user settings for potentially needed account info
+  const { data: userSettings } = useQuery({
+    queryKey: ['/api/user-settings'],
+  });
 
   const isActive = (path: string) => {
     return location === path || location.startsWith(`${path}/`);
   };
 
+  // These functions use direct href changes for reliable navigation on mobile
+  const navigateTo = (path: string) => {
+    window.location.href = path;
+  };
+
   return (
     <>
-      <nav className="md:hidden bg-card border-t border-border fixed bottom-0 left-0 right-0 z-20">
+      <nav className="md:hidden bg-card border-t border-border fixed bottom-0 left-0 right-0 z-20 pb-safe">
         <div className="flex items-center justify-around py-2">
-          <Link href="/">
-            <a className={cn(
-              "flex flex-col items-center px-3 py-2",
+          <button 
+            onClick={() => navigateTo('/')}
+            className={cn(
+              "flex flex-col items-center px-2 py-2 focus:outline-none",
               isActive("/") ? "text-primary" : "text-muted-foreground"
-            )}>
-              <i className="ri-folder-line text-xl"></i>
-              <span className="text-xs mt-1">Files</span>
-            </a>
-          </Link>
+            )}
+          >
+            <i className="ri-dashboard-line text-xl"></i>
+            <span className="text-xs mt-0.5">Dashboard</span>
+          </button>
           
-          <Link href="/shared">
-            <a className={cn(
-              "flex flex-col items-center px-3 py-2",
-              isActive("/shared") ? "text-primary" : "text-muted-foreground"
-            )}>
-              <i className="ri-share-line text-xl"></i>
-              <span className="text-xs mt-1">Shared</span>
-            </a>
-          </Link>
+          <button 
+            onClick={() => navigateTo('/account-manager')}
+            className={cn(
+              "flex flex-col items-center px-2 py-2 focus:outline-none",
+              isActive("/account-manager") ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <i className="ri-folder-line text-xl"></i>
+            <span className="text-xs mt-0.5">Accounts</span>
+          </button>
           
-          <div className="flex flex-col items-center p-2">
-            <Button className="w-12 h-12 rounded-full" onClick={() => setIsUploadOpen(true)}>
-              <i className="ri-upload-line text-2xl"></i>
+          {/* Center action button for upload */}
+          <div className="flex flex-col items-center -mt-5">
+            <Button 
+              variant="default"
+              className="w-14 h-14 rounded-full shadow-lg border-4 border-background flex items-center justify-center" 
+              onClick={() => currentBucket ? setIsUploadOpen(true) : null}
+              disabled={!currentBucket}
+            >
+              <i className="ri-upload-line text-xl"></i>
             </Button>
+            <span className="text-xs mt-1 text-muted-foreground">Upload</span>
           </div>
           
-          <Link href="/settings">
-            <a className={cn(
-              "flex flex-col items-center px-3 py-2",
+          <button 
+            onClick={() => navigateTo('/shared')}
+            className={cn(
+              "flex flex-col items-center px-2 py-2 focus:outline-none",
+              isActive("/shared") ? "text-primary" : "text-muted-foreground"
+            )}
+          >
+            <i className="ri-share-line text-xl"></i>
+            <span className="text-xs mt-0.5">Shared</span>
+          </button>
+          
+          <button 
+            onClick={() => navigateTo('/settings')}
+            className={cn(
+              "flex flex-col items-center px-2 py-2 focus:outline-none",
               isActive("/settings") ? "text-primary" : "text-muted-foreground"
-            )}>
-              <i className="ri-settings-3-line text-xl"></i>
-              <span className="text-xs mt-1">Settings</span>
-            </a>
-          </Link>
+            )}
+          >
+            <i className="ri-settings-3-line text-xl"></i>
+            <span className="text-xs mt-0.5">Settings</span>
+          </button>
         </div>
       </nav>
       
@@ -65,6 +97,7 @@ export function MobileNav({ currentBucket, currentPath }: MobileNavProps) {
           onOpenChange={setIsUploadOpen}
           bucket={currentBucket}
           prefix={currentPath || ""}
+          accountId={userSettings?.defaultAccountId}
         />
       )}
     </>
