@@ -1,0 +1,43 @@
+Response from /api/s3-accounts: 
+Object {status: 200, statusText: "OK"}
+Response from /api/user-settings: 
+Object {status: 200, statusText: "OK"}
+Validation status: validating
+Buckets: 
+Array []
+Warning: Unknown event handler property &#x60;onOpenChange&#x60;. It will be ignored.
+    at div
+    at _c3 (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toast.tsx:61:12)
+    at div
+    at _c (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toast.tsx:22:11)
+    at Toaster (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toaster.tsx:23:22)
+    at Provider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=2f065bb6:38:15)
+    at TooltipProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=2f065bb6:63:5)
+    at ThemeProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/theme-provider.tsx:25:3)
+    at AuthProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/hooks/use-auth.ts:7:32)
+    at QueryClientProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=2f065bb6:2805:3)
+    at App
+at div
+at _c3 (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toast.tsx:61:12)
+at div
+at _c (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toast.tsx:22:11)
+at Toaster (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toaster.tsx:23:22)
+at Provider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=2f065bb6:38:15)
+at TooltipProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=2f065bb6:63:5)
+at ThemeProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/theme-provider.tsx:25:3)
+at AuthProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/hooks/use-auth.ts:7:32)
+at QueryClientProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=2f065bb6:2805:3)
+at App
+at t.value (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Validation status: idle
+Buckets: 
+Array []
+Validation status: idle
+Buckets: 
+Array []
+Validation status: idle
+Buckets: 
+Array []
