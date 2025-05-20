@@ -216,7 +216,7 @@ export default function Browser() {
     });
   }, [navigateTo, parsedAccountId, bucket, prefix]);
   
-  // Handle bucket selection
+  // Handle bucket selection with more reliable navigation
   const handleSelectBucket = useCallback((selectedBucket: EnhancedS3Bucket) => {
     if (!selectedBucket || !selectedBucket.Name) {
       console.error('Invalid bucket selection:', selectedBucket);
@@ -229,13 +229,14 @@ export default function Browser() {
     // Use the accountId from the bucket if available, otherwise use the current one
     const accountIdToUse = selectedBucket.accountId || parsedAccountId;
     
-    // Clear any existing prefix
-    queryClient.invalidateQueries({ 
-      queryKey: [`/api/s3/${accountIdToUse}/objects`, selectedBucket.Name]
-    });
+    // Add a timestamp to ensure the URL is always different, forcing a reload
+    const timestamp = new Date().getTime();
     
-    // Force window location change instead of using navigate to ensure full rerender
-    window.location.href = `/browser?account=${accountIdToUse}&bucket=${selectedBucket.Name}`;
+    // First invalidate queries to ensure cache is cleared
+    queryClient.clear();
+    
+    // Force window location change with timestamp to ensure complete page reload
+    window.location.href = `/browser?account=${accountIdToUse}&bucket=${selectedBucket.Name}&_=${timestamp}`;
   }, [queryClient, parsedAccountId]);
   
   // Hook for fetching buckets in selected account (if any)
