@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Check, FolderIcon } from "lucide-react";
 
 const awsRegions = [
   { value: "ap-southeast-2", label: "Asia Pacific (Sydney)" },
@@ -251,33 +251,49 @@ export default function AddS3Account() {
               <>
                 <div className="mb-4 p-3 bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-md">
                   <p className="text-green-700 dark:text-green-400 text-sm flex items-center">
-                    <i className="ri-check-line mr-2"></i>
+                    <Check className="h-4 w-4 mr-2" />
                     Credentials validated successfully
                   </p>
                 </div>
                 
-                <div className="space-y-2">
-                  <Label>Select Default Bucket</Label>
-                  <div className="grid gap-2 max-h-60 overflow-y-auto">
-                    {buckets.map((bucket) => (
-                      <div 
-                        key={bucket.Name} 
-                        className={`p-3 border rounded-md cursor-pointer flex items-center justify-between ${
-                          formData.selectedBucket === bucket.Name 
-                            ? 'border-primary bg-primary/5' 
-                            : 'border-border'
-                        }`}
-                        onClick={() => handleSelectBucket(bucket.Name || "")}
-                      >
-                        <div className="flex items-center">
-                          <i className="ri-folder-line mr-2 text-xl"></i>
-                          <span>{bucket.Name}</span>
-                        </div>
-                        {formData.selectedBucket === bucket.Name && (
-                          <i className="ri-check-line text-primary"></i>
-                        )}
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h3 className="text-base font-medium">Account Details</h3>
+                    <div className="grid grid-cols-2 gap-4 p-3 bg-muted/50 rounded-md">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Account Name</p>
+                        <p className="font-medium">{formData.name}</p>
                       </div>
-                    ))}
+                      <div>
+                        <p className="text-sm text-muted-foreground">Region</p>
+                        <p className="font-medium">{awsRegions.find(r => r.value === formData.region)?.label || formData.region}</p>
+                      </div>
+                    </div>
+                  </div>
+                
+                  <div className="space-y-2">
+                    <Label className="text-base font-medium">Select Default Bucket</Label>
+                    <div className="grid gap-2 max-h-60 overflow-y-auto border rounded-md p-2">
+                      {buckets.map((bucket) => (
+                        <div 
+                          key={bucket.Name} 
+                          className={`p-3 border rounded-md cursor-pointer flex items-center justify-between ${
+                            formData.selectedBucket === bucket.Name 
+                              ? 'border-primary bg-primary/5' 
+                              : 'border-border hover:bg-muted/50'
+                          }`}
+                          onClick={() => handleSelectBucket(bucket.Name || "")}
+                        >
+                          <div className="flex items-center">
+                            <FolderIcon className="h-5 w-5 mr-2 text-amber-500" />
+                            <span>{bucket.Name}</span>
+                          </div>
+                          {formData.selectedBucket === bucket.Name && (
+                            <Check className="h-4 w-4 text-primary" />
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </>
