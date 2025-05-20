@@ -113,32 +113,39 @@ export function Sidebar() {
             {accounts
               .filter(account => account.defaultBucket)
               .map((account) => (
-                <Link 
-                  key={`bucket-${account.id}`} 
-                  href={`/browser?account=${account.id}&bucket=${account.defaultBucket}`}
-                >
-                  <a className={cn(
+                <a 
+                  key={`bucket-${account.id}`}
+                  href={`/browser?account=${account.id}&bucket=${account.defaultBucket}&t=${Date.now()}`}
+                  className={cn(
                     "w-full flex items-center px-4 py-2 text-sm font-medium rounded-lg",
                     isActive(`/browser?account=${account.id}&bucket=${account.defaultBucket}`) ? 
                       "bg-muted text-primary" : 
                       "text-foreground hover:bg-muted"
+                  )}
+                  onClick={(e) => {
+                    // Add redirect with timestamp to force reload on each click
+                    e.preventDefault();
+                    const url = new URL(window.location.origin);
+                    url.pathname = '/browser';
+                    url.search = `?account=${account.id}&bucket=${account.defaultBucket}&t=${Date.now()}`;
+                    window.location.href = url.toString();
+                  }}
+                >
+                  <div className={cn(
+                    "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
+                    isActive(`/browser?account=${account.id}&bucket=${account.defaultBucket}`) ? 
+                      "bg-primary/10" : 
+                      "bg-primary/5"
                   )}>
-                    <div className={cn(
-                      "w-6 h-6 mr-3 rounded-full flex items-center justify-center",
+                    <i className={cn(
+                      "ri-folder-fill",
                       isActive(`/browser?account=${account.id}&bucket=${account.defaultBucket}`) ? 
-                        "bg-primary/10" : 
-                        "bg-primary/5"
-                    )}>
-                      <i className={cn(
-                        "ri-folder-fill",
-                        isActive(`/browser?account=${account.id}&bucket=${account.defaultBucket}`) ? 
-                          "text-primary" : 
-                          "text-primary/70"
-                      )}></i>
-                    </div>
-                    <span>{account.defaultBucket}</span>
-                  </a>
-                </Link>
+                        "text-primary" : 
+                        "text-primary/70"
+                    )}></i>
+                  </div>
+                  <span>{account.defaultBucket}</span>
+                </a>
               ))}
           </div>
         </div>
