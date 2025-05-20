@@ -120,13 +120,13 @@ export default function PolishedS3Account() {
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <div className="flex items-center mb-6">
           <WickedFilesLogo size={40} className="mr-3" />
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+          <h1 className="text-2xl font-bold">
             Add S3 Account to WickedFiles
           </h1>
         </div>
         
         {errorMessage && (
-          <div className="mb-6 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center">
+          <div className="mb-6 bg-destructive/10 border border-destructive/20 text-destructive px-4 py-3 rounded-lg flex items-center">
             <svg className="w-5 h-5 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
             </svg>
@@ -137,7 +137,7 @@ export default function PolishedS3Account() {
         {/* AWS Credentials Form */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
           <h2 className="text-lg font-semibold mb-4 flex items-center">
-            <svg className="w-5 h-5 mr-2 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5 mr-2 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
             </svg>
             AWS Account Credentials
@@ -145,7 +145,7 @@ export default function PolishedS3Account() {
           
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1">
                 Account Name*
               </label>
               <input
@@ -153,13 +153,13 @@ export default function PolishedS3Account() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 disabled={isLoading || buckets.length > 0}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                className="w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary disabled:bg-muted"
                 placeholder="My AWS Account"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1">
                 Access Key ID*
               </label>
               <input
@@ -167,13 +167,13 @@ export default function PolishedS3Account() {
                 value={accessKeyId}
                 onChange={(e) => setAccessKeyId(e.target.value)}
                 disabled={isLoading || buckets.length > 0}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                className="w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary disabled:bg-muted"
                 placeholder="AKIAIOSFODNN7EXAMPLE"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1">
                 Secret Access Key*
               </label>
               <input
@@ -181,20 +181,20 @@ export default function PolishedS3Account() {
                 value={secretAccessKey}
                 onChange={(e) => setSecretAccessKey(e.target.value)}
                 disabled={isLoading || buckets.length > 0}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                className="w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary disabled:bg-muted"
                 placeholder="Your secret access key"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium mb-1">
                 Region
               </label>
               <select
                 value={region}
                 onChange={(e) => setRegion(e.target.value)}
                 disabled={isLoading || buckets.length > 0}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 disabled:bg-gray-100"
+                className="w-full px-3 py-2 border border-input rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary disabled:bg-muted"
               >
                 {awsRegions.map((region) => (
                   <option key={region.value} value={region.value}>
@@ -209,7 +209,7 @@ export default function PolishedS3Account() {
                 <button
                   type="button"
                   onClick={() => navigate('/')}
-                  className="px-4 py-2 mr-3 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  className="px-4 py-2 mr-3 border border-input rounded-md shadow-sm text-sm font-medium bg-background hover:bg-muted/50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
                 >
                   Cancel
                 </button>
@@ -217,7 +217,7 @@ export default function PolishedS3Account() {
                   type="button"
                   onClick={validateCredentials}
                   disabled={isLoading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-75 disabled:cursor-not-allowed"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-primary hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-75 disabled:cursor-not-allowed"
                 >
                   {isLoading ? (
                     <>
@@ -240,13 +240,13 @@ export default function PolishedS3Account() {
         {buckets.length > 0 && (
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold mb-4 flex items-center">
-              <svg className="w-5 h-5 mr-2 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-5 h-5 mr-2 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
               </svg>
               Select Default Bucket
             </h2>
             
-            <div className="mb-5 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg flex items-center">
+            <div className="mb-5 bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 px-4 py-3 rounded-lg flex items-center">
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7"></path>
               </svg>
@@ -255,26 +255,26 @@ export default function PolishedS3Account() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-medium mb-1">
                   Available Buckets
                 </label>
                 
-                <div className="border border-gray-300 rounded-md max-h-[200px] overflow-y-auto">
+                <div className="border border-input rounded-md max-h-[200px] overflow-y-auto">
                   {buckets.map(bucket => (
                     <div
                       key={bucket}
-                      className={`px-4 py-3 cursor-pointer border-b border-gray-200 flex items-center justify-between hover:bg-gray-50 last:border-0 ${selectedBucket === bucket ? 'bg-indigo-50' : ''}`}
+                      className={`px-4 py-3 cursor-pointer border-b border-input flex items-center justify-between hover:bg-muted/50 last:border-0 ${selectedBucket === bucket ? 'bg-primary/10' : ''}`}
                       onClick={() => setSelectedBucket(bucket)}
                     >
                       <div className="flex items-center">
-                        <svg className="w-5 h-5 mr-2 text-amber-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-5 h-5 mr-2 text-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                         </svg>
                         <span className="font-medium">{bucket}</span>
                       </div>
                       
                       {selectedBucket === bucket && (
-                        <svg className="w-5 h-5 text-indigo-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <svg className="w-5 h-5 text-primary" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
                           <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                         </svg>
                       )}
