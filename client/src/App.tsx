@@ -11,7 +11,7 @@ import Browser from "@/pages/browser";
 import SharedFiles from "@/pages/shared-files";
 import AccountSettings from "@/pages/account-settings";
 import AccountManager from "@/pages/account-manager";
-import AddS3Account from "@/pages/super-simple-s3";
+import AddS3Account from "@/pages/polished-s3-account";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import PublicSharedFile from "@/pages/public-shared-file";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
