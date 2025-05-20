@@ -62,9 +62,11 @@ export default function HtmlAddAccount() {
       });
       
       const data = await response.json();
+      console.log("Validation response:", data);
       
       if (data.valid && data.buckets?.length > 0) {
         const bucketNames = data.buckets.map((b: any) => b.Name).filter(Boolean);
+        console.log("Found buckets:", bucketNames);
         setBucketList(bucketNames);
         setSelectedBucket(bucketNames[0]);
         setValidated(true);
