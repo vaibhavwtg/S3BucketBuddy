@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/use-auth";
-import { AddAccountDialog } from "@/components/dialogs/AddAccountDialog";
+import { SimpleAddAccountDialog } from "@/components/dialogs/SimpleAddAccountDialog";
 import { S3Account, UserSettings } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 
@@ -224,7 +224,7 @@ export default function Dashboard() {
         )}
       </div>
 
-      <AddAccountDialog 
+      <SimpleAddAccountDialog 
         open={isAddAccountOpen} 
         onOpenChange={setIsAddAccountOpen} 
       />
