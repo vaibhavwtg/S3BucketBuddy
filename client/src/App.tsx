@@ -11,6 +11,7 @@ import Browser from "@/pages/browser";
 import SharedFiles from "@/pages/shared-files";
 import AccountSettings from "@/pages/account-settings";
 import AccountManager from "@/pages/account-manager";
+import AddS3Account from "@/pages/add-s3-account";
 import { ThemeProvider } from "@/components/ui/theme-provider";
 import PublicSharedFile from "@/pages/public-shared-file";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
@@ -68,6 +69,7 @@ function Router() {
       <ProtectedRoute path="/settings" component={AccountSettings} />
       <ProtectedRoute path="/manage-accounts" component={AccountManager} />
       <ProtectedRoute path="/account-manager" component={AccountManager} />
+      <ProtectedRoute path="/add-account" component={AddS3Account} />
       <Route 
         path="/admin/users" 
         component={() => {

@@ -18,7 +18,7 @@ interface SimpleAddAccountDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function SimpleAddAccountDialog({ open, onOpenChange }: SimpleAddAccountDialogProps) {
+export function AddAccountDialog({ open, onOpenChange }: SimpleAddAccountDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);

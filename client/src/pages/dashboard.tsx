@@ -173,7 +173,7 @@ export default function Dashboard() {
                 <p className="text-sm text-muted-foreground mb-6">
                   Connect your Amazon S3 storage account
                 </p>
-                <Button onClick={() => setIsAddAccountOpen(true)}>
+                <Button onClick={() => navigate('/add-account')}>
                   Add S3 Account
                 </Button>
               </div>
