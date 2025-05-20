@@ -30,7 +30,7 @@ export const users = pgTable("users", {
 
 export const s3Accounts = pgTable("s3_accounts", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
   name: text("name").notNull(),
   accessKeyId: text("access_key_id").notNull(),
   secretAccessKey: text("secret_access_key").notNull(),
@@ -42,7 +42,7 @@ export const s3Accounts = pgTable("s3_accounts", {
 
 export const sharedFiles = pgTable("shared_files", {
   id: serial("id").primaryKey(),
-  userId: integer("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
   accountId: integer("account_id").notNull().references(() => s3Accounts.id),
   bucket: text("bucket").notNull(),
   path: text("path").notNull(),
