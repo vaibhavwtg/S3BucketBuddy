@@ -1,0 +1,79 @@
+Making query request to /api/user-settings
+Response from /api/s3-accounts: 
+Object {status: 200, statusText: "OK"}
+Warning: Internal React error: Expected static flag was missing. Please notify the React team.
+    at StorageStats (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/files/StorageStats.tsx:23:32)
+    at div
+    at main
+    at div
+    at div
+    at Layout (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/layout/Layout.tsx:21:3)
+    at Dashboard (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/pages/dashboard.tsx:35:20)
+    at component
+    at Route (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=2f065bb6:323:16)
+    at ProtectedRoute (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/App.tsx?v=hfHF8YPNKU1BJY0pCDskr:35:38)
+    at Switch (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/wouter.js?v=2f065bb6:379:17)
+    at Router
+    at Provider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=2f065bb6:38:15)
+    at TooltipProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=2f065bb6:63:5)
+    at ThemeProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/theme-provider.tsx:25:3)
+    at AuthProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/hooks/use-auth.ts:7:32)
+    at QueryClientProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=2f065bb6:2805:3)
+    at App
+Making GET request to /api/s3/13/buckets
+Request options: 
+Object {method: "GET", url: "/api/s3/13/buckets", withCredentials: true}
+Making GET request to /api/s3/13/objects?bucket=advocatevivekpandey.in&delimiter=%2F
+Request options: 
+Object {method: "GET", url: "/api/s3/13/objects?bucket=advocatevivekpandey.in&delimiter=%2F", withCredentials: true}
+Response from /api/user-settings: 
+Object {status: 200, statusText: "OK"}
+Response from /api/s3/13/objects?bucket=advocatevivekpandey.in&delimiter=%2F: 
+Object {status: 400, statusText: "Bad Request"}
+Error fetching objects for storage stats: 
+Error {}
+
+Response from /api/s3/13/buckets: 
+Object {status: 200, statusText: "OK"}
+Making DELETE request to /api/s3-accounts/13
+Request options: 
+Object {method: "DELETE", url: "/api/s3-accounts/13", withCredentials: true}
+Response from /api/s3-accounts/13: 
+Object {status: 200, statusText: "OK"}
+Making query request to /api/s3-accounts
+Warning: Unknown event handler property &#x60;onOpenChange&#x60;. It will be ignored.
+    at div
+    at _c3 (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toast.tsx:61:12)
+    at div
+    at _c (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toast.tsx:22:11)
+    at Toaster (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toaster.tsx:23:22)
+    at Provider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=2f065bb6:38:15)
+    at TooltipProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=2f065bb6:63:5)
+    at ThemeProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/theme-provider.tsx:25:3)
+    at AuthProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/hooks/use-auth.ts:7:32)
+    at QueryClientProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=2f065bb6:2805:3)
+    at App
+at div
+at _c3 (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toast.tsx:61:12)
+at div
+at _c (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toast.tsx:22:11)
+at Toaster (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/toaster.tsx:23:22)
+at Provider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/chunk-PLT6GTVM.js?v=2f065bb6:38:15)
+at TooltipProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@radix-ui_react-tooltip.js?v=2f065bb6:63:5)
+at ThemeProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/components/ui/theme-provider.tsx:25:3)
+at AuthProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/src/hooks/use-auth.ts:7:32)
+at QueryClientProvider (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/@fs/home/runner/workspace/node_modules/.vite/deps/@tanstack_react-query.js?v=2f065bb6:2805:3)
+at App
+at t.value (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:17465)
+at new t (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:12630)
+at t.value (https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:32766)
+at https://18ac8fd8-a403-4222-b8d8-ac74618e5932-00-2imbo6otha7oe.janeway.replit.dev/__replco/static/devtools/eruda/3.2.3/eruda.js:2:34400
+Response from /api/s3-accounts: 
+Object {status: 200, statusText: "OK"}
+Warning: Missing `Description` or `aria-describedby={undefined}` for {DialogContent}.
+Making query request to /api/s3-accounts
+Response from /api/s3-accounts: 
+Object {status: 200, statusText: "OK"}
+Making query request to /api/auth/me
+Response from /api/auth/me: 
+Object {status: 200, statusText: "OK"}
