@@ -229,11 +229,14 @@ export default function Browser() {
     // Use the accountId from the bucket if available, otherwise use the current one
     const accountIdToUse = selectedBucket.accountId || parsedAccountId;
     
-    navigateTo({
-      account: accountIdToUse,
-      bucket: selectedBucket.Name
+    // Clear any existing prefix
+    queryClient.invalidateQueries({ 
+      queryKey: [`/api/s3/${accountIdToUse}/objects`, selectedBucket.Name]
     });
-  }, [navigateTo, parsedAccountId]);
+    
+    // Force window location change instead of using navigate to ensure full rerender
+    window.location.href = `/browser?account=${accountIdToUse}&bucket=${selectedBucket.Name}`;
+  }, [queryClient, parsedAccountId]);
   
   // Hook for fetching buckets in selected account (if any)
   const { 

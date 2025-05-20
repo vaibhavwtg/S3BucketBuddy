@@ -110,7 +110,9 @@ export function useS3Objects(
     queryKey: [`/api/s3/${accountId}/objects`, bucket, prefix],
     queryFn: () => listObjects(accountId as number, bucket as string, prefix),
     enabled: isEnabled,
-    retry: 1 // Only retry once for S3 failures
+    retry: 1, // Only retry once for S3 failures
+    refetchOnWindowFocus: false,
+    staleTime: 0 // Always treat data as stale to ensure fresh content on bucket switching
   });
 }
 
