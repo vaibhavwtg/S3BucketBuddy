@@ -36,10 +36,26 @@ export async function hashPassword(password: string) {
 }
 
 export async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
+  try {
+    // Check if password is in the correct format (has a salt component)
+    if (!stored || !stored.includes('.')) {
+      console.error('Password format invalid: missing salt component');
+      return false;
+    }
+    
+    const [hashed, salt] = stored.split(".");
+    if (!salt) {
+      console.error('Password salt is undefined or empty');
+      return false;
+    }
+    
+    const hashedBuf = Buffer.from(hashed, "hex");
+    const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
+    return timingSafeEqual(hashedBuf, suppliedBuf);
+  } catch (error) {
+    console.error('Error comparing passwords:', error);
+    return false;
+  }
 }
 
 // Authentication middleware
