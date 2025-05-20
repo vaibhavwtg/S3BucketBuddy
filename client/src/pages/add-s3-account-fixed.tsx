@@ -26,7 +26,7 @@ const awsRegions = [
   { value: "sa-east-1", label: "South America (São Paulo)" },
 ];
 
-export default function AddS3Account() {
+export default function AddS3AccountFixed() {
   const [location, navigate] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
