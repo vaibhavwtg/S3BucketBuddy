@@ -5,9 +5,9 @@ import { S3Account } from "@/lib/types";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { AddAccountDialog } from "@/components/dialogs/AddAccountDialog";
 import { formatDate } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { useLocation } from "wouter";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -20,7 +20,8 @@ import {
 } from "@/components/ui/alert-dialog";
 
 export default function AccountManager() {
-  const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
+  // We'll use direct navigation instead of dialog
+  const [, navigate] = useLocation();
   const [accountToDelete, setAccountToDelete] = useState<S3Account | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -47,7 +48,6 @@ export default function AccountManager() {
       toast({
         title: "Error deleting account",
         description: error instanceof Error ? error.message : "Failed to delete account",
-        variant: "destructive",
       });
     },
   });
@@ -67,7 +67,7 @@ export default function AccountManager() {
       <div className="space-y-6">
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-bold tracking-tight">S3 Account Manager</h1>
-          <Button onClick={() => setIsAddAccountOpen(true)}>
+          <Button onClick={() => navigate('/add-account')}>
             <i className="ri-add-line mr-2"></i>
             Add Account
           </Button>
@@ -89,7 +89,7 @@ export default function AccountManager() {
             <p className="text-center text-muted-foreground mb-4">
               You haven't added any Amazon S3 accounts yet. Add an account to start managing your S3 buckets.
             </p>
-            <Button onClick={() => setIsAddAccountOpen(true)}>
+            <Button onClick={() => navigate('/add-account')}>
               Add Account
             </Button>
           </div>
@@ -131,7 +131,7 @@ export default function AccountManager() {
                 <CardFooter className="flex justify-between">
                   <Button 
                     variant="outline"
-                    onClick={() => window.location.href = `/browser?account=${account.id}`}
+                    onClick={() => navigate(`/browser?account=${account.id}`)}
                   >
                     <i className="ri-folder-open-line mr-2"></i>
                     Browse
@@ -150,11 +150,7 @@ export default function AccountManager() {
         )}
       </div>
 
-      <AddAccountDialog
-        open={isAddAccountOpen}
-        onOpenChange={setIsAddAccountOpen}
-        requireBucketSelection={true}
-      />
+      {/* Account add functionality now handles by navigation */}
 
       <AlertDialog open={!!accountToDelete} onOpenChange={(open) => !open && setAccountToDelete(null)}>
         <AlertDialogContent>
