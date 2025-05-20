@@ -66,7 +66,7 @@ const addAccountSchema = z.object({
   secretAccessKey: z.string().min(1, "Secret Access Key is required"),
   region: z.string().min(1, "Region is required"),
   saveCredentials: z.boolean().default(true).optional(),
-  selectedBucket: z.string().min(1, "Bucket selection is required"),
+  selectedBucket: z.string().optional(), // Make selectedBucket optional in the schema
 });
 
 type AddAccountFormValues = z.infer<typeof addAccountSchema>;
@@ -122,7 +122,6 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
       toast({
         title: "Error adding account",
         description: error instanceof Error ? error.message : "Failed to add account",
-        variant: "destructive",
       });
     },
   });
@@ -136,8 +135,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
     if (!accessKeyId || !secretAccessKey) {
       toast({
         title: "Validation Error",
-        description: "Please enter both Access Key ID and Secret Access Key",
-        variant: "destructive",
+        description: "Please enter both Access Key ID and Secret Access Key"
       });
       return;
     }
@@ -206,8 +204,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
       
       toast({
         title: "Validation Error",
-        description: errorMessage,
-        variant: "destructive",
+        description: errorMessage
       });
     } finally {
       setValidatingCredentials(false);
@@ -219,8 +216,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
     if (!credentialsValidated) {
       toast({
         title: "Validation Required",
-        description: "Please validate your credentials first",
-        variant: "destructive",
+        description: "Please validate your credentials first"
       });
       return;
     }
@@ -229,8 +225,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
     if (requireBucketSelection && !values.selectedBucket) {
       toast({
         title: "Bucket Required",
-        description: "Please select a bucket to use",
-        variant: "destructive",
+        description: "Please select a bucket to use"
       });
       return;
     }
@@ -238,11 +233,14 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
     // Set the defaultBucket value to the selectedBucket for storage
     const formData = {
       ...values,
-      defaultBucket: values.selectedBucket
+      defaultBucket: values.selectedBucket || ""  // Use empty string if selectedBucket is undefined
     };
     
     // Submit the form
     addAccountMutation.mutate(formData);
+    
+    // Log the form data for debugging
+    console.log("Submitting account data:", formData);
   }
 
   return (
@@ -453,7 +451,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
               )}
             />
             
-            <DialogFooter className="mt-2 sticky bottom-0 bg-white dark:bg-gray-950 pb-2">
+            <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4 pb-2 dark:border-gray-800">
               <Button 
                 type="button" 
                 variant="outline" 
@@ -464,7 +462,7 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
               </Button>
               <Button 
                 type="submit"
-                disabled={addAccountMutation.isPending}
+                disabled={addAccountMutation.isPending || (!credentialsValidated && requireBucketSelection)}
               >
                 {addAccountMutation.isPending ? "Adding..." : "Add Account"}
               </Button>
