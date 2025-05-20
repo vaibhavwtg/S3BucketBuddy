@@ -63,36 +63,37 @@ export function FileActions({
   const [searchText, setSearchText] = useState("");
   
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 sm:mb-6">
       <div className="flex items-center">
-        <h1 className="text-xl font-semibold">{title}</h1>
+        <h1 className="text-lg sm:text-xl font-semibold truncate">{title}</h1>
         {selectionMode && selectedCount > 0 && (
-          <span className="ml-3 px-2 py-1 bg-primary/10 text-primary rounded-md text-sm">
+          <span className="ml-2 sm:ml-3 px-2 py-0.5 bg-primary/10 text-primary rounded-md text-xs sm:text-sm">
             {selectedCount} selected
           </span>
         )}
       </div>
       
       {selectionMode ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 mt-2 sm:mt-0">
+          {/* Mobile-optimized selection buttons */}
           <Button
             variant="outline"
             size="sm"
             onClick={onClearSelection}
-            className="flex items-center"
+            className="flex items-center h-8 px-2 sm:px-3"
           >
-            <i className="ri-close-line mr-1.5"></i>
-            <span>Clear</span>
+            <i className="ri-close-line mr-1 sm:mr-1.5"></i>
+            <span className="text-xs sm:text-sm">Clear</span>
           </Button>
           
           <Button
             variant="outline"
             size="sm"
             onClick={onSelectAll}
-            className="flex items-center"
+            className="flex items-center h-8 px-2 sm:px-3"
           >
-            <i className="ri-checkbox-multiple-line mr-1.5"></i>
-            <span>Select All</span>
+            <i className="ri-checkbox-multiple-line mr-1 sm:mr-1.5"></i>
+            <span className="text-xs sm:text-sm">All</span>
           </Button>
           
           <Button
@@ -100,10 +101,21 @@ export function FileActions({
             size="sm"
             onClick={onBatchDownload}
             disabled={selectedCount === 0}
-            className="flex items-center"
+            className="flex items-center h-8 px-2 sm:px-3"
           >
-            <i className="ri-download-line mr-1.5"></i>
-            <span>Download</span>
+            <i className="ri-download-line mr-1 sm:mr-1.5"></i>
+            <span className="text-xs sm:text-sm">Download</span>
+          </Button>
+          
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={onBatchDelete}
+            disabled={selectedCount === 0}
+            className="flex items-center h-8 px-2 sm:px-3"
+          >
+            <i className="ri-delete-bin-line mr-1 sm:mr-1.5"></i>
+            <span className="text-xs sm:text-sm">Delete</span>
           </Button>
           
           <DropdownMenu>
@@ -112,13 +124,13 @@ export function FileActions({
                 variant="outline"
                 size="sm"
                 disabled={selectedCount === 0}
-                className="flex items-center"
+                className="flex items-center h-8 px-2 sm:px-3"
               >
-                <i className="ri-more-2-fill mr-1.5"></i>
-                <span>More Actions</span>
+                <i className="ri-more-2-fill mr-1 sm:mr-1.5"></i>
+                <span className="text-xs sm:text-sm">More</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuContent align="end" className="w-40 sm:w-48">
               <DropdownMenuItem onClick={() => onBatchMove && onBatchMove()}>
                 <i className="ri-file-transfer-line mr-2"></i>
                 Move Files
@@ -131,35 +143,24 @@ export function FileActions({
           </DropdownMenu>
           
           <Button
-            variant="destructive"
-            size="sm"
-            onClick={onBatchDelete}
-            disabled={selectedCount === 0}
-            className="flex items-center"
-          >
-            <i className="ri-delete-bin-line mr-1.5"></i>
-            <span>Delete</span>
-          </Button>
-          
-          <Button
             variant="secondary"
             size="sm"
             onClick={onToggleSelectionMode}
-            className="flex items-center"
+            className="flex items-center h-8 px-2 sm:px-3 ml-auto sm:ml-0"
           >
-            <i className="ri-checkbox-indeterminate-line mr-1.5"></i>
-            <span>Exit Selection</span>
+            <i className="ri-checkbox-indeterminate-line mr-1 sm:mr-1.5"></i>
+            <span className="text-xs sm:text-sm">Done</span>
           </Button>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center gap-2">
-          {/* Search input */}
+        <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 mt-2 sm:mt-0">
+          {/* Search input - full width on mobile */}
           {onSearch && (
-            <div className="relative mr-2">
+            <div className="relative col-span-2 sm:col-span-1 sm:mr-2 mb-1 sm:mb-0">
               <input
                 type="text"
                 placeholder="Search files..."
-                className="h-9 w-48 px-3 py-1 rounded-md border bg-background text-sm"
+                className="h-8 sm:h-9 w-full sm:w-40 md:w-48 px-3 py-1 rounded-md border bg-background text-sm"
                 value={searchText}
                 onChange={(e) => {
                   setSearchText(e.target.value);
@@ -180,87 +181,69 @@ export function FileActions({
             </div>
           )}
           
+          {/* Main action buttons */}
           <Button 
-            className="sm:hidden flex items-center" 
+            size="sm"
+            className="flex items-center h-8 px-2 sm:px-3" 
             onClick={onUpload || (() => setIsUploadOpen(true))}
           >
-            <i className="ri-upload-line mr-1.5"></i>
-            <span>Upload</span>
+            <i className="ri-upload-line mr-1 sm:mr-1.5"></i>
+            <span className="text-xs sm:text-sm">Upload</span>
           </Button>
           
-          <div className="flex space-x-1">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onToggleSelectionMode}
-              title="Select multiple files"
-            >
-              <i className="ri-checkbox-multiple-line"></i>
-              <span className="sr-only">Select Files</span>
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <i className="ri-folder-add-line"></i>
-                  <span className="sr-only">New folder</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem>
-                  <i className="ri-folder-add-line mr-2"></i>
-                  New folder
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-            
-            <Button 
-              variant="outline" 
-              size="icon"
-              className="hidden sm:flex"
-              onClick={onUpload || (() => setIsUploadOpen(true))}
-            >
-              <i className="ri-upload-line"></i>
-              <span className="sr-only">Upload</span>
-            </Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon">
-                  <i className="ri-more-2-fill"></i>
-                  <span className="sr-only">More options</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setIsUploadOpen(true)}>
-                  <i className="ri-upload-line mr-2"></i>
-                  Upload files
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <i className="ri-folder-add-line mr-2"></i>
-                  New folder
-                </DropdownMenuItem>
-                <DropdownMenuItem>
-                  <i className="ri-refresh-line mr-2"></i>
-                  Refresh
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onToggleSelectionMode}
+            className="flex items-center h-8 px-2 sm:px-3"
+          >
+            <i className="ri-checkbox-multiple-line mr-1 sm:mr-1.5"></i>
+            <span className="text-xs sm:text-sm">Select</span>
+          </Button>
+          
+          {/* View mode toggle */}
+          <div className="col-span-1 sm:col-span-auto flex justify-center">
+            <ViewModeToggle viewMode={viewMode} onChange={onViewModeChange} />
           </div>
           
-          <Select value={sortBy} onValueChange={onSortChange}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="name">Sort by: Name</SelectItem>
-              <SelectItem value="size">Sort by: Size</SelectItem>
-              <SelectItem value="date">Sort by: Date</SelectItem>
-              <SelectItem value="type">Sort by: Type</SelectItem>
-            </SelectContent>
-          </Select>
-
-          <ViewModeToggle viewMode={viewMode} onChange={onViewModeChange} />
+          {/* More options dropdown */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" className="h-8 px-2 sm:px-3">
+                <i className="ri-more-2-fill mr-1 sm:mr-1.5"></i>
+                <span className="text-xs sm:text-sm">More</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setIsUploadOpen(true)}>
+                <i className="ri-upload-line mr-2"></i>
+                Upload files
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <i className="ri-folder-add-line mr-2"></i>
+                New folder
+              </DropdownMenuItem>
+              <DropdownMenuItem>
+                <i className="ri-refresh-line mr-2"></i>
+                Refresh
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          
+          {/* Sort dropdown - shown on a new line on mobile, inline on larger screens */}
+          <div className="col-span-2 sm:col-span-auto sm:ml-auto">
+            <Select value={sortBy} onValueChange={onSortChange}>
+              <SelectTrigger className="h-8 text-xs w-full sm:w-[140px] px-2">
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name</SelectItem>
+                <SelectItem value="size">Size</SelectItem>
+                <SelectItem value="date">Date</SelectItem>
+                <SelectItem value="type">Type</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       )}
       

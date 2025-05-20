@@ -48,12 +48,26 @@ export function ViewModeToggle({ viewMode, onChange, savePreference = true }: Vi
   };
 
   return (
-    <ToggleGroup type="single" value={viewMode} onValueChange={handleChange} variant="outline">
-      <ToggleGroupItem value="grid" aria-label="Grid view">
-        <LayoutGrid className="h-4 w-4" />
+    <ToggleGroup 
+      type="single" 
+      value={viewMode} 
+      onValueChange={handleChange} 
+      variant="outline"
+      className="h-8"
+    >
+      <ToggleGroupItem 
+        value="grid" 
+        aria-label="Grid view"
+        className="h-8 w-8 sm:h-9 sm:w-9 p-0 flex items-center justify-center"
+      >
+        <LayoutGrid className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
       </ToggleGroupItem>
-      <ToggleGroupItem value="list" aria-label="List view">
-        <List className="h-4 w-4" />
+      <ToggleGroupItem 
+        value="list" 
+        aria-label="List view"
+        className="h-8 w-8 sm:h-9 sm:w-9 p-0 flex items-center justify-center"
+      >
+        <List className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
       </ToggleGroupItem>
     </ToggleGroup>
   );
