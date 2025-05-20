@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
@@ -32,8 +32,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-// We now use server-side validation instead of direct AWS SDK calls
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Card, CardContent } from "@/components/ui/card";
+import { Loader2 } from "lucide-react";
 
 // Define a simplified bucket interface matching AWS response format
 interface Bucket {
@@ -60,16 +61,22 @@ const awsRegions = [
   { value: "sa-east-1", label: "South America (São Paulo)" },
 ];
 
-const addAccountSchema = z.object({
+// Define a multi-step form schema
+const addAccountBaseSchema = z.object({
   name: z.string().min(1, "Account name is required"),
   accessKeyId: z.string().min(1, "Access Key ID is required"),
   secretAccessKey: z.string().min(1, "Secret Access Key is required"),
   region: z.string().min(1, "Region is required"),
-  saveCredentials: z.boolean().default(true).optional(),
-  selectedBucket: z.string().optional(), // Make selectedBucket optional in the schema
+  saveCredentials: z.boolean().default(true),
 });
 
-type AddAccountFormValues = z.infer<typeof addAccountSchema>;
+const addAccountFinalSchema = addAccountBaseSchema.extend({
+  selectedBucket: z.string().optional(),
+  defaultBucket: z.string().optional(),
+});
+
+type AddAccountBaseFormValues = z.infer<typeof addAccountBaseSchema>;
+type AddAccountFinalFormValues = z.infer<typeof addAccountFinalSchema>;
 
 interface AddAccountDialogProps {
   open: boolean;
@@ -80,73 +87,84 @@ interface AddAccountDialogProps {
 export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = false }: AddAccountDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [step, setStep] = useState<'credentials' | 'bucket'>('credentials');
   const [showPassword, setShowPassword] = useState(false);
-  const [buckets, setBuckets] = useState<{ Name?: string }[]>([]);
+  const [buckets, setBuckets] = useState<Bucket[]>([]);
   const [validatingCredentials, setValidatingCredentials] = useState(false);
-  const [credentialsValidated, setCredentialsValidated] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
-
-  const form = useForm<AddAccountFormValues>({
-    resolver: zodResolver(addAccountSchema),
+  
+  // Create a form for the initial credential step
+  const form = useForm<AddAccountFinalFormValues>({
+    resolver: zodResolver(addAccountFinalSchema),
     defaultValues: {
       name: "",
       accessKeyId: "",
       secretAccessKey: "",
-      region: "us-east-1", // Default to US East 1 (most common default region)
+      region: "us-east-1",
       saveCredentials: true,
       selectedBucket: undefined,
+      defaultBucket: undefined,
     },
   });
 
+  // Reset the form when the dialog opens/closes
+  useEffect(() => {
+    if (!open) {
+      setTimeout(() => {
+        form.reset();
+        setBuckets([]);
+        setStep('credentials');
+        setValidationError(null);
+      }, 300); // Short delay to allow the dialog close animation to complete
+    }
+  }, [open, form]);
+
+  // Mutation for adding the account
   const addAccountMutation = useMutation({
-    mutationFn: async (values: AddAccountFormValues) => {
-      const res = await apiRequest("POST", "/api/s3-accounts", values);
+    mutationFn: async (values: AddAccountFinalFormValues) => {
+      // Make sure to include the selected bucket as the default bucket
+      const finalValues = {
+        ...values,
+        defaultBucket: values.selectedBucket || "",
+      };
+      console.log("Submitting account data:", finalValues);
+      const res = await apiRequest("POST", "/api/s3-accounts", finalValues);
       return res.json();
     },
     onSuccess: () => {
       toast({
-        title: "Account added",
-        description: "Your S3 account has been added successfully",
+        title: "Account added successfully",
+        description: "Your S3 account has been added and is ready to use.",
       });
-      
-      // Invalidate the accounts query to refresh the list
       queryClient.invalidateQueries({ queryKey: ['/api/s3-accounts'] });
-      
-      // Close the dialog
       onOpenChange(false);
-      
-      // Reset the form
-      form.reset();
     },
     onError: (error) => {
+      console.error("Error adding account:", error);
       toast({
-        title: "Error adding account",
-        description: error instanceof Error ? error.message : "Failed to add account",
+        title: "Failed to add account",
+        description: error instanceof Error ? error.message : "An unexpected error occurred",
       });
     },
   });
 
-  // Function to validate S3 credentials and list buckets
+  // Handle the validation of S3 credentials
   async function validateCredentials() {
-    const accessKeyId = form.getValues("accessKeyId");
-    const secretAccessKey = form.getValues("secretAccessKey");
-    const region = form.getValues("region");
+    const { accessKeyId, secretAccessKey, region } = form.getValues();
     
     if (!accessKeyId || !secretAccessKey) {
       toast({
-        title: "Validation Error",
-        description: "Please enter both Access Key ID and Secret Access Key"
+        title: "Missing credentials",
+        description: "Please enter both Access Key ID and Secret Access Key",
       });
       return;
     }
     
     setValidatingCredentials(true);
-    setCredentialsValidated(false);
     setValidationError(null);
-    setBuckets([]);
     
     try {
-      // Basic format validation - less strict to allow different AWS credential formats
+      // Basic format validation
       if (accessKeyId.length < 16) {
         throw new Error("Access Key ID appears to be too short. AWS Access Key IDs are typically 20 characters long.");
       }
@@ -155,316 +173,299 @@ export function AddAccountDialog({ open, onOpenChange, requireBucketSelection = 
         throw new Error("Secret Access Key appears to be too short. AWS Secret Access Keys are typically at least 40 characters long.");
       }
       
-      // Use the server-side validation endpoint instead of direct AWS connection
+      // Call the validation endpoint
       const response = await fetch('/api/validate-s3-credentials', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          accessKeyId,
-          secretAccessKey,
-          region,
-        }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessKeyId, secretAccessKey, region }),
       });
       
       const data = await response.json();
       
       if (!response.ok) {
-        // Handle HTTP errors
         throw new Error(data.error || 'Failed to validate credentials');
       }
       
       if (data.valid && data.buckets && data.buckets.length > 0) {
-        // Store the buckets and mark credentials as validated
+        // Success! We got buckets back
         setBuckets(data.buckets);
-        setCredentialsValidated(true);
         
-        // Set the first bucket as default selected bucket
-        if (data.buckets[0].Name) {
+        // Set the first bucket as the default selected
+        if (data.buckets[0]?.Name) {
           form.setValue("selectedBucket", data.buckets[0].Name);
         }
         
+        // Move to bucket selection step
+        setStep('bucket');
+        
         toast({
-          title: "Credentials Validated",
+          title: "Credentials valid",
           description: `Found ${data.buckets.length} buckets in your S3 account.`,
         });
       } else {
-        // Handle case where validation succeeded but no buckets were found
-        setBuckets([]);
-        setValidationError(data.error || "No buckets found in this account. Make sure you have at least one bucket created.");
+        // No buckets found
+        setValidationError("No buckets found in this account. Make sure you have at least one bucket created.");
       }
     } catch (error: any) {
-      console.error("Error validating S3 credentials:", error);
-      
-      // Set user-friendly error message
-      const errorMessage = error.message || "Failed to validate AWS credentials";
-      
-      setValidationError(errorMessage);
-      
+      console.error("Validation error:", error);
+      setValidationError(error.message || "Failed to validate credentials");
       toast({
-        title: "Validation Error",
-        description: errorMessage
+        title: "Validation failed",
+        description: error.message || "Could not validate your AWS credentials",
       });
     } finally {
       setValidatingCredentials(false);
     }
   }
 
-  function onSubmit(values: AddAccountFormValues) {
-    // Always require credentials to be validated
-    if (!credentialsValidated) {
-      toast({
-        title: "Validation Required",
-        description: "Please validate your credentials first"
-      });
-      return;
+  // Handle form submission
+  function onSubmit(values: AddAccountFinalFormValues) {
+    if (step === 'credentials') {
+      // When on the first step, validate credentials
+      validateCredentials();
+    } else {
+      // On the bucket selection step, submit the form
+      if (requireBucketSelection && !values.selectedBucket) {
+        toast({
+          title: "Bucket required",
+          description: "Please select a bucket before adding the account",
+        });
+        return;
+      }
+      
+      // Submit the account
+      addAccountMutation.mutate(values);
     }
-    
-    // If bucket selection is required, ensure a bucket is selected
-    if (requireBucketSelection && !values.selectedBucket) {
-      toast({
-        title: "Bucket Required",
-        description: "Please select a bucket to use"
-      });
-      return;
-    }
-    
-    // Set the defaultBucket value to the selectedBucket for storage
-    const formData = {
-      ...values,
-      defaultBucket: values.selectedBucket || ""  // Use empty string if selectedBucket is undefined
-    };
-    
-    // Submit the form
-    addAccountMutation.mutate(formData);
-    
-    // Log the form data for debugging
-    console.log("Submitting account data:", formData);
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
-        <DialogHeader className="pb-2">
-          <DialogTitle>Add Amazon S3 Account</DialogTitle>
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>
+            {step === 'credentials' ? 'Add Amazon S3 Account' : 'Select Default Bucket'}
+          </DialogTitle>
           <DialogDescription>
-            Connect to your S3 storage by entering your AWS credentials.
+            {step === 'credentials' 
+              ? 'Connect to your S3 storage by entering your AWS credentials.' 
+              : 'Your credentials are validated. Now select a default bucket to use.'}
           </DialogDescription>
         </DialogHeader>
         
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-3">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Account Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="My S3 Account" {...field} />
-                  </FormControl>
-                  <FormDescription>
-                    A friendly name to identify this account.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="accessKeyId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Access Key ID</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="AKIAIOSFODNN7EXAMPLE" 
-                      {...field} 
-                      disabled={credentialsValidated}
-                    />
-                  </FormControl>
-                  <FormDescription>
-                    Your AWS Access Key ID from IAM.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            <FormField
-              control={form.control}
-              name="secretAccessKey"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Secret Access Key</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input 
-                        type={showPassword ? "text" : "password"} 
-                        placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" 
-                        {...field}
-                        disabled={credentialsValidated}
-                      />
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        className="absolute inset-y-0 right-0 pr-3"
-                        onClick={() => setShowPassword(!showPassword)}
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-2">
+            {step === 'credentials' ? (
+              // Step 1: Enter credentials
+              <>
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Account Name</FormLabel>
+                      <FormControl>
+                        <Input placeholder="My AWS Account" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="accessKeyId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Access Key ID</FormLabel>
+                      <FormControl>
+                        <Input placeholder="AKIAIOSFODNN7EXAMPLE" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="secretAccessKey"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Secret Access Key</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input 
+                            type={showPassword ? "text" : "password"} 
+                            placeholder="wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY" 
+                            {...field}
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="absolute inset-y-0 right-0 pr-3"
+                            onClick={() => setShowPassword(!showPassword)}
+                          >
+                            <i className={`ri-${showPassword ? 'eye-off' : 'eye'}-line text-muted-foreground`}></i>
+                            <span className="sr-only">
+                              {showPassword ? "Hide password" : "Show password"}
+                            </span>
+                          </Button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="region"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Region</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
                       >
-                        <i className={`ri-${showPassword ? 'eye-off' : 'eye'}-line text-muted-foreground`}></i>
-                        <span className="sr-only">
-                          {showPassword ? "Hide password" : "Show password"}
-                        </span>
-                      </Button>
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    Your AWS Secret Access Key from IAM.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select region" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {awsRegions.map((region) => (
+                            <SelectItem key={region.value} value={region.value}>
+                              {region.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        Select the AWS region where your buckets are located
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="saveCredentials"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                      <FormControl>
+                        <Checkbox
+                          checked={field.value}
+                          onCheckedChange={field.onChange}
+                        />
+                      </FormControl>
+                      <div className="space-y-1 leading-none">
+                        <FormLabel>Save credentials securely</FormLabel>
+                        <FormDescription>
+                          Your credentials will be encrypted and stored securely
+                        </FormDescription>
+                      </div>
+                    </FormItem>
+                  )}
+                />
+                
+                {validationError && (
+                  <Alert variant="destructive">
+                    <AlertTitle>Validation Error</AlertTitle>
+                    <AlertDescription>{validationError}</AlertDescription>
+                  </Alert>
+                )}
+              </>
+            ) : (
+              // Step 2: Select bucket
+              <>
+                <Card className="border border-green-500 bg-green-50 dark:bg-green-950 dark:border-green-800">
+                  <CardContent className="pt-4 pb-2">
+                    <p className="text-sm text-green-700 dark:text-green-400">
+                      <i className="ri-check-line mr-1"></i>
+                      Credentials validated successfully
+                    </p>
+                  </CardContent>
+                </Card>
+                
+                <FormField
+                  control={form.control}
+                  name="selectedBucket"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Select Default Bucket</FormLabel>
+                      <Select 
+                        onValueChange={field.onChange} 
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Choose a bucket" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {buckets.map((bucket) => (
+                            <SelectItem key={bucket.Name} value={bucket.Name || ""}>
+                              {bucket.Name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        This bucket will be selected by default when you open this account
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep('credentials')}
+                  className="mt-2"
+                >
+                  <i className="ri-arrow-left-line mr-2"></i>
+                  Back to Credentials
+                </Button>
+              </>
+            )}
             
-            <FormField
-              control={form.control}
-              name="region"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Region</FormLabel>
-                  <Select 
-                    onValueChange={field.onChange} 
-                    defaultValue={field.value}
-                    disabled={credentialsValidated}
-                  >
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select region" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {awsRegions.map((region) => (
-                        <SelectItem key={region.value} value={region.value}>
-                          {region.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    Choose "Auto-detect" to let the system find the correct region for your account, or select a specific region if you know it.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            
-            {/* Validate Credentials Button */}
-            <div className="flex justify-end mt-2">
+            <DialogFooter className="pt-4 border-t mt-6">
               <Button
                 type="button"
-                onClick={validateCredentials}
-                disabled={validatingCredentials || credentialsValidated}
-                className="w-full sm:w-auto"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={validatingCredentials || addAccountMutation.isPending}
+              >
+                Cancel
+              </Button>
+              
+              <Button
+                type="submit"
+                disabled={validatingCredentials || addAccountMutation.isPending}
               >
                 {validatingCredentials ? (
                   <>
-                    <i className="ri-loader-2-line animate-spin mr-2"></i>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Validating...
                   </>
-                ) : credentialsValidated ? (
+                ) : addAccountMutation.isPending ? (
                   <>
-                    <i className="ri-check-line mr-2"></i>
-                    Credentials Validated
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Adding...
                   </>
-                ) : (
+                ) : step === 'credentials' ? (
                   <>
                     <i className="ri-shield-check-line mr-2"></i>
                     Validate Credentials
                   </>
+                ) : (
+                  <>
+                    <i className="ri-add-line mr-2"></i>
+                    Add Account
+                  </>
                 )}
-              </Button>
-            </div>
-            
-            {/* Validation Error Alert */}
-            {validationError && (
-              <Alert variant="destructive" className="mt-2">
-                <AlertTitle>Validation Error</AlertTitle>
-                <AlertDescription>{validationError}</AlertDescription>
-              </Alert>
-            )}
-            
-            {/* Bucket Selection */}
-            {credentialsValidated && buckets.length > 0 && (
-              <FormField
-                control={form.control}
-                name="selectedBucket"
-                render={({ field }) => (
-                  <FormItem className="mt-2">
-                    <FormLabel>Select Bucket</FormLabel>
-                    <Select 
-                      onValueChange={field.onChange} 
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a bucket" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {buckets.map((bucket) => (
-                          <SelectItem key={bucket.Name} value={bucket.Name || ""}>
-                            {bucket.Name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormDescription>
-                      Select the bucket you want to use with this account.
-                    </FormDescription>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            )}
-            
-            <FormField
-              control={form.control}
-              name="saveCredentials"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md p-4 bg-muted mt-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel>Save credentials securely</FormLabel>
-                    <FormDescription>
-                      Your credentials will be encrypted and stored on the server.
-                    </FormDescription>
-                  </div>
-                </FormItem>
-              )}
-            />
-            
-            <DialogFooter className="mt-6 flex justify-end gap-2 border-t pt-4 pb-2 dark:border-gray-800">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => onOpenChange(false)}
-                disabled={addAccountMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit"
-                disabled={addAccountMutation.isPending || (!credentialsValidated && requireBucketSelection)}
-              >
-                {addAccountMutation.isPending ? "Adding..." : "Add Account"}
               </Button>
             </DialogFooter>
           </form>
