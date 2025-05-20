@@ -5,7 +5,7 @@ import { z } from "zod";
 import { insertS3AccountSchema, insertSharedFileSchema, sharedFiles } from "@shared/schema";
 import { randomBytes } from "crypto";
 import { setupSession, setupAuthRoutes, isAuthenticated } from "./auth";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, ListBucketsCommand } from "@aws-sdk/client-s3";
 import multer from "multer";
 import { Readable } from "stream";
 import { eq, and } from "drizzle-orm";
@@ -100,9 +100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
       // Try to list buckets to verify credentials
-      const response = await s3Client.send({ 
-        $command: "ListBuckets" 
-      });
+      const command = new ListBucketsCommand({});
+      const response = await s3Client.send(command);
       
       // Return the list of buckets
       res.status(200).json({
