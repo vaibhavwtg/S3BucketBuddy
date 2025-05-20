@@ -13,7 +13,6 @@ import {
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
 import { generateInitials } from "@/lib/utils";
-import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import {
   Dialog,
@@ -23,13 +22,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AddAccountDialog } from "@/components/dialogs/AddAccountDialog";
 import { S3Account } from "@/lib/types";
 
 export function Sidebar() {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const { user, logout } = useAuth();
-  const [isAddAccountOpen, setIsAddAccountOpen] = useState(false);
 
   // Fetch user's S3 accounts
   const { data: accounts = [] } = useQuery<S3Account[]>({
@@ -153,7 +150,7 @@ export function Sidebar() {
             <Button 
               variant="ghost" 
               className="w-full justify-start text-primary hover:bg-primary/5"
-              onClick={() => setIsAddAccountOpen(true)}
+              onClick={() => navigate('/add-account')}
             >
               <i className="ri-add-line mr-3 text-lg"></i>
               <span>Add Account</span>
@@ -221,11 +218,7 @@ export function Sidebar() {
         </div>
       )}
 
-      {/* Add Account Dialog */}
-      <AddAccountDialog 
-        open={isAddAccountOpen} 
-        onOpenChange={setIsAddAccountOpen} 
-      />
+      {/* Account creation handled by dedicated page */}
     </aside>
   );
 }
