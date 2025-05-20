@@ -15,7 +15,7 @@ export const sessions = pgTable(
 
 // Users table - simple email/password authentication
 export const users = pgTable("users", {
-  id: serial("id").primaryKey(),
+  id: varchar("id").primaryKey(),
   email: text("email").unique().notNull(),
   username: varchar("username", { length: 100 }).unique().notNull(),
   password: text("password").notNull(),

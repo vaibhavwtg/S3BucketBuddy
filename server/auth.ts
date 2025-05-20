@@ -137,8 +137,10 @@ export function setupAuthRoutes(app: Express) {
       // Hash password
       const hashedPassword = await hashPassword(password);
       
-      // Create user
+      // Create user with generated ID
+      const userId = 'local_' + randomBytes(8).toString('hex');
       const user = await storage.createUser({
+        id: userId,
         username,
         email,
         password: hashedPassword,
